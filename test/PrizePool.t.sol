@@ -3,8 +3,9 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { ERC20 } from "openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC20 } from "openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { sd } from "prb-math/SD59x18.sol";
 
 import { PrizePool, ITWABController } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
@@ -30,7 +31,8 @@ contract PrizePoolTest is Test {
             uint32(2), // minimum number of tiers
             100e18,
             10e18,
-            10e18
+            10e18,
+            sd(0.9e18)
         );
         // prizeToken = prizePool.prizeToken;
 
@@ -81,7 +83,6 @@ contract PrizePoolTest is Test {
     }
 
     function testClaimPrize() public {
-        prizePool.claimPrize();
     }
 
     function testCheckIfWonPrizeSucceeds() public {

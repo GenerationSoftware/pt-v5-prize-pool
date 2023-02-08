@@ -1,4 +1,4 @@
 forge-std/=lib/forge-std/src/
 prb-math/=lib/prb-math/src/
-openzeppelin=lib/openzeppelin-contracts
+openzeppelin=lib/openzeppelin-contracts/contracts/
 src/=src/

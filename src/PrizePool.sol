@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { IERC20 } from "openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { E, SD59x18, sd, unwrap } from "prb-math/SD59x18.sol";
 
 import { ITWABController } from "./interfaces/ITWABController.sol";
 
+import { DrawAccumulatorLib } from "./libraries/DrawAccumulatorLib.sol";
+
 contract PrizePool {
-    IERC20 immutable public prizeToken;
-
-    ITWABController immutable public twabController;
-
-    uint256 public nextDrawLiquidity;
+    using DrawAccumulatorLib for DrawAccumulatorLib.Accumulator;
 
     /// @notice Draw struct created every draw
     /// @param winningRandomNumber The random number returned from the RNG service
@@ -27,26 +25,44 @@ contract PrizePool {
         uint32 beaconPeriodSeconds;
     }
 
-    Draw public draw;
+    struct ClaimRecord {
+        uint32 drawId;
+        uint224 amount;
+    }
 
-    // vault => drawId => amount contributed
-    mapping(address => mapping(uint32 => uint256)) public vaultContribution;
+    SD59x18 immutable public alpha;
+    
+    IERC20 immutable public prizeToken;
+
+    ITWABController immutable public twabController;
 
     uint64 public immutable grandPrizePeriod;
 
-    uint32 public numberOfTiers;
-
     // TODO: make internal
-    uint256 public sharesPerTier;
+    uint256 public immutable sharesPerTier;
 
-    uint256 public canaryShares;
+    uint256 public immutable canaryShares;
 
-    uint256 public reserveShares;
+    uint256 public immutable reserveShares;
+
+    mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulators;
+    DrawAccumulatorLib.Accumulator internal totalSupplyAccumulator;
 
     // tier number => tier exchange rate is prizeToken per share
     mapping(uint256 => uint256) internal _tierExchangeRates;
 
+    mapping(address => ClaimRecord) internal claimRecords;
+
+    Draw public draw;
+
+    uint32 public numberOfTiers;
+
+    uint256 public reserve;
+
     uint256 internal _prizeTokenPerShare;
+
+    uint128 claimCount;
+    uint128 canaryClaimCount;
 
     // TODO: add requires
     constructor (
@@ -56,8 +72,8 @@ contract PrizePool {
         uint32 _numberOfTiers,
         uint256 _sharesPerTier,
         uint256 _canaryShares,
-        uint256 _reserveShares
-
+        uint256 _reserveShares,
+        SD59x18 _alpha
     ) {
         prizeToken = _prizeToken;
         twabController = _twabController;
@@ -66,14 +82,15 @@ contract PrizePool {
         sharesPerTier = _sharesPerTier;
         canaryShares = _canaryShares;
         reserveShares = _reserveShares;
+        alpha = _alpha;
     }
 
     // TODO: see if we can transfer via a callback from the liquidator and add events
     function contributePrizeTokens(uint256 _amount) external {
         prizeToken.transferFrom(msg.sender, address(this), _amount);
 
-        vaultContribution[msg.sender][uint32(draw.drawId + 1)] += _amount;
-        nextDrawLiquidity += _amount;
+        vaultAccumulators[msg.sender].add(_amount, draw.drawId + 1, alpha);
+        totalSupplyAccumulator.add(_amount, draw.drawId + 1, alpha);
     }
 
     function getNextDrawId() external view returns (uint256) {
@@ -82,13 +99,45 @@ contract PrizePool {
 
     // TODO: add event
     function setDraw(Draw calldata _nextDraw) external returns (Draw memory) {
+        // update _prizeTokenPerShare
+        SD59x18 totalShares = sd(int256(_totalShares()));
+        uint256 totalContributed = totalSupplyAccumulator.getAvailableAt(draw.drawId, alpha);
+        SD59x18 delta = sd(int256(totalContributed)).div(totalShares);
+        uint256 remainder = totalContributed - uint256(unwrap(delta.mul(totalShares)));
+        _prizeTokenPerShare = _prizeTokenPerShare + uint256(unwrap(delta));
+        reserve += remainder;
+        require(_nextDraw.drawId == draw.drawId + 1, "not next draw");
         draw = _nextDraw;
-
+        claimCount = 0;
+        canaryClaimCount = 0;
         return _nextDraw;
     }
 
-    function claimPrize() external returns (uint256) {
-
+    function claimPrize(
+        address _vault,
+        address _user,
+        uint32 _tier
+    ) external returns (uint256) {
+        uint256 prizeSize;
+        if (checkIfWonPrize(_vault, _user, _tier)) {
+            // transfer prize to user
+            prizeSize = calculatePrizeSize(_tier);
+        }
+        ClaimRecord memory claimRecord = claimRecords[_user];
+        uint32 drawId = draw.drawId;
+        uint256 payout = prizeSize;
+        if (payout > 0 && claimRecord.drawId == drawId) {
+            if (claimRecord.amount >= payout) {
+                revert("already claimed");
+            } else {
+                payout -= claimRecord.amount;
+            }
+        }
+        if (payout > 0) {
+            claimRecords[_user] = ClaimRecord({drawId: drawId, amount: uint224(payout + claimRecord.amount)});
+            prizeToken.transfer(_user, prizeSize);
+        }
+        return payout;
     }
 
     /**
@@ -99,73 +148,87 @@ contract PrizePool {
         address _vault,
         address _user,
         uint32 _tier
-    ) external returns (bool) {
-        uint256 _vaultContribution = vaultContribution[_vault][draw.drawId];
-        uint256 _userTWAB = twabController.balanceOf(
+    ) public returns (bool) {
+
+        uint256 drawDuration = uint256(unwrap(_estimatePrizeFrequencyInDraws(_tier, numberOfTiers).ceil()));
+
+        uint64 endTimestamp = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
+        uint64 startTimestamp = uint64(endTimestamp - drawDuration * draw.beaconPeriodSeconds);
+
+        uint256 _userTwab = twabController.balanceOf(
             _vault,
             _user,
-            draw.beaconPeriodStartedAt,
-            draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds
+            startTimestamp,
+            endTimestamp
         );
 
-        uint256 _vaultTotalSupply = twabController.totalSupply(
+        uint256 _vaultTwabTotalSupply = twabController.totalSupply(
             _vault,
-            draw.beaconPeriodStartedAt,
-            draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds
+            startTimestamp,
+            endTimestamp
         );
 
-        // const divRand = (Math.random()*TOTAL_SUPPLY) / tierPrizeCount
-        // const totalOdds = tierOdds*USER_BALANCE
-        // const isWinner = divRand < totalOdds
+        uint256 vaultContributed = vaultAccumulators[_vault].getAvailableAt(draw.drawId, alpha);
+        uint256 totalContributed = totalSupplyAccumulator.getAvailableAt(draw.drawId, alpha);
 
-        // TODO: salt totalOdds
-
-        uint256 _tierPrizeCount = _prizeCount(_tier);
-
-        uint256 _normalizedRandomNumber = (draw.winningRandomNumber % _vaultTotalSupply) / _tierPrizeCount;
-        uint256 _userOdds = uint256(unwrap(_getTierOdds(_tier, numberOfTiers).mul(sd(int256(_userTWAB)))));
-        // uint256 _userOdds = 1;
-
-        return _normalizedRandomNumber < _userOdds;
-        // return false;
+        // each user gets a different random number
+        return _isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupply, vaultContributed, totalContributed);
     }
 
-    /**
-    const tierPrizeCount = prizeCount(t)
-            const prizeSize = Math.trunc(getTierLiquidity(t)) / tierPrizeCount
-            const K = Math.log(1/GRAND_PRIZE_FREQUENCY)/(-1*numTiers+1)
-            const tierOdds = Math.E**(K*(t - (numTiers - 1)))
+    function _isWinner(
+        address _user,
+        uint32 _tier,
+        uint256 _userTwab,
+        uint256 _vaultTwabTotalSupply,
+        uint256 _vaultContributed,
+        uint256 _totalContributed
+    ) internal view returns (bool) {
+        uint256 chunkOffset = uint256(keccak256(abi.encode(_user, _tier, draw.winningRandomNumber))) % (_vaultTwabTotalSupply / _prizeCount(_tier));
+        SD59x18 vaultPortion = sd(int256(_vaultContributed)).div(sd(int256(_totalContributed)));
+        uint256 _userOdds = uint256(unwrap(_getTierOdds(_tier, numberOfTiers).mul(vaultPortion).mul(sd(int256(_userTwab)))));
+        return chunkOffset < _userOdds;
+    }
 
-            let tierMatchingPrizeCount = 0
-            let tierAwardedPrizeCount = 0
-            let tierDroppedPrizes = 0
-            for (let u = 0; u < options.users; u++) {
-                const divRand = (Math.random()*TOTAL_SUPPLY) / tierPrizeCount
-                const totalOdds = tierOdds*USER_BALANCE
-                const isWinner = divRand < totalOdds
-*/
+    function _estimatePrizeFrequencyInDraws(uint256 _tier, uint256 _numberOfTiers) internal view returns (SD59x18) {
+        return sd(1).div(_getTierOdds(_tier, _numberOfTiers));
+    }
 
-    function _getTierOdds(uint256 _tier, uint256 _numberOfTiers) internal returns (SD59x18) {
-        // Math.log(1/GRAND_PRIZE_FREQUENCY)/(-1*numTiers+1)
+    function _getTierOdds(uint256 _tier, uint256 _numberOfTiers) internal view returns (SD59x18) {
         SD59x18 _k = sd(1).div(
             sd(int256(uint256(grandPrizePeriod)))
         ).ln().div(
             sd(-1 * int256(_numberOfTiers) + 1)
         );
 
-        // Math.E**(K*(t - (numTiers - 1)))
         return E.pow(_k.mul(sd(int256(_tier) - (int256(_numberOfTiers) - 1))));
     }
 
-    function _getTierLiquidity(uint256 _tier) internal returns (uint256) {
+    function calculatePrizeSize(uint256 _tier) public view returns (uint256) {
+        return _getTierLiquidity(_tier) / _prizeCount(_tier);
+    }
+
+    function _getTierLiquidity(uint256 _tier) internal view returns (uint256) {
         uint256 _numberOfPrizeTokenPerShareOutstanding = _prizeTokenPerShare - _tierExchangeRates[_tier];
 
         return _numberOfPrizeTokenPerShareOutstanding * sharesPerTier;
     }
 
-    function _prizeCount(uint32 _tier) internal returns (uint256) {
+    function _prizeCount(uint256 _tier) internal pure returns (uint256) {
         uint256 _numberOfPrizes = 4 ** _tier;
 
         return _numberOfPrizes;
+    }
+
+    function _totalShares() internal view returns (uint256) {
+        return numberOfTiers * sharesPerTier + canaryShares + reserveShares;
+    }
+
+    function estimatedClaimCount() public view returns (uint256) {
+        uint256 count = 0;
+        uint256 _numberOfTiers = numberOfTiers;
+        for (uint32 i = 0; i < _numberOfTiers; i++) {
+            count += uint256(unwrap(sd(int256(_prizeCount(i))).mul(_getTierOdds(i, _numberOfTiers))));
+        }
+        return count;
     }
 }
