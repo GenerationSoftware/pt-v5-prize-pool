@@ -161,17 +161,17 @@ contract PrizePool {
 
         (SD59x18 tierOdds, uint256 drawDuration) = _getTierOddsAndDuration(_tier);
 
-        // console2.log("tierOdds", SD59x18.unwrap(tierOdds));
-        // console2.log("drawDuration", drawDuration);
+        console2.log("tierOdds", SD59x18.unwrap(tierOdds));
+        console2.log("drawDuration", drawDuration);
 
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, drawDuration);
 
-        // console2.log("_userTwab", _userTwab);
-        // console2.log("_vaultTwabTotalSupply", _vaultTwabTotalSupply);
+        console2.log("_userTwab", _userTwab);
+        console2.log("_vaultTwabTotalSupply", _vaultTwabTotalSupply);
 
-        SD59x18 vaultPortion = _getVaultPortion(_vault, uint32(draw.drawId-drawDuration+1), (draw.drawId+1), alpha);
+        SD59x18 vaultPortion = _getVaultPortion(_vault, draw.drawId, uint32(drawDuration), alpha);
 
-        // console2.log("vaultPortion", SD59x18.unwrap(vaultPortion));
+        console2.log("vaultPortion", SD59x18.unwrap(vaultPortion));
 
         return TierCalculationLib.isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupply, vaultPortion, tierOdds, draw.winningRandomNumber);
     }
@@ -214,7 +214,9 @@ contract PrizePool {
         odds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriod);
     }
 
-    function _getVaultPortion(address _vault, uint32 _startDrawIdIncluding, uint32 _endDrawIdExcluding, SD59x18 _alpha) internal view returns (SD59x18) {
+    function _getVaultPortion(address _vault, uint32 _drawId, uint32 _durationInDraws, SD59x18 _alpha) internal view returns (SD59x18) {
+        uint32 _startDrawIdIncluding = uint32(_durationInDraws > _drawId ? 0 : _drawId-_durationInDraws+1);
+        uint32 _endDrawIdExcluding = _drawId + 1;
         uint256 vaultContributed = vaultAccumulators[_vault].getDisbursedBetween(_startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         uint256 totalContributed = totalAccumulator.getDisbursedBetween(_startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         if (totalContributed != 0) {

@@ -50,6 +50,9 @@ library TierCalculationLib {
         SD59x18 _tierOdds,
         uint256 _winningRandomNumber
     ) internal pure returns (bool) {
+        if (_vaultTwabTotalSupply == 0) {
+            return false;
+        }
         /*
             1. We generate a psuedo-random number that will be unique to the user and tier.
             2. Fit the PRN within the vault total supply.

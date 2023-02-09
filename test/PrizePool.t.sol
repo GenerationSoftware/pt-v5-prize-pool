@@ -35,7 +35,7 @@ contract PrizePoolTest is Test {
         prizePool = new PrizePool(
             prizeToken,
             twabController,
-            uint64(52), // 52 weeks = 1 year
+            uint64(365), // 52 weeks = 1 year
             uint32(2), // minimum number of tiers
             100e18,
             10e18,
@@ -145,7 +145,7 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.getTierLiquidity(0), 0.045454545454545400e18);
     }
 
-    function testIsWinnerSucceeds() public {
+    function testIsWinnerDailyPrize() public {
         uint256 amountContributed = 100e18;
 
         prizeToken.mint(address(this), amountContributed);
@@ -176,6 +176,77 @@ contract PrizePoolTest is Test {
         prizePool.setDraw(draw);
 
         assertEq(prizePool.isWinner(address(this), msg.sender, 1), true);
+    }
+
+    function testIsWinnerGrandPrize() public {
+        uint256 amountContributed = 100e18;
+
+        prizeToken.mint(address(this), amountContributed);
+        prizeToken.approve(address(prizePool), amountContributed);
+        prizePool.contributePrizeTokens(amountContributed);
+
+        uint64 endTime = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
+        uint64 startTime = endTime - 366 days;
+
+        console2.log("testIsWinnerSucceeds startTime", startTime);
+        console2.log("testIsWinnerSucceeds endTime", endTime);
+
+        mockGetAverageBalanceBetween(
+            address(this),
+            msg.sender,
+            startTime,
+            endTime,
+            365e30 // hack to ensure grand prize is won
+        );
+
+        mockGetAverageTotalSupplyBetween(
+            address(this),
+            startTime,
+            endTime,
+            1e30
+        );
+
+        draw.winningRandomNumber = 0;
+        prizePool.setDraw(draw);
+
+        assertEq(prizePool.isWinner(address(this), msg.sender, 0), true);
+    }
+
+    function testClaimPrize() public {
+
+        uint256 amountContributed = 100e18;
+
+        prizeToken.mint(address(this), amountContributed);
+        prizeToken.approve(address(prizePool), amountContributed);
+        prizePool.contributePrizeTokens(amountContributed);
+
+        uint64 endTime = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
+        uint64 startTime = endTime - 366 days;
+
+        // console2.log("testIsWinnerSucceeds startTime", startTime);
+        // console2.log("testIsWinnerSucceeds endTime", endTime);
+
+        mockGetAverageBalanceBetween(
+            address(this),
+            msg.sender,
+            startTime,
+            endTime,
+            366e30
+        );
+        mockGetAverageTotalSupplyBetween(
+            address(this),
+            startTime,
+            endTime,
+            1e30
+        );
+
+        draw.winningRandomNumber = 0;
+        prizePool.setDraw(draw);
+
+        prizePool.claimPrize(address(this), msg.sender, 0);
+
+        // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
+        assertEq(prizeToken.balanceOf(msg.sender), 4.5454545454545454e18);
     }
 
     function testGetVaultUserBalanceAndTotalSupplyTwab() public {
