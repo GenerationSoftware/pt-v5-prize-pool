@@ -64,6 +64,10 @@ contract DrawAccumulatorLibTest is Test {
         assertEq(accumulator.getTotalRemaining(2, alpha), 9000);
     }
 
+    function testGetDisbursedBetweenEmpty() public {
+        assertEq(accumulator.getDisbursedBetween(1, 4, alpha), 0);
+    }
+
     function testGetDisbursedBetweenWithOne() public {
         accumulator.add(10000, 1, alpha);
         assertEq(accumulator.getDisbursedBetween(1, 4, alpha), 2709);

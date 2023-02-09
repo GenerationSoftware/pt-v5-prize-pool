@@ -93,6 +93,8 @@ contract PrizePool {
 
     // TODO: see if we can transfer via a callback from the liquidator and add events
     function contributePrizeTokens(uint256 _amount) external {
+        // how do we know how many new tokens there are?
+
         prizeToken.transferFrom(msg.sender, address(this), _amount);
 
         vaultAccumulators[msg.sender].add(_amount, draw.drawId + 1, alpha);
@@ -103,11 +105,15 @@ contract PrizePool {
         return uint256(draw.drawId) + 1;
     }
 
+    function prizeTokenPerShare() external view returns (uint256) {
+        return UD60x18.unwrap(_prizeTokenPerShare);
+    }
+
     // TODO: add event
     function setDraw(Draw calldata _nextDraw) external returns (Draw memory) {
-        (UD60x18 deltaExchangeRate, uint256 remainder) = TierCalculationLib.computeNextExchangeRateDelta(_totalShares(), totalAccumulator.getAvailableAt(draw.drawId + 1, alpha));
+        (UD60x18 deltaExchangeRate, uint256 remainder) = TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(), totalAccumulator.getAvailableAt(draw.drawId + 1, alpha));
         _prizeTokenPerShare = ud(UD60x18.unwrap(_prizeTokenPerShare) + UD60x18.unwrap(deltaExchangeRate));
-        // reserve += remainder;
+        reserve += remainder;
         require(_nextDraw.drawId == draw.drawId + 1, "not next draw");
         draw = _nextDraw;
         claimCount = 0;
@@ -153,20 +159,32 @@ contract PrizePool {
     ) public returns (bool) {
         require(draw.drawId > 0, "no draw");
 
-        uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriod);
+        (SD59x18 tierOdds, uint256 drawDuration) = _getTierOddsAndDuration(_tier);
 
-        uint256 _userTwab;
-        uint256[] memory _vaultTwabTotalSupplies;
-        SD59x18 vaultPortion;
+        // console2.log("tierOdds", SD59x18.unwrap(tierOdds));
+        // console2.log("drawDuration", drawDuration);
 
+        (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, drawDuration);
+
+        // console2.log("_userTwab", _userTwab);
+        // console2.log("_vaultTwabTotalSupply", _vaultTwabTotalSupply);
+
+        SD59x18 vaultPortion = _getVaultPortion(_vault, uint32(draw.drawId-drawDuration+1), (draw.drawId+1), alpha);
+
+        // console2.log("vaultPortion", SD59x18.unwrap(vaultPortion));
+
+        return TierCalculationLib.isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupply, vaultPortion, tierOdds, draw.winningRandomNumber);
+    }
+
+    function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal returns (uint256 twab, uint256 twabTotalSupply) {
         {
             uint64 endTimestamp = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
-            uint64 startTimestamp = uint64(endTimestamp - drawDuration * draw.beaconPeriodSeconds);
+            uint64 startTimestamp = uint64(endTimestamp - _drawDuration * draw.beaconPeriodSeconds);
 
-            console2.log("endTimestamp", endTimestamp);
-            console2.log("startTimestamp", startTimestamp);
+            // console2.log("startTimestamp", startTimestamp);
+            // console2.log("endTimestamp", endTimestamp);
 
-            _userTwab = twabController.getAverageBalanceBetween(
+            twab = twabController.getAverageBalanceBetween(
                 _vault,
                 _user,
                 startTimestamp,
@@ -175,32 +193,46 @@ contract PrizePool {
             
             uint64[] memory startTimestamps = new uint64[](1);
             startTimestamps[0] = startTimestamp;
-            uint64[] memory endTimestamps;
+            uint64[] memory endTimestamps = new uint64[](1);
             endTimestamps[0] = endTimestamp;
 
-            _vaultTwabTotalSupplies = twabController.getAverageTotalSuppliesBetween(
+            uint256[] memory _vaultTwabTotalSupplies = twabController.getAverageTotalSuppliesBetween(
                 _vault,
                 startTimestamps,
                 endTimestamps
             );
+            twabTotalSupply = _vaultTwabTotalSupplies[0];
         }
+    }
 
-        {
-            uint256 vaultContributed = vaultAccumulators[_vault].getDisbursedBetween(uint32(draw.drawId-drawDuration), draw.drawId, alpha);
-            uint256 totalContributed = totalAccumulator.getDisbursedBetween(uint32(draw.drawId-drawDuration), draw.drawId, alpha);
-            vaultPortion = sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
+    function getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) external returns (uint256, uint256) {
+        return _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, _drawDuration);
+    }
+
+    function _getTierOddsAndDuration(uint32 _tier) internal view returns (SD59x18 odds, uint256 durationInDraws) {
+        durationInDraws = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriod);
+        odds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriod);
+    }
+
+    function _getVaultPortion(address _vault, uint32 _startDrawIdIncluding, uint32 _endDrawIdExcluding, SD59x18 _alpha) internal view returns (SD59x18) {
+        uint256 vaultContributed = vaultAccumulators[_vault].getDisbursedBetween(_startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        uint256 totalContributed = totalAccumulator.getDisbursedBetween(_startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        if (totalContributed != 0) {
+            return sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
+        } else {
+            return sd(0);
         }
+    }
 
-        SD59x18 tierOdds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriod);
-        // each user gets a different random number
-        return TierCalculationLib.isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupplies[0], vaultPortion, tierOdds, draw.winningRandomNumber);
+    function getVaultPortion(address _vault, uint32 startDrawId, uint32 endDrawId) external view returns (SD59x18) {
+        return _getVaultPortion(_vault, startDrawId, endDrawId, alpha);
     }
 
     function calculatePrizeSize(uint256 _tier) public view returns (uint256) {
         return _getTierLiquidity(_tier) / TierCalculationLib.prizeCount(_tier);
     }
 
-    function getTierLiquidity(uint256 _tier) internal view returns (uint256) {
+    function getTierLiquidity(uint256 _tier) external view returns (uint256) {
         return _getTierLiquidity(_tier);
     }
 
@@ -210,7 +242,11 @@ contract PrizePool {
         return fromUD60x18(_numberOfPrizeTokenPerShareOutstanding.mul(UD60x18.wrap(sharesPerTier*1e18)));
     }
 
-    function _totalShares() internal view returns (uint256) {
+    function getTotalShares() external view returns (uint256) {
+        return _getTotalShares();
+    }
+
+    function _getTotalShares() internal view returns (uint256) {
         return numberOfTiers * sharesPerTier + canaryShares + reserveShares;
     }
 

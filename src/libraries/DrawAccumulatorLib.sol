@@ -112,6 +112,10 @@ library DrawAccumulatorLib {
     ) internal view returns (uint256) {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
+        if (ringBufferInfo.cardinality == 0) {
+            return 0;
+        }
+
         Pair32 memory indexes = computeIndices(ringBufferInfo);
         Pair32 memory drawIds = readDrawIds(accumulator, indexes);
         require(_endDrawId >= drawIds.second-1, "DAL/curr-invalid");
@@ -133,10 +137,6 @@ library DrawAccumulatorLib {
           o     o       o
 
          */
-
-        if (ringBufferInfo.cardinality == 0) {
-            return 0;
-        }
 
         // find the tail
         if (_endDrawId == drawIds.second-1) { // if looking for one older
