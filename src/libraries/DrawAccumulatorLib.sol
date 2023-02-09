@@ -90,7 +90,8 @@ library DrawAccumulatorLib {
             beforeOrAtObservation = accumulator.observations[beforeOrAtDrawId];
         } else {
             uint32 oldestDrawId = accumulator.drawRingBuffer[indexes.first];
-            require(_drawId < oldestDrawId, "too old");
+            // console2.log("oldestDrawId ", oldestDrawId);
+            require(_drawId >= oldestDrawId, "too old");
             (,beforeOrAtDrawId,,) = binarySearch(
                 accumulator.drawRingBuffer, indexes.first, indexes.second, ringBufferInfo.cardinality, _drawId
             );

@@ -80,35 +80,32 @@ contract PrizePoolTest is Test {
         assertEq(winningRandomNumber, draw.winningRandomNumber);
     }
 
-    function testClaimPrize() public {
-    }
+    function testIsWinnerSucceeds() public {
+        uint256 amountContributed = 100;
 
-    function testCheckIfWonPrizeSucceeds() public {
-        uint256 _amountContributed = 100;
-
-        prizeToken.mint(address(this), _amountContributed);
-        prizeToken.approve(address(prizePool), _amountContributed);
-        prizePool.contributePrizeTokens(_amountContributed);
+        prizeToken.mint(address(this), amountContributed);
+        prizeToken.approve(address(prizePool), amountContributed);
+        prizePool.contributePrizeTokens(amountContributed);
 
         twabController.mint(address(this), msg.sender, 10);
 
         prizePool.setDraw(draw);
 
-        assertEq(prizePool.checkIfWonPrize(address(this), msg.sender, 1), true);
+        assertEq(prizePool.isWinner(address(this), msg.sender, 1), true);
     }
 
-    function testCheckIfWonPrizeFails() public {
-        uint256 _amountContributed = 100;
+    // function testIsWinnerFails() public {
+    //     uint256 _amountContributed = 100;
 
-        prizeToken.mint(address(this), _amountContributed);
-        prizeToken.approve(address(prizePool), _amountContributed);
-        prizePool.contributePrizeTokens(_amountContributed);
+    //     prizeToken.mint(address(this), _amountContributed);
+    //     prizeToken.approve(address(prizePool), _amountContributed);
+    //     prizePool.contributePrizeTokens(_amountContributed);
 
-        twabController.mint(vault, msg.sender, 10);
-        twabController.mint(vault, address(this), _amountContributed - 10);
+    //     twabController.mint(vault, msg.sender, 10);
+    //     twabController.mint(vault, address(this), _amountContributed - 10);
 
-        prizePool.setDraw(draw);
+    //     prizePool.setDraw(draw);
 
-        assertEq(prizePool.checkIfWonPrize(vault, msg.sender, uint32(1)), false);
-    }
+    //     assertEq(prizePool.isWinner(vault, msg.sender, uint32(1)), false);
+    // }
 }

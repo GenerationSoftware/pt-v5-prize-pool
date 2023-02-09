@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
+import "forge-std/console2.sol";
+
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, fromUD60x18 } from "prb-math/UD60x18.sol";
@@ -119,7 +121,7 @@ contract PrizePool {
         uint32 _tier
     ) external returns (uint256) {
         uint256 prizeSize;
-        if (checkIfWonPrize(_vault, _user, _tier)) {
+        if (isWinner(_vault, _user, _tier)) {
             // transfer prize to user
             prizeSize = calculatePrizeSize(_tier);
         }
@@ -144,7 +146,7 @@ contract PrizePool {
     * TODO: check that beaconPeriodStartedAt is the timestamp at which the draw started
     * Add in memory start and end timestamp
     */
-    function checkIfWonPrize(
+    function isWinner(
         address _vault,
         address _user,
         uint32 _tier
@@ -160,6 +162,9 @@ contract PrizePool {
         {
             uint64 endTimestamp = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
             uint64 startTimestamp = uint64(endTimestamp - drawDuration * draw.beaconPeriodSeconds);
+
+            console2.log("endTimestamp", endTimestamp);
+            console2.log("startTimestamp", startTimestamp);
 
             _userTwab = twabController.getAverageBalanceBetween(
                 _vault,
