@@ -15,3 +15,6 @@ docs/
 
 # VSCode
 .history
+
+# Coverage
+lcov.info

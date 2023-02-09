@@ -14,7 +14,6 @@ import { DrawAccumulatorLib } from "./libraries/DrawAccumulatorLib.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
 contract PrizePool {
-    using DrawAccumulatorLib for DrawAccumulatorLib.Accumulator;
 
     /// @notice Draw struct created every draw
     /// @param winningRandomNumber The random number returned from the RNG service
@@ -97,8 +96,8 @@ contract PrizePool {
 
         prizeToken.transferFrom(msg.sender, address(this), _amount);
 
-        vaultAccumulators[msg.sender].add(_amount, draw.drawId + 1, alpha);
-        totalAccumulator.add(_amount, draw.drawId + 1, alpha);
+        DrawAccumulatorLib.add(vaultAccumulators[msg.sender], _amount, draw.drawId + 1, alpha);
+        DrawAccumulatorLib.add(totalAccumulator, _amount, draw.drawId + 1, alpha);
     }
 
     function getNextDrawId() external view returns (uint256) {
@@ -111,7 +110,7 @@ contract PrizePool {
 
     // TODO: add event
     function setDraw(Draw calldata _nextDraw) external returns (Draw memory) {
-        (UD60x18 deltaExchangeRate, uint256 remainder) = TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(), totalAccumulator.getAvailableAt(draw.drawId + 1, alpha));
+        (UD60x18 deltaExchangeRate, uint256 remainder) = TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(), DrawAccumulatorLib.getAvailableAt(totalAccumulator, draw.drawId + 1, alpha));
         _prizeTokenPerShare = ud(UD60x18.unwrap(_prizeTokenPerShare) + UD60x18.unwrap(deltaExchangeRate));
         reserve += remainder;
         require(_nextDraw.drawId == draw.drawId + 1, "not next draw");
@@ -217,8 +216,8 @@ contract PrizePool {
     function _getVaultPortion(address _vault, uint32 _drawId, uint32 _durationInDraws, SD59x18 _alpha) internal view returns (SD59x18) {
         uint32 _startDrawIdIncluding = uint32(_durationInDraws > _drawId ? 0 : _drawId-_durationInDraws+1);
         uint32 _endDrawIdExcluding = _drawId + 1;
-        uint256 vaultContributed = vaultAccumulators[_vault].getDisbursedBetween(_startDrawIdIncluding, _endDrawIdExcluding, _alpha);
-        uint256 totalContributed = totalAccumulator.getDisbursedBetween(_startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulators[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         if (totalContributed != 0) {
             return sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
         } else {
