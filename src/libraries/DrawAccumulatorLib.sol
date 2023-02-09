@@ -47,8 +47,6 @@ library DrawAccumulatorLib {
 
             uint256 relativeDraw = _drawId - newestDrawId;
 
-            // console2.log("relativeDraw: ", relativeDraw);
-
             uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation.available);
             uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation.available);
 
@@ -74,6 +72,15 @@ library DrawAccumulatorLib {
         }
     }
 
+    function getTotalRemaining(Accumulator storage accumulator, uint32 _endDrawId, SD59x18 _alpha) internal view returns (uint256) {
+        RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
+        uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
+        uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
+        require(_endDrawId >= newestDrawId, "invalid draw");
+        Observation memory newestObservation = accumulator.observations[newestDrawId];
+        return integrateInf(_alpha, _endDrawId - newestDrawId, newestObservation.available);
+    }
+
     function getAvailableAt(Accumulator storage accumulator, uint32 _drawId, SD59x18 _alpha) internal view returns (uint256) {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
         Pair32 memory indexes = computeIndices(ringBufferInfo);
@@ -83,7 +90,7 @@ library DrawAccumulatorLib {
             beforeOrAtObservation = accumulator.observations[beforeOrAtDrawId];
         } else {
             uint32 oldestDrawId = accumulator.drawRingBuffer[indexes.first];
-            require(_drawId >= oldestDrawId, "too old");
+            require(_drawId < oldestDrawId, "too old");
             (,beforeOrAtDrawId,,) = binarySearch(
                 accumulator.drawRingBuffer, indexes.first, indexes.second, ringBufferInfo.cardinality, _drawId
             );
@@ -93,19 +100,22 @@ library DrawAccumulatorLib {
         return integrate(_alpha, drawIdDiff, drawIdDiff+1, beforeOrAtObservation.available);
     }
 
-    function getDisbursedSince(
+    /**
+     * Requires endDrawId to be greater than (the newest draw id - 1)
+     */
+    function getDisbursedBetween(
         Accumulator storage accumulator,
         uint32 _startDrawId,
-        uint32 _currentDrawId,
+        uint32 _endDrawId,
         SD59x18 _alpha
     ) internal view returns (uint256) {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
         Pair32 memory indexes = computeIndices(ringBufferInfo);
         Pair32 memory drawIds = readDrawIds(accumulator, indexes);
-        require(_currentDrawId >= drawIds.second, "DAL/curr-invalid");
+        require(_endDrawId >= drawIds.second-1, "DAL/curr-invalid");
 
-        if (_currentDrawId == _startDrawId) {
+        if (_endDrawId == _startDrawId) {
             return 0;
         }
 
@@ -127,9 +137,15 @@ library DrawAccumulatorLib {
             return 0;
         }
 
+        // find the tail
+        if (_endDrawId == drawIds.second-1) { // if looking for one older
+            // look at the previous observation
+            drawIds.second = accumulator.drawRingBuffer[RingBufferLib.offset(indexes.second, 1, ringBufferInfo.cardinality)];
+        }
+
         Observation memory newestObservation = accumulator.observations[drawIds.second];
         // Add the tail
-        uint256 sum = integrate(_alpha, 0, _currentDrawId - drawIds.second, newestObservation.available);
+        uint256 sum = integrate(_alpha, 0, _endDrawId - drawIds.second, newestObservation.available);
 
         // Calculate the head (if any)
         uint32 afterOrAtDrawId;

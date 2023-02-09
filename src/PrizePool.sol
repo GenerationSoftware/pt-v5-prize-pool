@@ -2,11 +2,14 @@
 pragma solidity 0.8.17;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { E, SD59x18, sd, unwrap } from "prb-math/SD59x18.sol";
+import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
+import { UD60x18, ud, fromUD60x18 } from "prb-math/UD60x18.sol";
 
-import { ITWABController } from "./interfaces/ITWABController.sol";
+// import { TwabController } from "./interfaces/TwabController.sol";
+import { TwabController } from "v5-twab-controller/TwabController.sol";
 
 import { DrawAccumulatorLib } from "./libraries/DrawAccumulatorLib.sol";
+import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
 contract PrizePool {
     using DrawAccumulatorLib for DrawAccumulatorLib.Accumulator;
@@ -34,7 +37,7 @@ contract PrizePool {
     
     IERC20 immutable public prizeToken;
 
-    ITWABController immutable public twabController;
+    TwabController immutable public twabController;
 
     uint64 public immutable grandPrizePeriod;
 
@@ -45,11 +48,12 @@ contract PrizePool {
 
     uint256 public immutable reserveShares;
 
+    
     mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulators;
-    DrawAccumulatorLib.Accumulator internal totalSupplyAccumulator;
+    DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
     // tier number => tier exchange rate is prizeToken per share
-    mapping(uint256 => uint256) internal _tierExchangeRates;
+    mapping(uint256 => UD60x18) internal _tierExchangeRates;
 
     mapping(address => ClaimRecord) internal claimRecords;
 
@@ -59,7 +63,7 @@ contract PrizePool {
 
     uint256 public reserve;
 
-    uint256 internal _prizeTokenPerShare;
+    UD60x18 internal _prizeTokenPerShare;
 
     uint128 claimCount;
     uint128 canaryClaimCount;
@@ -67,7 +71,7 @@ contract PrizePool {
     // TODO: add requires
     constructor (
         IERC20 _prizeToken,
-        ITWABController _twabController,
+        TwabController _twabController,
         uint64 _grandPrizePeriod,
         uint32 _numberOfTiers,
         uint256 _sharesPerTier,
@@ -90,7 +94,7 @@ contract PrizePool {
         prizeToken.transferFrom(msg.sender, address(this), _amount);
 
         vaultAccumulators[msg.sender].add(_amount, draw.drawId + 1, alpha);
-        totalSupplyAccumulator.add(_amount, draw.drawId + 1, alpha);
+        totalAccumulator.add(_amount, draw.drawId + 1, alpha);
     }
 
     function getNextDrawId() external view returns (uint256) {
@@ -99,13 +103,9 @@ contract PrizePool {
 
     // TODO: add event
     function setDraw(Draw calldata _nextDraw) external returns (Draw memory) {
-        // update _prizeTokenPerShare
-        SD59x18 totalShares = sd(int256(_totalShares()));
-        uint256 totalContributed = totalSupplyAccumulator.getAvailableAt(draw.drawId, alpha);
-        SD59x18 delta = sd(int256(totalContributed)).div(totalShares);
-        uint256 remainder = totalContributed - uint256(unwrap(delta.mul(totalShares)));
-        _prizeTokenPerShare = _prizeTokenPerShare + uint256(unwrap(delta));
-        reserve += remainder;
+        (UD60x18 deltaExchangeRate, uint256 remainder) = TierCalculationLib.computeNextExchangeRateDelta(_totalShares(), totalAccumulator.getAvailableAt(draw.drawId + 1, alpha));
+        _prizeTokenPerShare = ud(UD60x18.unwrap(_prizeTokenPerShare) + UD60x18.unwrap(deltaExchangeRate));
+        // reserve += remainder;
         require(_nextDraw.drawId == draw.drawId + 1, "not next draw");
         draw = _nextDraw;
         claimCount = 0;
@@ -149,86 +149,64 @@ contract PrizePool {
         address _user,
         uint32 _tier
     ) public returns (bool) {
+        require(draw.drawId > 0, "no draw");
 
-        uint256 drawDuration = uint256(unwrap(_estimatePrizeFrequencyInDraws(_tier, numberOfTiers).ceil()));
+        uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriod);
 
-        uint64 endTimestamp = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
-        uint64 startTimestamp = uint64(endTimestamp - drawDuration * draw.beaconPeriodSeconds);
+        uint256 _userTwab;
+        uint256[] memory _vaultTwabTotalSupplies;
+        SD59x18 vaultPortion;
 
-        uint256 _userTwab = twabController.balanceOf(
-            _vault,
-            _user,
-            startTimestamp,
-            endTimestamp
-        );
+        {
+            uint64 endTimestamp = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
+            uint64 startTimestamp = uint64(endTimestamp - drawDuration * draw.beaconPeriodSeconds);
 
-        uint256 _vaultTwabTotalSupply = twabController.totalSupply(
-            _vault,
-            startTimestamp,
-            endTimestamp
-        );
+            _userTwab = twabController.getAverageBalanceBetween(
+                _vault,
+                _user,
+                startTimestamp,
+                endTimestamp
+            );
+            
+            uint64[] memory startTimestamps = new uint64[](1);
+            startTimestamps[0] = startTimestamp;
+            uint64[] memory endTimestamps;
+            endTimestamps[0] = endTimestamp;
 
-        uint256 vaultContributed = vaultAccumulators[_vault].getAvailableAt(draw.drawId, alpha);
-        uint256 totalContributed = totalSupplyAccumulator.getAvailableAt(draw.drawId, alpha);
+            _vaultTwabTotalSupplies = twabController.getAverageTotalSuppliesBetween(
+                _vault,
+                startTimestamps,
+                endTimestamps
+            );
+        }
 
+        {
+            uint256 vaultContributed = vaultAccumulators[_vault].getDisbursedBetween(uint32(draw.drawId-drawDuration), draw.drawId, alpha);
+            uint256 totalContributed = totalAccumulator.getDisbursedBetween(uint32(draw.drawId-drawDuration), draw.drawId, alpha);
+            vaultPortion = sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
+        }
+
+        SD59x18 tierOdds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriod);
         // each user gets a different random number
-        return _isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupply, vaultContributed, totalContributed);
-    }
-
-    function _isWinner(
-        address _user,
-        uint32 _tier,
-        uint256 _userTwab,
-        uint256 _vaultTwabTotalSupply,
-        uint256 _vaultContributed,
-        uint256 _totalContributed
-    ) internal view returns (bool) {
-        uint256 chunkOffset = uint256(keccak256(abi.encode(_user, _tier, draw.winningRandomNumber))) % (_vaultTwabTotalSupply / _prizeCount(_tier));
-        SD59x18 vaultPortion = sd(int256(_vaultContributed)).div(sd(int256(_totalContributed)));
-        uint256 _userOdds = uint256(unwrap(_getTierOdds(_tier, numberOfTiers).mul(vaultPortion).mul(sd(int256(_userTwab)))));
-        return chunkOffset < _userOdds;
-    }
-
-    function _estimatePrizeFrequencyInDraws(uint256 _tier, uint256 _numberOfTiers) internal view returns (SD59x18) {
-        return sd(1).div(_getTierOdds(_tier, _numberOfTiers));
-    }
-
-    function _getTierOdds(uint256 _tier, uint256 _numberOfTiers) internal view returns (SD59x18) {
-        SD59x18 _k = sd(1).div(
-            sd(int256(uint256(grandPrizePeriod)))
-        ).ln().div(
-            sd(-1 * int256(_numberOfTiers) + 1)
-        );
-
-        return E.pow(_k.mul(sd(int256(_tier) - (int256(_numberOfTiers) - 1))));
+        return TierCalculationLib.isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupplies[0], vaultPortion, tierOdds, draw.winningRandomNumber);
     }
 
     function calculatePrizeSize(uint256 _tier) public view returns (uint256) {
-        return _getTierLiquidity(_tier) / _prizeCount(_tier);
+        return _getTierLiquidity(_tier) / TierCalculationLib.prizeCount(_tier);
+    }
+
+    function getTierLiquidity(uint256 _tier) internal view returns (uint256) {
+        return _getTierLiquidity(_tier);
     }
 
     function _getTierLiquidity(uint256 _tier) internal view returns (uint256) {
-        uint256 _numberOfPrizeTokenPerShareOutstanding = _prizeTokenPerShare - _tierExchangeRates[_tier];
+        UD60x18 _numberOfPrizeTokenPerShareOutstanding = ud(UD60x18.unwrap(_prizeTokenPerShare) - UD60x18.unwrap(_tierExchangeRates[_tier]));
 
-        return _numberOfPrizeTokenPerShareOutstanding * sharesPerTier;
-    }
-
-    function _prizeCount(uint256 _tier) internal pure returns (uint256) {
-        uint256 _numberOfPrizes = 4 ** _tier;
-
-        return _numberOfPrizes;
+        return fromUD60x18(_numberOfPrizeTokenPerShareOutstanding.mul(UD60x18.wrap(sharesPerTier*1e18)));
     }
 
     function _totalShares() internal view returns (uint256) {
         return numberOfTiers * sharesPerTier + canaryShares + reserveShares;
     }
 
-    function estimatedClaimCount() public view returns (uint256) {
-        uint256 count = 0;
-        uint256 _numberOfTiers = numberOfTiers;
-        for (uint32 i = 0; i < _numberOfTiers; i++) {
-            count += uint256(unwrap(sd(int256(_prizeCount(i))).mul(_getTierOdds(i, _numberOfTiers))));
-        }
-        return count;
-    }
 }

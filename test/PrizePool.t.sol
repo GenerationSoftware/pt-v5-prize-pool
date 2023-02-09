@@ -6,10 +6,11 @@ import "forge-std/Test.sol";
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { sd } from "prb-math/SD59x18.sol";
+import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, ITWABController } from "../src/PrizePool.sol";
+import { PrizePool } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
-import { TWABController } from "./mocks/TWABController.sol";
+// import { TwabController } from "./mocks/TwabController.sol";
 
 contract PrizePoolTest is Test {
     PrizePool public prizePool;
@@ -18,11 +19,13 @@ contract PrizePoolTest is Test {
 
     address public vault;
 
-    TWABController public twabController;
+    TwabController public twabController;
+
+    PrizePool.Draw draw;
 
     function setUp() public {
         prizeToken = new ERC20Mintable("PoolTogether POOL token", "POOL");
-        twabController = new TWABController();
+        twabController = new TwabController();
 
         prizePool = new PrizePool(
             prizeToken,
@@ -37,6 +40,14 @@ contract PrizePoolTest is Test {
         // prizeToken = prizePool.prizeToken;
 
         vault = address(this);
+
+        draw = PrizePool.Draw({
+            winningRandomNumber: 123456,
+            drawId: 1,
+            timestamp: uint64(block.timestamp),
+            beaconPeriodStartedAt: uint64(block.timestamp),
+            beaconPeriodSeconds: 7 days
+        });
     }
 
     function testContributePrizeTokens() public {
@@ -54,7 +65,6 @@ contract PrizePoolTest is Test {
         assertEq(_senderBalanceBefore, _amountContributed);
         assertEq(_senderBalanceAfter, 0);
         assertEq(prizeToken.balanceOf(address(prizePool)), _amountContributed);
-
     }
 
     function testGetNextDrawId() public {
@@ -64,22 +74,10 @@ contract PrizePoolTest is Test {
 
     // TODO: finish test
     function testSetDraw() public {
-        // TODO: compute a random number
-        PrizePool.Draw memory _nextDraw = PrizePool.Draw({
-            winningRandomNumber: 123456,
-            drawId: 1,
-            timestamp: uint64(block.timestamp),
-            beaconPeriodStartedAt: uint64(block.timestamp),
-            beaconPeriodSeconds: 7 days
-        });
-
-        PrizePool.Draw memory _draw = prizePool.setDraw(_nextDraw);
-
-        assertEq(_draw.winningRandomNumber, _nextDraw.winningRandomNumber);
-
+        PrizePool.Draw memory _draw = prizePool.setDraw(draw);
+        assertEq(_draw.winningRandomNumber, draw.winningRandomNumber);
         (uint256 winningRandomNumber,,,,) = prizePool.draw();
-
-        assertEq(winningRandomNumber, _nextDraw.winningRandomNumber);
+        assertEq(winningRandomNumber, draw.winningRandomNumber);
     }
 
     function testClaimPrize() public {
@@ -90,24 +88,13 @@ contract PrizePoolTest is Test {
 
         prizeToken.mint(address(this), _amountContributed);
         prizeToken.approve(address(prizePool), _amountContributed);
-
         prizePool.contributePrizeTokens(_amountContributed);
 
-        vm.mockCall(
-            address(twabController),
-            abi.encodeCall(
-                TWABController.balanceOf,
-                (
-                    vault,
-                    msg.sender,
-                    uint64(block.timestamp),
-                    uint64(block.timestamp + 7 days)
-                )
-            ),
-            abi.encode(10)
-        );
+        twabController.mint(address(this), msg.sender, 10);
 
-        assertEq(prizePool.checkIfWonPrize(vault, msg.sender, 1), true);
+        prizePool.setDraw(draw);
+
+        assertEq(prizePool.checkIfWonPrize(address(this), msg.sender, 1), true);
     }
 
     function testCheckIfWonPrizeFails() public {
@@ -115,35 +102,12 @@ contract PrizePoolTest is Test {
 
         prizeToken.mint(address(this), _amountContributed);
         prizeToken.approve(address(prizePool), _amountContributed);
-
         prizePool.contributePrizeTokens(_amountContributed);
 
-        vm.mockCall(
-            address(twabController),
-            abi.encodeCall(
-                TWABController.balanceOf,
-                (
-                    vault,
-                    msg.sender,
-                    uint64(block.timestamp),
-                    uint64(block.timestamp + 7 days)
-                )
-            ),
-            abi.encode(10)
-        );
+        twabController.mint(vault, msg.sender, 10);
+        twabController.mint(vault, address(this), _amountContributed - 10);
 
-        vm.mockCall(
-            address(twabController),
-            abi.encodeCall(
-                TWABController.totalSupply,
-                (
-                    vault,
-                    uint64(block.timestamp),
-                    uint64(block.timestamp + 7 days)
-                )
-            ),
-            abi.encode(_amountContributed)
-        );
+        prizePool.setDraw(draw);
 
         assertEq(prizePool.checkIfWonPrize(vault, msg.sender, uint32(1)), false);
     }

@@ -57,24 +57,38 @@ contract DrawAccumulatorLibTest is Test {
         assertEq(accumulator.getAvailableAt(3, alpha), 2810);
     }
 
-    function testGetDisbursedSinceWithOne() public {
+
+    function testGetTotalRemaining() public {
         accumulator.add(10000, 1, alpha);
-        assertEq(accumulator.getDisbursedSince(1, 4, alpha), 2709);
+
+        assertEq(accumulator.getTotalRemaining(2, alpha), 9000);
     }
 
-    function testGetDisbursedSinceWithTwo() public {
+    function testGetDisbursedBetweenWithOne() public {
+        accumulator.add(10000, 1, alpha);
+        assertEq(accumulator.getDisbursedBetween(1, 4, alpha), 2709);
+    }
+
+    function testGetDisbursedBetweenWithTwo() public {
         accumulator.add(10000, 1, alpha);
         accumulator.add(10000, 3, alpha);
 
-        assertEq(accumulator.getDisbursedSince(1, 4, alpha), 3709);
-        assertEq(accumulator.getDisbursedSince(2, 4, alpha), 2709);
-        assertEq(accumulator.getDisbursedSince(3, 4, alpha), 1810);
+        assertEq(accumulator.getDisbursedBetween(1, 4, alpha), 3709);
+        assertEq(accumulator.getDisbursedBetween(2, 4, alpha), 2709);
+        assertEq(accumulator.getDisbursedBetween(3, 4, alpha), 1810);
+    }
+
+    function testGetDisbursedPreviousDraw() public {
+        accumulator.add(10000, 1, alpha);
+        accumulator.add(10000, 4, alpha);
+
+        assertEq(accumulator.getDisbursedBetween(1, 3, alpha), 1899);
     }
 
     function testGetDisbursedWithMatching() public {
         accumulator.add(10000, 1, alpha);
         accumulator.add(10000, 3, alpha);
-        assertEq(accumulator.getDisbursedSince(4, 4, alpha), 0);
+        assertEq(accumulator.getDisbursedBetween(4, 4, alpha), 0);
     }
 
     function testIntegrateInf() public {
@@ -153,5 +167,6 @@ contract DrawAccumulatorLibTest is Test {
         accumulator.ringBufferInfo.cardinality = uint16(values.length);
         accumulator.ringBufferInfo.nextIndex = uint16(values.length);
     }
+
 
 }
