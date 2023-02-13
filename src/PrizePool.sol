@@ -35,7 +35,7 @@ contract PrizePool {
     }
 
     SD59x18 immutable public alpha;
-    
+
     IERC20 immutable public prizeToken;
 
     TwabController immutable public twabController;
@@ -49,7 +49,8 @@ contract PrizePool {
 
     uint256 public immutable reserveShares;
 
-    
+    uint256 internal _internalBalance;
+
     mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulators;
     DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
@@ -91,13 +92,18 @@ contract PrizePool {
     }
 
     // TODO: see if we can transfer via a callback from the liquidator and add events
-    function contributePrizeTokens(uint256 _amount) external {
+    function contributePrizeTokens(address _prizeVault, uint256 _amount) external returns(uint256) {
         // how do we know how many new tokens there are?
+        uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - _internalBalance;
 
-        prizeToken.transferFrom(msg.sender, address(this), _amount);
+        require(_deltaBalance >=  _amount, "PP/deltaBalance-gte-amount");
 
-        DrawAccumulatorLib.add(vaultAccumulators[msg.sender], _amount, draw.drawId + 1, alpha);
+        _internalBalance += _amount;
+
+        DrawAccumulatorLib.add(vaultAccumulators[_prizeVault], _amount, draw.drawId + 1, alpha);
         DrawAccumulatorLib.add(totalAccumulator, _amount, draw.drawId + 1, alpha);
+
+        return _deltaBalance;
     }
 
     function getNextDrawId() external view returns (uint256) {
@@ -142,6 +148,7 @@ contract PrizePool {
         }
         if (payout > 0) {
             claimRecords[_user] = ClaimRecord({drawId: drawId, amount: uint224(payout + claimRecord.amount)});
+            _internalBalance -= prizeSize;
             prizeToken.transfer(_user, prizeSize);
         }
         return payout;
@@ -189,7 +196,7 @@ contract PrizePool {
                 startTimestamp,
                 endTimestamp
             );
-            
+
             uint64[] memory startTimestamps = new uint64[](1);
             startTimestamps[0] = startTimestamp;
             uint64[] memory endTimestamps = new uint64[](1);
