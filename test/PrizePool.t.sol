@@ -24,7 +24,13 @@ contract PrizePoolTest is Test {
 
     TwabController public twabController;
 
-    address otherSender = 0x690B9A9E9aa1C9dB991C7721a92d351Db4FaC990;
+    address sender1 = 0x690B9A9E9aa1C9dB991C7721a92d351Db4FaC990;
+    address sender2 = 0x4008Ed96594b645f057c9998a2924545fAbB6545;
+    address sender3 = 0x796486EBd82E427901511d130Ece93b94f06a980;
+    address sender4 = 0x2ed6c4B5dA6378c7897AC67Ba9e43102Feb694EE;
+    address sender5 = 0x9ebC8E61f87A301fF25a606d7C06150f856F24E2;
+    address sender6 = 0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5;
+
     uint64 drawStartedAt;
     uint32 drawPeriodSeconds;
     uint256 winningRandomNumber = 123456;
@@ -48,21 +54,16 @@ contract PrizePoolTest is Test {
             100e18,
             10e18,
             10e18,
-            ud2x18(0.9e18),
-            sd1x18(0.9e18)
+            ud2x18(0.9e18), // claim threshold of 90%
+            sd1x18(0.9e18) // alpha
         );
-        // prizeToken = prizePool.prizeToken;
 
         vault = address(this);
     }
 
     function testContributePrizeTokens() public {
-        uint256 _amountContributed = 100;
-
-        prizeToken.mint(address(prizePool), _amountContributed);
-        prizePool.contributePrizeTokens(address(this), _amountContributed);
-
-        assertEq(prizeToken.balanceOf(address(prizePool)), _amountContributed);
+        contribute(100);
+        assertEq(prizeToken.balanceOf(address(prizePool)), 100);
     }
 
     function testGetVaultPortionWhenEmpty() public {
@@ -70,22 +71,13 @@ contract PrizePoolTest is Test {
     }
 
     function testGetVaultPortionWhenOne() public {
-        uint256 _amountContributed = 100e18;
-        prizeToken.mint(address(prizePool), _amountContributed);
-        prizePool.contributePrizeTokens(address(this), _amountContributed);
+        contribute(100e18);
         assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 1, 2)), 1e18);
     }
 
     function testGetVaultPortionWhenTwo() public {
-        uint256 _amountContributed = 100e18;
-
-        prizeToken.mint(address(prizePool), _amountContributed);
-        prizePool.contributePrizeTokens(address(this), _amountContributed);
-
-        prizeToken.mint(address(prizePool), _amountContributed);
-        vm.startPrank(otherSender);
-        prizePool.contributePrizeTokens(address(otherSender), _amountContributed);
-        vm.stopPrank();
+        contribute(100e18);
+        contribute(100e18, address(sender1));
 
         assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 1, 2)), 0.5e18);
     }
@@ -95,22 +87,46 @@ contract PrizePoolTest is Test {
         assertEq(nextDrawId, 1);
     }
 
-    // TODO: finish test
-    function testSetDrawNoLiquidity() public {
-        prizePool.completeAndStartNextDraw(winningRandomNumber);
+    function testCompleteAndStartNextDrawNoLiquidity() public {
+        completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizePool.getWinningRandomNumber(), winningRandomNumber);
+        assertEq(prizePool.drawId(), 1);
+        assertEq(prizePool.getNextDrawId(), 2);
+        assertEq(prizePool.drawStartedAt(), drawStartedAt + drawPeriodSeconds);
     }
 
-    function testSetDrawWithLiquidity() public {
-        uint amountContributed = 1e18;
-        prizeToken.mint(address(prizePool), amountContributed);
-        prizePool.contributePrizeTokens(address(this), amountContributed);
-
+    function testCompleteAndStartNextDrawWithLiquidity() public {
+        contribute(1e18);
         // = 1e18 / 220e18 = 0.004545454...
         // but because of alpha only 10% is released on this draw
-
-        prizePool.completeAndStartNextDraw(winningRandomNumber);
+        completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizePool.prizeTokenPerShare(), 0.000454545454545454e18);
+        assertEq(prizePool.reserve(), 120); // remainder of the complex fraction
+        assertEq(prizePool.totalDrawLiquidity(), 0.1e18 - 120); // ensure not a single wei is lost!
+    }
+
+    function testCompleteAndStartNextDraw_expandingTiers() public {
+        contribute(1e18);
+        completeAndStartNextDraw(1234);
+        mockTwab(address(this), 0);
+        claimPrize(address(this), 0);
+        mockTwab(sender1, 1);
+        claimPrize(sender1, 1);
+        mockTwab(sender2, 1);
+        claimPrize(sender2, 1);
+        mockTwab(sender3, 1);
+        claimPrize(sender3, 1);
+        mockTwab(sender4, 1);
+        claimPrize(sender4, 1);
+
+        // canary tiers
+        mockTwab(sender5, 2);
+        claimPrize(sender5, 2);
+        mockTwab(sender6, 2);
+        claimPrize(sender6, 2);
+
+        completeAndStartNextDraw(245);
+        assertEq(prizePool.numberOfTiers(), 3);
     }
 
     function testGetTotalShares() public {
@@ -118,13 +134,9 @@ contract PrizePoolTest is Test {
     }
 
     function testGetTierLiquidity() public {
-        uint amountContributed = 1e18;
-        prizeToken.mint(address(prizePool), amountContributed);
-        prizePool.contributePrizeTokens(address(this), amountContributed);
-
+        contribute(1e18);
         // tick over liquidity
-        prizePool.completeAndStartNextDraw(winningRandomNumber);
-
+        completeAndStartNextDraw(winningRandomNumber);
         // 2 tiers at 100 shares each, and 10 for canary and 10 for reserve
         // = 100 / 220 = 10 / 22 = 0.45454545454545453
         // then take only 10% due to alpha = 0.9
@@ -132,124 +144,34 @@ contract PrizePoolTest is Test {
     }
 
     function testIsWinnerDailyPrize() public {
-        uint256 amountContributed = 100e18;
-
-        prizeToken.mint(address(prizePool), amountContributed);
-        prizePool.contributePrizeTokens(address(this), amountContributed);
-
-        uint64 startTime = drawStartedAt;
-        uint64 endTime = drawStartedAt + drawPeriodSeconds;
-
-        // console2.log("testIsWinnerSucceeds startTime", startTime);
-        // console2.log("testIsWinnerSucceeds endTime", endTime);
-
-        mockGetAverageBalanceBetween(
-            address(this),
-            msg.sender,
-            startTime,
-            endTime,
-            1e30
-        );
-        mockGetAverageTotalSupplyBetween(
-            address(this),
-            startTime,
-            endTime,
-            1e30
-        );
-
-        prizePool.completeAndStartNextDraw(winningRandomNumber);
-
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, 1);
         assertEq(prizePool.isWinner(address(this), msg.sender, 1), true);
     }
 
     function testIsWinnerGrandPrize() public {
-        uint256 amountContributed = 100e18;
-
-        prizeToken.mint(address(prizePool), amountContributed);
-        prizePool.contributePrizeTokens(address(this), amountContributed);
-
-        uint64 endTime = drawStartedAt + drawPeriodSeconds;
-        uint64 startTime = endTime - 366 days;
-
-        console2.log("testIsWinnerSucceeds startTime", startTime);
-        console2.log("testIsWinnerSucceeds endTime", endTime);
-
-        mockGetAverageBalanceBetween(
-            address(this),
-            msg.sender,
-            startTime,
-            endTime,
-            365e30 // hack to ensure grand prize is won
-        );
-
-        mockGetAverageTotalSupplyBetween(
-            address(this),
-            startTime,
-            endTime,
-            1e30
-        );
-
-        prizePool.completeAndStartNextDraw(winningRandomNumber);
-
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, 0);
         assertEq(prizePool.isWinner(address(this), msg.sender, 0), true);
     }
 
     function testClaimPrize() public {
-
-        uint256 amountContributed = 100e18;
-
-        prizeToken.mint(address(prizePool), amountContributed);
-        prizePool.contributePrizeTokens(address(this), amountContributed);
-
-        uint64 endTime = drawStartedAt + drawPeriodSeconds;
-        uint64 startTime = endTime - 366 days;
-
-        mockGetAverageBalanceBetween(
-            address(this),
-            msg.sender,
-            startTime,
-            endTime,
-            366e30
-        );
-        mockGetAverageTotalSupplyBetween(
-            address(this),
-            startTime,
-            endTime,
-            1e30
-        );
-
-        prizePool.completeAndStartNextDraw(winningRandomNumber);
-
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, 0);
         prizePool.claimPrize(address(this), msg.sender, 0);
-
         // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
         assertEq(prizeToken.balanceOf(msg.sender), 4.5454545454545454e18);
     }
 
     function testGetVaultUserBalanceAndTotalSupplyTwab() public {
-        prizePool.completeAndStartNextDraw(winningRandomNumber);
-        uint64 endTime = drawStartedAt + drawPeriodSeconds;
-        uint64 startTime = endTime - 365 days;
-
-        // console2.log("testGetVaultUserBalanceAndTotalSupplyTwab startTime", startTime);
-        // console2.log("testGetVaultUserBalanceAndTotalSupplyTwab endTime", endTime);
-
-        mockGetAverageBalanceBetween(
-            address(this),
-            msg.sender,
-            startTime,
-            endTime,
-            100
-        );
-        mockGetAverageTotalSupplyBetween(
-            address(this),
-            startTime,
-            endTime,
-            100
-        );
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, prizePool.drawStartedAt() + drawPeriodSeconds - 365 * drawPeriodSeconds, prizePool.drawStartedAt() + drawPeriodSeconds);
         (uint256 twab, uint256 twabTotalSupply) = prizePool.getVaultUserBalanceAndTotalSupplyTwab(address(this), msg.sender, 365);
-        assertEq(twab, 100);
-        assertEq(twabTotalSupply, 100);
+        assertEq(twab, 366e30);
+        assertEq(twabTotalSupply, 1e30);
     }
 
     function mockGetAverageBalanceBetween(address _vault, address _user, uint64 _startTime, uint64 _endTime, uint256 _result) internal {
@@ -291,5 +213,47 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.estimatedPrizeCount(14), 79777187);
         assertEq(prizePool.estimatedPrizeCount(15), 321105952);
         assertEq(prizePool.estimatedPrizeCount(16), 1291645048);
+    }
+
+    function contribute(uint256 amountContributed) public {
+        contribute(amountContributed, address(this));
+    }
+
+    function contribute(uint256 amountContributed, address to) public {
+        prizeToken.mint(address(prizePool), amountContributed);
+        prizePool.contributePrizeTokens(to, amountContributed);
+    }
+
+    function completeAndStartNextDraw(uint256 _winnerRandomNumber) public {
+        vm.warp(prizePool.drawStartedAt() + drawPeriodSeconds);
+        prizePool.completeAndStartNextDraw(_winnerRandomNumber);
+    }
+
+    function claimPrize(address sender, uint8 tier) public returns (uint256) {
+        vm.startPrank(sender);
+        uint256 result = prizePool.claimPrize(address(this), sender, tier);
+        vm.stopPrank();
+        return result;
+    }
+
+    function mockTwab(address _account, uint64 startTime, uint64 endTime) public {
+        mockGetAverageBalanceBetween(
+            address(this),
+            _account,
+            startTime,
+            endTime,
+            366e30
+        );
+        mockGetAverageTotalSupplyBetween(
+            address(this),
+            startTime,
+            endTime,
+            1e30
+        );
+    }
+
+    function mockTwab(address _account, uint8 _tier) public {
+        (uint64 startTime, uint64 endTime) = prizePool.calculateTierTwabTimestamps(_tier);
+        mockTwab(_account, startTime, endTime);
     }
 }

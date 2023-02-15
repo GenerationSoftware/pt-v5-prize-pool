@@ -98,8 +98,8 @@ contract PrizePool {
     uint32 canaryClaimCount;
     uint8 largestTierClaimed;
 
-    uint32 drawId;
-    uint64 drawStartedAt;
+    uint32 public drawId;
+    uint64 public drawStartedAt;
 
     // TODO: add requires
     constructor (
@@ -188,52 +188,91 @@ contract PrizePool {
         return UD60x18.unwrap(_prizeTokenPerShare);
     }
 
+    function captureReserve(address _to, uint256 _amount) external {
+        // NOTE: must make this function privileged
+        require(_amount <= reserve, "insuff");
+        reserve -= _amount;
+        prizeToken.transfer(_to, _amount);
+    }
+
     function completeAndStartNextDraw(uint256 _winningRandomNumber) external returns (uint32) {
         // check winning random number
         require(_winningRandomNumber != 0, "num invalid");
-        winningRandomNumber = _winningRandomNumber;
+        require(block.timestamp >= drawStartedAt + drawPeriodSeconds, "not elapsed");
 
-        console2.log("got here");
-
-        if (largestTierClaimed < numberOfTiers && largestTierClaimed > MINIMUM_NUMBER_OF_TIERS) {
-            uint8 nextNumberOfTiers = largestTierClaimed > MINIMUM_NUMBER_OF_TIERS ? largestTierClaimed : MINIMUM_NUMBER_OF_TIERS;
-            // reset those top tiers
-            for (uint8 i = numberOfTiers - 1; i != nextNumberOfTiers; i--) {
-                uint remainingTierLiquidity = _getLiquidity(i, tierShares);
-                reserve += remainingTierLiquidity;
-                _tierExchangeRates[i] = UD60x18.wrap(0);
+        uint8 nextNumberOfTiers = numberOfTiers;
+        uint256 reclaimedLiquidity;
+        if (largestTierClaimed < numberOfTiers) {
+            if (largestTierClaimed > MINIMUM_NUMBER_OF_TIERS) {
+                nextNumberOfTiers = largestTierClaimed;
+                reclaimedLiquidity = _reclaimTierLiquidity(numberOfTiers, nextNumberOfTiers);
             }
-            numberOfTiers = nextNumberOfTiers;
-
-            console2.log("got here 2");
         } else {
-            console2.log("in here 2");
             // check canary tier and standard tiers
-            uint256 canaryClaimThreshold = fromUD60x18(claimExpansionThreshold.intoUD60x18().mul(toUD60x18(_canaryPrizeCount(numberOfTiers))));
-            uint256 prizeClaimThreshold = fromUD60x18(claimExpansionThreshold.intoUD60x18().mul(toUD60x18(_estimatedPrizeCount(numberOfTiers))));
-            if (canaryClaimCount >= canaryClaimThreshold && claimCount >= prizeClaimThreshold) {
+            if (canaryClaimCount >= _canaryClaimExpansionThreshold(claimExpansionThreshold, numberOfTiers) &&
+                claimCount >= _prizeClaimExpansionThreshold(claimExpansionThreshold, numberOfTiers)) {
                 // expand the number of tiers
+                // first reset the next tier exchange rate to have accrued nothing (delta is zero)
                 _tierExchangeRates[numberOfTiers] = _prizeTokenPerShare;
-                numberOfTiers++;
-                console2.log("expansion");
+                // now increase the number of tiers to include te new tier
+                nextNumberOfTiers = numberOfTiers + 1;
             }
-            console2.log("got here 3");
         }
 
-        console2.log("got here 4");
-
-        (UD60x18 deltaExchangeRate, uint256 remainder) = TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(numberOfTiers), DrawAccumulatorLib.getAvailableAt(totalAccumulator, drawId + 1, alpha.intoSD59x18()));
-        _prizeTokenPerShare = ud(UD60x18.unwrap(_prizeTokenPerShare) + UD60x18.unwrap(deltaExchangeRate));
-        reserve += remainder;
-
-        console2.log("got here5");
-
+        winningRandomNumber = _winningRandomNumber;
+        numberOfTiers = nextNumberOfTiers;
         drawId += 1;
         claimCount = 0;
         canaryClaimCount = 0;
         largestTierClaimed = 0;
+        drawStartedAt = _calculateNextDrawStartedAt(drawStartedAt, drawPeriodSeconds, uint64(block.timestamp));
+        
+        (UD60x18 deltaExchangeRate, uint256 remainder) = _computeDrawDeltaExchangeRate(numberOfTiers);
+        _prizeTokenPerShare = _prizeTokenPerShare.add(deltaExchangeRate);
+        reserve += reclaimedLiquidity + remainder;
 
         return drawId;
+    }
+
+    /**
+     * @notice Calculates when the next beacon period will start
+     * @param _drawStartedAt The timestamp at which the beacon period started
+     * @param _drawPeriodSeconds The duration of the beacon period in seconds
+     * @param _currentTime The timestamp to use as the current time
+     * @return The timestamp at which the next beacon period would start
+     */
+    function _calculateNextDrawStartedAt(
+        uint64 _drawStartedAt,
+        uint32 _drawPeriodSeconds,
+        uint64 _currentTime
+    ) internal pure returns (uint64) {
+        uint64 elapsedPeriods = (_currentTime - _drawStartedAt) / _drawPeriodSeconds;
+        return _drawStartedAt + (elapsedPeriods * _drawPeriodSeconds);
+    }
+
+    function _reclaimTierLiquidity(uint8 _numberOfTiers, uint8 _nextNumberOfTiers) internal view returns (uint256) {
+        uint256 reclaimedLiquidity;
+        for (uint8 i = _numberOfTiers - 1; i != _nextNumberOfTiers; i--) {
+            // reclaim the current unclaimed liquidity for that tier
+            reclaimedLiquidity += _getLiquidity(i, tierShares);
+        }
+        return reclaimedLiquidity;
+    }
+
+    function _computeDrawDeltaExchangeRate(uint8 _numberOfTiers) internal view returns (UD60x18 deltaExchangeRate, uint256 remainder) {
+        return TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(_numberOfTiers), DrawAccumulatorLib.getAvailableAt(totalAccumulator, drawId, alpha.intoSD59x18()));
+    }
+
+    function _canaryClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
+        return fromUD60x18(_claimExpansionThreshold.intoUD60x18().mul(toUD60x18(_canaryPrizeCount(_numberOfTiers))));
+    }
+
+    function _prizeClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
+        return fromUD60x18(_claimExpansionThreshold.intoUD60x18().mul(toUD60x18(_estimatedPrizeCount(_numberOfTiers))));
+    }
+
+    function totalDrawLiquidity() external view returns (uint256) {
+        return fromUD60x18(_prizeTokenPerShare.mul(toUD60x18(_getTotalShares(numberOfTiers))));
     }
 
     function claimPrize(
@@ -255,7 +294,6 @@ contract PrizePool {
             prizeSize = calculatePrizeSize(_tier);
         }
         ClaimRecord memory claimRecord = claimRecords[_user];
-        uint32 drawId = drawId;
         uint256 payout = prizeSize;
         if (payout > 0 && claimRecord.drawId == drawId) {
             if (claimRecord.amount >= payout) {
@@ -270,7 +308,11 @@ contract PrizePool {
             }
             // if it's a fresh claim
             if (claimRecord.amount == 0) {
-                claimCount++;
+                if (_tier != numberOfTiers) {
+                    claimCount++;
+                } else {
+                    canaryClaimCount++;
+                }
             }
             claimRecords[_user] = ClaimRecord({drawId: drawId, amount: uint224(payout + claimRecord.amount)});
             _internalBalance -= prizeSize;
@@ -312,6 +354,12 @@ contract PrizePool {
             return _canaryPrizeCount(_numberOfTiers);
         }
         return 0;
+    }
+
+    function calculateTierTwabTimestamps(uint8 _tier) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
+        uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
+        endTimestamp = drawStartedAt + drawPeriodSeconds;
+        startTimestamp = uint64(endTimestamp - drawDuration * drawPeriodSeconds);
     }
 
     function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal returns (uint256 twab, uint256 twabTotalSupply) {
