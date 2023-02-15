@@ -45,4 +45,55 @@ contract TierCalculationLibTest is Test {
         assertEq(remainder, 1);
     }
 
+    function testEstimatedClaimCount() public {
+        // 2: 4.002739726
+        // 3: 16.2121093
+        // 4: 66.31989471
+        // 5: 271.5303328
+        // 6: 1109.21076
+        // 7: 4518.562795
+        // 8: 18359.91762
+        // 9: 74437.0802
+        // 10: 301242.1839
+        // 11: 1217269.1
+        // 12: 4912623.73
+        // 13: 19805539.61
+        // 14: 79777192.14
+        // 15: 321105957.4
+        // 16: 1291645055
+
+        assertEq(TierCalculationLib.estimatedClaimCount(2, 365), 4);
+        assertEq(TierCalculationLib.estimatedClaimCount(3, 365), 16);
+        assertEq(TierCalculationLib.estimatedClaimCount(4, 365), 66);
+        assertEq(TierCalculationLib.estimatedClaimCount(5, 365), 270);
+        assertEq(TierCalculationLib.estimatedClaimCount(6, 365), 1108);
+        assertEq(TierCalculationLib.estimatedClaimCount(7, 365), 4517);
+        assertEq(TierCalculationLib.estimatedClaimCount(8, 365), 18358);
+        assertEq(TierCalculationLib.estimatedClaimCount(9, 365), 74435);
+        assertEq(TierCalculationLib.estimatedClaimCount(10, 365), 301239);
+        assertEq(TierCalculationLib.estimatedClaimCount(11, 365), 1217266);
+        assertEq(TierCalculationLib.estimatedClaimCount(12, 365), 4912619);
+        assertEq(TierCalculationLib.estimatedClaimCount(13, 365), 19805536);
+        assertEq(TierCalculationLib.estimatedClaimCount(14, 365), 79777187);
+        assertEq(TierCalculationLib.estimatedClaimCount(15, 365), 321105952);
+        assertEq(TierCalculationLib.estimatedClaimCount(16, 365), 1291645048);
+    }
+
+    function testCanaryPrizeCount() public {
+        assertEq(TierCalculationLib.canaryPrizeCount(2, 10, 0, 100), 2);
+        assertEq(TierCalculationLib.canaryPrizeCount(3, 10, 0, 100), 8);
+        assertEq(TierCalculationLib.canaryPrizeCount(4, 10, 0, 100), 31);
+        assertEq(TierCalculationLib.canaryPrizeCount(5, 10, 0, 100), 122);
+        assertEq(TierCalculationLib.canaryPrizeCount(6, 10, 0, 100), 476);
+        assertEq(TierCalculationLib.canaryPrizeCount(7, 10, 0, 100), 1869);
+        assertEq(TierCalculationLib.canaryPrizeCount(8, 10, 0, 100), 7362);
+        assertEq(TierCalculationLib.canaryPrizeCount(9, 10, 0, 100), 29095);
+        assertEq(TierCalculationLib.canaryPrizeCount(10, 10, 0, 100), 115239);
+        assertEq(TierCalculationLib.canaryPrizeCount(11, 10, 0, 100), 457216);
+        assertEq(TierCalculationLib.canaryPrizeCount(12, 10, 0, 100), 1816376);
+        assertEq(TierCalculationLib.canaryPrizeCount(13, 10, 0, 100), 7223167);
+        assertEq(TierCalculationLib.canaryPrizeCount(14, 10, 0, 100), 28747343);
+        assertEq(TierCalculationLib.canaryPrizeCount(15, 10, 0, 100), 114485055);
+    }
+
 }

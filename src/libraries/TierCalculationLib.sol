@@ -29,6 +29,23 @@ library TierCalculationLib {
         return _numberOfPrizes;
     }
 
+    function canaryPrizeCount(
+        uint256 _numberOfTiers,
+        uint256 _canaryShares,
+        uint256 _reserveShares,
+        uint256 _tierShares
+    ) internal pure returns (uint256) {
+        // const m3 = CANARY_SHARE / getTotalShares(numTiers)
+        // const l3 = SHARES_PER_TIER / getTotalShares(numTiers+1)
+        // const prizeCountMultiplier = m3/l3
+        // = canShare * total(n+1) / sharePerTier*total(n)
+
+        uint256 numerator = _canaryShares * ((_numberOfTiers+1) * _tierShares + _canaryShares + _reserveShares);
+        uint256 denominator = _tierShares * ((_numberOfTiers) * _tierShares + _canaryShares + _reserveShares);
+        UD60x18 multiplier = toUD60x18(numerator).div(toUD60x18(denominator));
+        return fromUD60x18(multiplier.mul(toUD60x18(prizeCount(_numberOfTiers))).floor());
+    }
+
     function computeNextExchangeRateDelta(
         uint256 _totalShares,
         uint256 _totalContributed
@@ -48,6 +65,7 @@ library TierCalculationLib {
         uint256 _vaultTwabTotalSupply,
         SD59x18 _vaultPortion,
         SD59x18 _tierOdds,
+        uint32 _tierPrizeCount,
         uint256 _winningRandomNumber
     ) internal pure returns (bool) {
         if (_vaultTwabTotalSupply == 0) {
@@ -67,7 +85,7 @@ library TierCalculationLib {
                 - Portion of prize that was contributed by the vault
         */
 
-        uint256 winningZone = calculateWinningZone(_userTwab, _tierOdds, _vaultPortion, prizeCount(_tier));
+        uint256 winningZone = calculateWinningZone(_userTwab, _tierOdds, _vaultPortion, _tierPrizeCount);
 
         return prn < winningZone;
     }
@@ -85,10 +103,10 @@ library TierCalculationLib {
         return uint256(fromSD59x18(sd(int256(_userTwab*1e18)).mul(_tierOdds).mul(_vaultContributionFraction).mul(sd(int256(_prizeCount*1e18)))));
     }
 
-    function estimatedClaimCount(uint256 _numberOfTiers, uint256 _grandPrizePeriod) internal pure returns (uint256) {
-        uint256 count = 0;
+    function estimatedClaimCount(uint256 _numberOfTiers, uint256 _grandPrizePeriod) internal pure returns (uint32) {
+        uint32 count = 0;
         for (uint32 i = 0; i < _numberOfTiers; i++) {
-            count += uint256(unwrap(sd(int256(prizeCount(i))).mul(getTierOdds(i, _numberOfTiers, _grandPrizePeriod))));
+            count += uint32(uint256(unwrap(sd(int256(prizeCount(i))).mul(getTierOdds(i, _numberOfTiers, _grandPrizePeriod)))));
         }
         return count;
     }
