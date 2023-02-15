@@ -9,3 +9,7 @@
 [submodule "lib/v5-twab-controller"]
 	path = lib/v5-twab-controller
 	url = https://github.com/pooltogether/v5-twab-controller
+[submodule "lib/prb-math"]
+	path = lib/prb-math
+	url = https://github.com/PaulRBerg/prb-math
+	branch = v3.3.0
