@@ -8,6 +8,7 @@ import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { sd, SD59x18 } from "prb-math/SD59x18.sol";
 import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
+import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
 import { PrizePool } from "../src/PrizePool.sol";
@@ -24,8 +25,9 @@ contract PrizePoolTest is Test {
     TwabController public twabController;
 
     address otherSender = 0x690B9A9E9aa1C9dB991C7721a92d351Db4FaC990;
-
-    PrizePool.Draw draw;
+    uint64 drawStartedAt;
+    uint32 drawPeriodSeconds;
+    uint256 winningRandomNumber = 123456;
 
     function setUp() public {
         vm.warp(1000 days);
@@ -33,28 +35,25 @@ contract PrizePoolTest is Test {
         prizeToken = new ERC20Mintable("PoolTogether POOL token", "POOL");
         twabController = new TwabController();
 
+        drawStartedAt = uint64(block.timestamp);
+        drawPeriodSeconds = 1 days;
+
         prizePool = new PrizePool(
             prizeToken,
             twabController,
-            uint64(365),
+            uint32(365),
+            drawPeriodSeconds,
+            drawStartedAt,
             uint8(2), // minimum number of tiers
             100e18,
             10e18,
             10e18,
             ud2x18(0.9e18),
-            sd(0.9e18)
+            sd1x18(0.9e18)
         );
         // prizeToken = prizePool.prizeToken;
 
         vault = address(this);
-
-        draw = PrizePool.Draw({
-            winningRandomNumber: 123456,
-            drawId: 1,
-            timestamp: uint64(block.timestamp),
-            beaconPeriodStartedAt: uint64(block.timestamp),
-            beaconPeriodSeconds: 1 days
-        });
     }
 
     function testContributePrizeTokens() public {
@@ -98,10 +97,8 @@ contract PrizePoolTest is Test {
 
     // TODO: finish test
     function testSetDrawNoLiquidity() public {
-        PrizePool.Draw memory _draw = prizePool.setDraw(draw);
-        assertEq(_draw.winningRandomNumber, draw.winningRandomNumber);
-        (uint256 winningRandomNumber,,,,) = prizePool.draw();
-        assertEq(winningRandomNumber, draw.winningRandomNumber);
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.getWinningRandomNumber(), winningRandomNumber);
     }
 
     function testSetDrawWithLiquidity() public {
@@ -112,7 +109,7 @@ contract PrizePoolTest is Test {
         // = 1e18 / 220e18 = 0.004545454...
         // but because of alpha only 10% is released on this draw
 
-        prizePool.setDraw(draw);
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizePool.prizeTokenPerShare(), 0.000454545454545454e18);
     }
 
@@ -126,7 +123,7 @@ contract PrizePoolTest is Test {
         prizePool.contributePrizeTokens(address(this), amountContributed);
 
         // tick over liquidity
-        prizePool.setDraw(draw);
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
 
         // 2 tiers at 100 shares each, and 10 for canary and 10 for reserve
         // = 100 / 220 = 10 / 22 = 0.45454545454545453
@@ -140,8 +137,8 @@ contract PrizePoolTest is Test {
         prizeToken.mint(address(prizePool), amountContributed);
         prizePool.contributePrizeTokens(address(this), amountContributed);
 
-        uint64 startTime = draw.beaconPeriodStartedAt;
-        uint64 endTime = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
+        uint64 startTime = drawStartedAt;
+        uint64 endTime = drawStartedAt + drawPeriodSeconds;
 
         // console2.log("testIsWinnerSucceeds startTime", startTime);
         // console2.log("testIsWinnerSucceeds endTime", endTime);
@@ -160,8 +157,7 @@ contract PrizePoolTest is Test {
             1e30
         );
 
-        draw.winningRandomNumber = 0;
-        prizePool.setDraw(draw);
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
 
         assertEq(prizePool.isWinner(address(this), msg.sender, 1), true);
     }
@@ -172,7 +168,7 @@ contract PrizePoolTest is Test {
         prizeToken.mint(address(prizePool), amountContributed);
         prizePool.contributePrizeTokens(address(this), amountContributed);
 
-        uint64 endTime = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
+        uint64 endTime = drawStartedAt + drawPeriodSeconds;
         uint64 startTime = endTime - 366 days;
 
         console2.log("testIsWinnerSucceeds startTime", startTime);
@@ -193,8 +189,7 @@ contract PrizePoolTest is Test {
             1e30
         );
 
-        draw.winningRandomNumber = 0;
-        prizePool.setDraw(draw);
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
 
         assertEq(prizePool.isWinner(address(this), msg.sender, 0), true);
     }
@@ -206,7 +201,7 @@ contract PrizePoolTest is Test {
         prizeToken.mint(address(prizePool), amountContributed);
         prizePool.contributePrizeTokens(address(this), amountContributed);
 
-        uint64 endTime = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
+        uint64 endTime = drawStartedAt + drawPeriodSeconds;
         uint64 startTime = endTime - 366 days;
 
         mockGetAverageBalanceBetween(
@@ -223,8 +218,7 @@ contract PrizePoolTest is Test {
             1e30
         );
 
-        draw.winningRandomNumber = 0;
-        prizePool.setDraw(draw);
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
 
         prizePool.claimPrize(address(this), msg.sender, 0);
 
@@ -233,8 +227,8 @@ contract PrizePoolTest is Test {
     }
 
     function testGetVaultUserBalanceAndTotalSupplyTwab() public {
-        prizePool.setDraw(draw);
-        uint64 endTime = draw.beaconPeriodStartedAt + draw.beaconPeriodSeconds;
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
+        uint64 endTime = drawStartedAt + drawPeriodSeconds;
         uint64 startTime = endTime - 365 days;
 
         // console2.log("testGetVaultUserBalanceAndTotalSupplyTwab startTime", startTime);
