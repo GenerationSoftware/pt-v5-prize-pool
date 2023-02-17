@@ -159,6 +159,14 @@ contract PrizePoolTest is Test {
 
         contribute(420e18);
         completeAndStartNextDraw(1234);
+
+        // tier 0 liquidity: 10e18
+        // tier 1 liquidity: 10e18
+        // tier 2 liquidity: 10e18
+        // tier 3 liquidity: 10e18
+        // canary liquidity: 1e18
+        // reserve liquidity: 1e18
+
         // tiers should not change upon first draw
         assertEq(prizePool.numberOfTiers(), 4);
         assertEq(prizePool.reserve(), 1e18);
@@ -168,12 +176,12 @@ contract PrizePoolTest is Test {
         claimPrize(address(this), 0);
 
         completeAndStartNextDraw(4567);
-        // draw 1 had 42.  Reclaimed 20, and reserve was 1
+        // reclaimed tier 2, 3, and canary.  22e18 in total.
         // draw 2 has 37.8.  Reserve is 10/220.0 * 37.8 = 1.718181818181818
 
         // shrink by 2
         assertEq(prizePool.numberOfTiers(), 2);
-        assertEq(prizePool.reserve(), 22.718181818181818010e18);
+        assertEq(prizePool.reserve(), 23.718181818181818010e18);
     }
 
     function testCompleteAndStartNextDraw_expandingTiers() public {

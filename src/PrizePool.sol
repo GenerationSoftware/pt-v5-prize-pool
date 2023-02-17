@@ -255,6 +255,8 @@ contract PrizePool {
                 }
             }
         }
+        // add back canary liquidity
+        reclaimedLiquidity += _getLiquidity(numTiers, canaryShares);
 
         _winningRandomNumber = winningRandomNumber_;
         numberOfTiers = nextNumberOfTiers;
