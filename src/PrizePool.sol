@@ -316,17 +316,7 @@ contract PrizePool {
         uint96 _fee,
         address _feeRecipient
     ) external returns (uint256) {
-        return _claimPrize(msg.sender, _winner, _tier, _to, _fee, _feeRecipient);
-    }
-
-    function _claimPrize(
-        address _vault,
-        address _winner,
-        uint8 _tier,
-        address _to,
-        uint96 _fee,
-        address _feeRecipient
-    ) internal returns (uint256) {
+        address _vault = msg.sender;
         uint256 prizeSize;
         if (isWinner(_vault, _winner, _tier)) {
             // transfer prize to user
