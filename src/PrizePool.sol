@@ -14,13 +14,25 @@ import { TwabController } from "v5-twab-controller/TwabController.sol";
 
 import { DrawAccumulatorLib } from "./libraries/DrawAccumulatorLib.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
+import { BitLib } from "./libraries/BitLib.sol";
 
 contract PrizePool {
 
     struct ClaimRecord {
         uint32 drawId;
-        uint224 amount;
+        uint8 claimedTiers;
     }
+
+    event ClaimedPrize(
+        uint32 indexed drawId,
+        address indexed vault,
+        address indexed winner,
+        uint8 tier,
+        uint152 payout,
+        address to,
+        uint96 fee,
+        address feeRecipient
+    );
 
     uint8 internal constant MINIMUM_NUMBER_OF_TIERS = 2;
 
@@ -83,22 +95,27 @@ contract PrizePool {
     UD2x18 public immutable claimExpansionThreshold;
 
     uint96 public immutable canaryShares;
+
     uint96 public immutable reserveShares;
 
     uint256 internal _internalBalance;
 
-    UD60x18 internal _prizeTokenPerShare;
+    UD60x18 public prizeTokenPerShare;
 
-    uint256 public reserve;
+    uint256 public _reserve;
 
-    uint256 internal winningRandomNumber;
+    uint256 public _winningRandomNumber;
 
     uint8 public numberOfTiers;
-    uint32 claimCount;
-    uint32 canaryClaimCount;
-    uint8 largestTierClaimed;
 
-    uint32 public drawId;
+    uint32 public claimCount;
+
+    uint32 public canaryClaimCount;
+
+    uint8 public largestTierClaimed;
+
+    uint32 public _drawId;
+
     uint64 public drawStartedAt;
 
     // TODO: add requires
@@ -162,7 +179,11 @@ contract PrizePool {
     }
 
     function getWinningRandomNumber() external view returns (uint256) {
-        return winningRandomNumber;
+        return _winningRandomNumber;
+    }
+
+    function getDrawId() external view returns (uint256) {
+        return _drawId;
     }
 
     // TODO: see if we can transfer via a callback from the liquidator and add events
@@ -174,64 +195,77 @@ contract PrizePool {
 
         _internalBalance += _amount;
 
-        DrawAccumulatorLib.add(vaultAccumulators[_prizeVault], _amount, drawId + 1, alpha.intoSD59x18());
-        DrawAccumulatorLib.add(totalAccumulator, _amount, drawId + 1, alpha.intoSD59x18());
+        DrawAccumulatorLib.add(vaultAccumulators[_prizeVault], _amount, _drawId + 1, alpha.intoSD59x18());
+        DrawAccumulatorLib.add(totalAccumulator, _amount, _drawId + 1, alpha.intoSD59x18());
 
         return _deltaBalance;
     }
 
     function getNextDrawId() external view returns (uint256) {
-        return uint256(drawId) + 1;
+        return uint256(_drawId) + 1;
+    }
+/*
+    function drawStartedAt() external view returns (uint64) {
+        return drawStartedAt;
     }
 
+    function numberOfTiers() external view returns (uint8) {
+        return numberOfTiers;
+    }
+*/
+    function reserve() external view returns (uint256) {
+        return _reserve;
+    }
+/*
     function prizeTokenPerShare() external view returns (uint256) {
-        return UD60x18.unwrap(_prizeTokenPerShare);
+        return UD60x18.unwrap(prizeTokenPerShare);
     }
-
+*/
     function captureReserve(address _to, uint256 _amount) external {
         // NOTE: must make this function privileged
-        require(_amount <= reserve, "insuff");
-        reserve -= _amount;
+        require(_amount <= _reserve, "insuff");
+        _reserve -= _amount;
         prizeToken.transfer(_to, _amount);
     }
 
-    function completeAndStartNextDraw(uint256 _winningRandomNumber) external returns (uint32) {
+    function completeAndStartNextDraw(uint256 winningRandomNumber_) external returns (uint32) {
         // check winning random number
-        require(_winningRandomNumber != 0, "num invalid");
+        require(winningRandomNumber_ != 0, "num invalid");
         require(block.timestamp >= drawStartedAt + drawPeriodSeconds, "not elapsed");
 
-        uint8 nextNumberOfTiers = numberOfTiers;
+        uint8 numTiers = numberOfTiers;
+        uint8 nextNumberOfTiers = numTiers;
         uint256 reclaimedLiquidity;
-        if (largestTierClaimed < numberOfTiers) {
+        if (largestTierClaimed < numTiers) {
             if (largestTierClaimed > MINIMUM_NUMBER_OF_TIERS) {
                 nextNumberOfTiers = largestTierClaimed;
-                reclaimedLiquidity = _reclaimTierLiquidity(numberOfTiers, nextNumberOfTiers);
+                reclaimedLiquidity = _reclaimTierLiquidity(numTiers, nextNumberOfTiers);
             }
         } else {
             // check canary tier and standard tiers
-            if (canaryClaimCount >= _canaryClaimExpansionThreshold(claimExpansionThreshold, numberOfTiers) &&
-                claimCount >= _prizeClaimExpansionThreshold(claimExpansionThreshold, numberOfTiers)) {
+            if (canaryClaimCount >= _canaryClaimExpansionThreshold(claimExpansionThreshold, numTiers) &&
+                claimCount >= _prizeClaimExpansionThreshold(claimExpansionThreshold, numTiers)) {
                 // expand the number of tiers
                 // first reset the next tier exchange rate to have accrued nothing (delta is zero)
-                _tierExchangeRates[numberOfTiers] = _prizeTokenPerShare;
+                _tierExchangeRates[numTiers] = prizeTokenPerShare;
                 // now increase the number of tiers to include te new tier
-                nextNumberOfTiers = numberOfTiers + 1;
+                nextNumberOfTiers = numTiers + 1;
             }
         }
 
-        winningRandomNumber = _winningRandomNumber;
+        _winningRandomNumber = winningRandomNumber_;
         numberOfTiers = nextNumberOfTiers;
-        drawId += 1;
+        _drawId += 1;
         claimCount = 0;
         canaryClaimCount = 0;
         largestTierClaimed = 0;
         drawStartedAt = _calculateNextDrawStartedAt(drawStartedAt, drawPeriodSeconds, uint64(block.timestamp));
         
-        (UD60x18 deltaExchangeRate, uint256 remainder) = _computeDrawDeltaExchangeRate(numberOfTiers);
-        _prizeTokenPerShare = _prizeTokenPerShare.add(deltaExchangeRate);
-        reserve += reclaimedLiquidity + remainder;
+        (UD60x18 deltaExchangeRate, uint256 remainder) = _computeDrawDeltaExchangeRate(nextNumberOfTiers);
+        prizeTokenPerShare = prizeTokenPerShare.add(deltaExchangeRate);
+        _reserve += reclaimedLiquidity + remainder;
 
-        return drawId;
+        return _drawId;
     }
 
     /**
@@ -260,7 +294,7 @@ contract PrizePool {
     }
 
     function _computeDrawDeltaExchangeRate(uint8 _numberOfTiers) internal view returns (UD60x18 deltaExchangeRate, uint256 remainder) {
-        return TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(_numberOfTiers), DrawAccumulatorLib.getAvailableAt(totalAccumulator, drawId, alpha.intoSD59x18()));
+        return TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(_numberOfTiers), DrawAccumulatorLib.getAvailableAt(totalAccumulator, _drawId, alpha.intoSD59x18()));
     }
 
     function _canaryClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
@@ -272,52 +306,57 @@ contract PrizePool {
     }
 
     function totalDrawLiquidity() external view returns (uint256) {
-        return fromUD60x18(_prizeTokenPerShare.mul(toUD60x18(_getTotalShares(numberOfTiers))));
+        return fromUD60x18(prizeTokenPerShare.mul(toUD60x18(_getTotalShares(numberOfTiers))));
     }
 
     function claimPrize(
-        address _vault,
-        address _user,
-        uint8 _tier
+        address _winner,
+        uint8 _tier,
+        address _to,
+        uint96 _fee,
+        address _feeRecipient
     ) external returns (uint256) {
-        return _claimPrize(_vault, _user, _tier);
+        return _claimPrize(msg.sender, _winner, _tier, _to, _fee, _feeRecipient);
     }
 
     function _claimPrize(
         address _vault,
-        address _user,
-        uint8 _tier
+        address _winner,
+        uint8 _tier,
+        address _to,
+        uint96 _fee,
+        address _feeRecipient
     ) internal returns (uint256) {
         uint256 prizeSize;
-        if (isWinner(_vault, _user, _tier)) {
+        if (isWinner(_vault, _winner, _tier)) {
             // transfer prize to user
-            prizeSize = calculatePrizeSize(_tier);
+            prizeSize = _calculatePrizeSize(_tier);
+        } else {
+            revert("did not win");
         }
-        ClaimRecord memory claimRecord = claimRecords[_user];
-        uint256 payout = prizeSize;
-        if (payout > 0 && claimRecord.drawId == drawId) {
-            if (claimRecord.amount >= payout) {
-                revert("already claimed");
-            } else {
-                payout -= claimRecord.amount;
-            }
+        ClaimRecord memory claimRecord = claimRecords[_winner];
+        if (claimRecord.drawId != _drawId) {
+            claimRecord = ClaimRecord({drawId: _drawId, claimedTiers: uint8(0)});
+        } else if (BitLib.getBit(claimRecord.claimedTiers, _tier)) {
+            return 0;
         }
-        if (payout > 0) {
-            if (largestTierClaimed < _tier) {
-                largestTierClaimed = _tier;
-            }
-            // if it's a fresh claim
-            if (claimRecord.amount == 0) {
-                if (_tier != numberOfTiers) {
-                    claimCount++;
-                } else {
-                    canaryClaimCount++;
-                }
-            }
-            claimRecords[_user] = ClaimRecord({drawId: drawId, amount: uint224(payout + claimRecord.amount)});
-            _internalBalance -= prizeSize;
-            prizeToken.transfer(_user, prizeSize);
+        require(_fee <= prizeSize, "fee too large");
+        _internalBalance -= prizeSize;
+        uint256 payout = prizeSize - _fee;
+        if (largestTierClaimed < _tier) {
+            largestTierClaimed = _tier;
         }
+        if (_tier == numberOfTiers) {
+            canaryClaimCount++;
+        } else {
+            claimCount++;
+        }
+        claimRecords[_winner] = ClaimRecord({drawId: _drawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
+        prizeToken.transfer(_to, payout);
+        if (_fee > 0) {
+            prizeToken.transfer(_feeRecipient, _fee);
+        }
+        emit ClaimedPrize(_drawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
         return payout;
     }
 
@@ -330,12 +369,13 @@ contract PrizePool {
         address _user,
         uint8 _tier
     ) public returns (bool) {
-        require(drawId > 0, "no draw");
+        require(_drawId > 0, "no draw");
+        require(_tier <= numberOfTiers, "invalid tier");
 
         SD59x18 tierOdds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriodDraws);
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, drawDuration);
-        SD59x18 vaultPortion = _getVaultPortion(_vault, drawId, uint32(drawDuration), alpha.intoSD59x18());
+        SD59x18 vaultPortion = _getVaultPortion(_vault, _drawId, uint32(drawDuration), alpha.intoSD59x18());
         uint32 tierPrizeCount;
         if (_tier == numberOfTiers) { // then canary tier
             tierPrizeCount = _canaryPrizeCount(_tier);
@@ -344,7 +384,7 @@ contract PrizePool {
         } else {
             return false;
         }
-        return TierCalculationLib.isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupply, vaultPortion, tierOdds, tierPrizeCount, winningRandomNumber);
+        return TierCalculationLib.isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupply, vaultPortion, tierOdds, tierPrizeCount, _winningRandomNumber);
     }
 
     function _prizeCount(uint8 _tier, uint8 _numberOfTiers) internal view returns (uint32) {
@@ -395,9 +435,9 @@ contract PrizePool {
         return _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, _drawDuration);
     }
 
-    function _getVaultPortion(address _vault, uint32 _drawId, uint32 _durationInDraws, SD59x18 _alpha) internal view returns (SD59x18) {
-        uint32 _startDrawIdIncluding = uint32(_durationInDraws > _drawId ? 0 : _drawId-_durationInDraws+1);
-        uint32 _endDrawIdExcluding = _drawId + 1;
+    function _getVaultPortion(address _vault, uint32 drawId_, uint32 _durationInDraws, SD59x18 _alpha) internal view returns (SD59x18) {
+        uint32 _startDrawIdIncluding = uint32(_durationInDraws > drawId_ ? 0 : drawId_-_durationInDraws+1);
+        uint32 _endDrawIdExcluding = drawId_ + 1;
         uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulators[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         if (totalContributed != 0) {
@@ -411,7 +451,14 @@ contract PrizePool {
         return _getVaultPortion(_vault, startDrawId, endDrawId, alpha.intoSD59x18());
     }
 
-    function calculatePrizeSize(uint8 _tier) public view returns (uint256) {
+    function calculatePrizeSize(uint8 _tier) external view returns (uint256) {
+        return _calculatePrizeSize(_tier);
+    }
+
+    function _calculatePrizeSize(uint8 _tier) internal view returns (uint256) {
+        if (_drawId == 0) {
+            return 0;
+        }
         if (_tier < numberOfTiers) {
             return _getLiquidity(_tier, tierShares) / TierCalculationLib.prizeCount(_tier);
         } else if (_tier == numberOfTiers) { // it's the canary tier
@@ -426,7 +473,7 @@ contract PrizePool {
     }
 
     function _getLiquidity(uint8 _tier, uint256 _shares) internal view returns (uint256) {
-        UD60x18 _numberOfPrizeTokenPerShareOutstanding = ud(UD60x18.unwrap(_prizeTokenPerShare) - UD60x18.unwrap(_tierExchangeRates[_tier]));
+        UD60x18 _numberOfPrizeTokenPerShareOutstanding = ud(UD60x18.unwrap(prizeTokenPerShare) - UD60x18.unwrap(_tierExchangeRates[_tier]));
 
         return fromUD60x18(_numberOfPrizeTokenPerShareOutstanding.mul(UD60x18.wrap(_shares*1e18)));
     }
