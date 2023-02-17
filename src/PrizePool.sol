@@ -52,20 +52,20 @@ contract PrizePool {
     uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_15_TIERS;
     uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_16_TIERS;
 
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_2_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_3_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_4_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_5_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_6_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_7_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_8_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_9_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_10_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_11_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_12_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_13_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_14_TIERS;
-    uint32 immutable internal CANARY_PRIZE_COUNT_FOR_15_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_2_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_3_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_4_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_5_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_6_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_7_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_8_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_9_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_10_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_11_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_12_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_13_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_14_TIERS;
+    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_15_TIERS;
 
     mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulators;
 
@@ -162,20 +162,20 @@ contract PrizePool {
         ESTIMATED_PRIZES_PER_DRAW_FOR_15_TIERS = TierCalculationLib.estimatedClaimCount(15, _grandPrizePeriodDraws);
         ESTIMATED_PRIZES_PER_DRAW_FOR_16_TIERS = TierCalculationLib.estimatedClaimCount(16, _grandPrizePeriodDraws);
 
-        CANARY_PRIZE_COUNT_FOR_2_TIERS = uint32(TierCalculationLib.canaryPrizeCount(2, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_3_TIERS = uint32(TierCalculationLib.canaryPrizeCount(3, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_4_TIERS = uint32(TierCalculationLib.canaryPrizeCount(4, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_5_TIERS = uint32(TierCalculationLib.canaryPrizeCount(5, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_6_TIERS = uint32(TierCalculationLib.canaryPrizeCount(6, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_7_TIERS = uint32(TierCalculationLib.canaryPrizeCount(7, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_8_TIERS = uint32(TierCalculationLib.canaryPrizeCount(8, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_9_TIERS = uint32(TierCalculationLib.canaryPrizeCount(9, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_10_TIERS = uint32(TierCalculationLib.canaryPrizeCount(10, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_11_TIERS = uint32(TierCalculationLib.canaryPrizeCount(11, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_12_TIERS = uint32(TierCalculationLib.canaryPrizeCount(12, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_13_TIERS = uint32(TierCalculationLib.canaryPrizeCount(13, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_14_TIERS = uint32(TierCalculationLib.canaryPrizeCount(14, _canaryShares, _reserveShares, _tierShares));
-        CANARY_PRIZE_COUNT_FOR_15_TIERS = uint32(TierCalculationLib.canaryPrizeCount(15, _canaryShares, _reserveShares, _tierShares));
+        CANARY_PRIZE_COUNT_FOR_2_TIERS = TierCalculationLib.canaryPrizeCount(2, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_3_TIERS = TierCalculationLib.canaryPrizeCount(3, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_4_TIERS = TierCalculationLib.canaryPrizeCount(4, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_5_TIERS = TierCalculationLib.canaryPrizeCount(5, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_6_TIERS = TierCalculationLib.canaryPrizeCount(6, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_7_TIERS = TierCalculationLib.canaryPrizeCount(7, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_8_TIERS = TierCalculationLib.canaryPrizeCount(8, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_9_TIERS = TierCalculationLib.canaryPrizeCount(9, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_10_TIERS = TierCalculationLib.canaryPrizeCount(10, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_11_TIERS = TierCalculationLib.canaryPrizeCount(11, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_12_TIERS = TierCalculationLib.canaryPrizeCount(12, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_13_TIERS = TierCalculationLib.canaryPrizeCount(13, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_14_TIERS = TierCalculationLib.canaryPrizeCount(14, _canaryShares, _reserveShares, _tierShares);
+        CANARY_PRIZE_COUNT_FOR_15_TIERS = TierCalculationLib.canaryPrizeCount(15, _canaryShares, _reserveShares, _tierShares);
     }
 
     function getWinningRandomNumber() external view returns (uint256) {
@@ -221,7 +221,7 @@ contract PrizePool {
         return UD60x18.unwrap(prizeTokenPerShare);
     }
 */
-    function captureReserve(address _to, uint256 _amount) external {
+    function withdrawReserve(address _to, uint256 _amount) external {
         // NOTE: must make this function privileged
         require(_amount <= _reserve, "insuff");
         _reserve -= _amount;
@@ -234,22 +234,25 @@ contract PrizePool {
         require(block.timestamp >= drawStartedAt + drawPeriodSeconds, "not elapsed");
 
         uint8 numTiers = numberOfTiers;
-        uint8 nextNumberOfTiers = numTiers;
+        uint8 nextNumberOfTiers = numberOfTiers;
         uint256 reclaimedLiquidity;
-        if (largestTierClaimed < numTiers) {
-            if (largestTierClaimed > MINIMUM_NUMBER_OF_TIERS) {
-                nextNumberOfTiers = largestTierClaimed;
+        // console2.log("completeAndStartNextDraw largestTierClaimed", largestTierClaimed);
+        // console2.log("completeAndStartNextDraw numTiers", numTiers);
+        // if the draw was eligible
+        if (_drawId != 0) {
+            if (largestTierClaimed < numTiers) {
+                nextNumberOfTiers = largestTierClaimed > MINIMUM_NUMBER_OF_TIERS ? largestTierClaimed+1 : MINIMUM_NUMBER_OF_TIERS;
                 reclaimedLiquidity = _reclaimTierLiquidity(numTiers, nextNumberOfTiers);
-            }
-        } else {
-            // check canary tier and standard tiers
-            if (canaryClaimCount >= _canaryClaimExpansionThreshold(claimExpansionThreshold, numTiers) &&
-                claimCount >= _prizeClaimExpansionThreshold(claimExpansionThreshold, numTiers)) {
-                // expand the number of tiers
-                // first reset the next tier exchange rate to have accrued nothing (delta is zero)
-                _tierExchangeRates[numTiers] = prizeTokenPerShare;
-                // now increase the number of tiers to include te new tier
-                nextNumberOfTiers = numTiers + 1;
+            } else {
+                // check canary tier and standard tiers
+                if (canaryClaimCount >= _canaryClaimExpansionThreshold(claimExpansionThreshold, numTiers) &&
+                    claimCount >= _prizeClaimExpansionThreshold(claimExpansionThreshold, numTiers)) {
+                    // expand the number of tiers
+                    // first reset the next tier exchange rate to have accrued nothing (delta is zero)
+                    _tierExchangeRates[numTiers] = prizeTokenPerShare;
+                    // now increase the number of tiers to include te new tier
+                    nextNumberOfTiers = numTiers + 1;
+                }
             }
         }
 
@@ -259,11 +262,18 @@ contract PrizePool {
         claimCount = 0;
         canaryClaimCount = 0;
         largestTierClaimed = 0;
+        // reset canary tier
+        _tierExchangeRates[nextNumberOfTiers] = prizeTokenPerShare;
         drawStartedAt = _calculateNextDrawStartedAt(drawStartedAt, drawPeriodSeconds, uint64(block.timestamp));
         
         (UD60x18 deltaExchangeRate, uint256 remainder) = _computeDrawDeltaExchangeRate(nextNumberOfTiers);
         prizeTokenPerShare = prizeTokenPerShare.add(deltaExchangeRate);
-        _reserve += reclaimedLiquidity + remainder;
+
+        uint256 _additionalReserve = fromUD60x18(deltaExchangeRate.mul(toUD60x18(reserveShares)));
+        // console2.log("completeAndStartNextDraw _additionalReserve", _additionalReserve);
+        // console2.log("completeAndStartNextDraw reclaimedLiquidity", reclaimedLiquidity);
+        // console2.log("completeAndStartNextDraw remainder", remainder);
+        _reserve += _additionalReserve + reclaimedLiquidity + remainder;
 
         return _drawId;
     }
@@ -286,9 +296,12 @@ contract PrizePool {
 
     function _reclaimTierLiquidity(uint8 _numberOfTiers, uint8 _nextNumberOfTiers) internal view returns (uint256) {
         uint256 reclaimedLiquidity;
-        for (uint8 i = _numberOfTiers - 1; i != _nextNumberOfTiers; i--) {
+        // console2.log("_reclaimTierLiquidity _numberOfTiers", _numberOfTiers);
+        // console2.log("_reclaimTierLiquidity _nextNumberOfTiers", _nextNumberOfTiers);
+        for (uint8 i = _numberOfTiers - 1; i >= _nextNumberOfTiers; i--) {
             // reclaim the current unclaimed liquidity for that tier
             reclaimedLiquidity += _getLiquidity(i, tierShares);
+            // console2.log("_reclaimTierLiquidity reclaimedLiquidity", reclaimedLiquidity);
         }
         return reclaimedLiquidity;
     }
@@ -298,7 +311,7 @@ contract PrizePool {
     }
 
     function _canaryClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
-        return fromUD60x18(_claimExpansionThreshold.intoUD60x18().mul(toUD60x18(_canaryPrizeCount(_numberOfTiers))));
+        return fromUD60x18(_claimExpansionThreshold.intoUD60x18().mul(_canaryPrizeCount(_numberOfTiers).floor()));
     }
 
     function _prizeClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
@@ -318,7 +331,7 @@ contract PrizePool {
     ) external returns (uint256) {
         address _vault = msg.sender;
         uint256 prizeSize;
-        if (isWinner(_vault, _winner, _tier)) {
+        if (_isWinner(_vault, _winner, _tier)) {
             // transfer prize to user
             prizeSize = _calculatePrizeSize(_tier);
         } else {
@@ -358,7 +371,19 @@ contract PrizePool {
         address _vault,
         address _user,
         uint8 _tier
-    ) public returns (bool) {
+    ) external returns (bool) {
+        return _isWinner(_vault, _user, _tier);
+    }
+
+    /**
+    * TODO: check that beaconPeriodStartedAt is the timestamp at which the draw started
+    * Add in memory start and end timestamp
+    */
+    function _isWinner(
+        address _vault,
+        address _user,
+        uint8 _tier
+    ) internal returns (bool) {
         require(_drawId > 0, "no draw");
         require(_tier <= numberOfTiers, "invalid tier");
 
@@ -366,24 +391,13 @@ contract PrizePool {
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, drawDuration);
         SD59x18 vaultPortion = _getVaultPortion(_vault, _drawId, uint32(drawDuration), alpha.intoSD59x18());
-        uint32 tierPrizeCount;
+        SD59x18 tierPrizeCount;
         if (_tier == numberOfTiers) { // then canary tier
-            tierPrizeCount = _canaryPrizeCount(_tier);
-        } else if (_tier < numberOfTiers) {
-            tierPrizeCount = _prizeCount(_tier, numberOfTiers);
+            tierPrizeCount = sd(int256(_canaryPrizeCount(_tier).unwrap()));
         } else {
-            return false;
+            tierPrizeCount = toSD59x18(int256(TierCalculationLib.prizeCount(_tier)));
         }
         return TierCalculationLib.isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupply, vaultPortion, tierOdds, tierPrizeCount, _winningRandomNumber);
-    }
-
-    function _prizeCount(uint8 _tier, uint8 _numberOfTiers) internal view returns (uint32) {
-        if (_tier < _numberOfTiers) {
-            return uint32(TierCalculationLib.prizeCount(_tier));
-        } else if (_tier == _numberOfTiers) {
-            return _canaryPrizeCount(_numberOfTiers);
-        }
-        return 0;
     }
 
     function calculateTierTwabTimestamps(uint8 _tier) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
@@ -452,14 +466,22 @@ contract PrizePool {
         if (_tier < numberOfTiers) {
             return _getLiquidity(_tier, tierShares) / TierCalculationLib.prizeCount(_tier);
         } else if (_tier == numberOfTiers) { // it's the canary tier
-            return _getLiquidity(_tier, canaryShares) / _canaryPrizeCount(_tier);
+            // console2.log("canary liquidity", _getLiquidity(_tier, canaryShares));
+            // console2.log("canary prize count", _canaryPrizeCount(_tier).unwrap());
+            return fromUD60x18(toUD60x18(_getLiquidity(_tier, canaryShares)).div(_canaryPrizeCount(_tier)));
         } else {
             return 0;
         }
     }
 
     function getTierLiquidity(uint8 _tier) external view returns (uint256) {
-        return _getLiquidity(_tier, tierShares);
+        if (_tier > numberOfTiers) {
+            return 0;
+        } else if (_tier != numberOfTiers) {
+            return _getLiquidity(_tier, tierShares);
+        } else {
+            return _getLiquidity(_tier, canaryShares);
+        }
     }
 
     function _getLiquidity(uint8 _tier, uint256 _shares) internal view returns (uint256) {
@@ -484,9 +506,17 @@ contract PrizePool {
         return _estimatedPrizeCount(numTiers);
     }
 
-    function canaryPrizeCount(uint8 numTiers) external view returns (uint32) {
+    function canaryPrizeCountMultiplier(uint8 numTiers) external view returns (UD60x18) {
         return _canaryPrizeCount(numTiers);
     }
+
+    // function canaryPrizeCount() external view returns (uint32) {
+    //     return uint32(fromUD60x18(_canaryPrizeCount(numberOfTiers).floor()));
+    // }
+
+    // function canaryPrizeCount(uint8 numTiers) external view returns (uint32) {
+    //     return uint32(fromUD60x18(_canaryPrizeCount(numTiers).floor()));
+    // }
 
     function _estimatedPrizeCount(uint8 numTiers) internal view returns (uint32) {
         if (numTiers == 2) {
@@ -523,7 +553,7 @@ contract PrizePool {
         return 0;
     }
 
-    function _canaryPrizeCount(uint8 numTiers) internal view returns (uint32) {
+    function _canaryPrizeCount(uint8 numTiers) internal view returns (UD60x18) {
         if (numTiers == 2) {
             return CANARY_PRIZE_COUNT_FOR_2_TIERS;
         } else if (numTiers == 3) {
@@ -553,7 +583,7 @@ contract PrizePool {
         } else if (numTiers == 15) {
             return CANARY_PRIZE_COUNT_FOR_15_TIERS;
         }
-        return 0;
+        return ud(0);
     }
 
 }

@@ -34,16 +34,17 @@ library TierCalculationLib {
         uint256 _canaryShares,
         uint256 _reserveShares,
         uint256 _tierShares
-    ) internal pure returns (uint256) {
+    ) internal pure returns (UD60x18) {
         // const m3 = CANARY_SHARE / getTotalShares(numTiers)
         // const l3 = SHARES_PER_TIER / getTotalShares(numTiers+1)
         // const prizeCountMultiplier = m3/l3
+
         // = canShare * total(n+1) / sharePerTier*total(n)
 
         uint256 numerator = _canaryShares * ((_numberOfTiers+1) * _tierShares + _canaryShares + _reserveShares);
         uint256 denominator = _tierShares * ((_numberOfTiers) * _tierShares + _canaryShares + _reserveShares);
         UD60x18 multiplier = toUD60x18(numerator).div(toUD60x18(denominator));
-        return fromUD60x18(multiplier.mul(toUD60x18(prizeCount(_numberOfTiers))).floor());
+        return multiplier.mul(toUD60x18(prizeCount(_numberOfTiers)));
     }
 
     function computeNextExchangeRateDelta(
@@ -65,7 +66,7 @@ library TierCalculationLib {
         uint256 _vaultTwabTotalSupply,
         SD59x18 _vaultPortion,
         SD59x18 _tierOdds,
-        uint32 _tierPrizeCount,
+        SD59x18 _tierPrizeCount,
         uint256 _winningRandomNumber
     ) internal pure returns (bool) {
         if (_vaultTwabTotalSupply == 0) {
@@ -98,9 +99,9 @@ library TierCalculationLib {
         uint256 _userTwab,
         SD59x18 _tierOdds,
         SD59x18 _vaultContributionFraction,
-        uint256 _prizeCount
+        SD59x18 _prizeCount
     ) internal pure returns (uint256) {
-        return uint256(fromSD59x18(sd(int256(_userTwab*1e18)).mul(_tierOdds).mul(_vaultContributionFraction).mul(sd(int256(_prizeCount*1e18)))));
+        return uint256(fromSD59x18(sd(int256(_userTwab*1e18)).mul(_tierOdds).mul(_vaultContributionFraction).mul(_prizeCount)));
     }
 
     function estimatedClaimCount(uint256 _numberOfTiers, uint256 _grandPrizePeriod) internal pure returns (uint32) {
