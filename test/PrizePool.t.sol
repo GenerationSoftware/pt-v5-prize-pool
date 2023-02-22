@@ -31,7 +31,7 @@ contract PrizePoolTest is Test {
     address sender5 = 0x9ebC8E61f87A301fF25a606d7C06150f856F24E2;
     address sender6 = 0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5;
 
-    uint64 drawStartedAt;
+    uint64 lastCompletedDrawStartedAt;
     uint32 drawPeriodSeconds;
     uint256 winningRandomNumber = 123456;
 
@@ -41,7 +41,7 @@ contract PrizePoolTest is Test {
         prizeToken = new ERC20Mintable("PoolTogether POOL token", "POOL");
         twabController = new TwabController();
 
-        drawStartedAt = uint64(block.timestamp);
+        lastCompletedDrawStartedAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
         drawPeriodSeconds = 1 days;
 
         prizePool = new PrizePool(
@@ -49,7 +49,7 @@ contract PrizePoolTest is Test {
             twabController,
             uint32(365),
             drawPeriodSeconds,
-            drawStartedAt,
+            lastCompletedDrawStartedAt,
             uint8(2), // minimum number of tiers
             100e18,
             10e18,
@@ -126,9 +126,9 @@ contract PrizePoolTest is Test {
     function testCompleteAndStartNextDraw_noLiquidity() public {
         completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizePool.getWinningRandomNumber(), winningRandomNumber);
-        assertEq(prizePool.getDrawId(), 1);
+        assertEq(prizePool.getLastCompletedDrawId(), 1);
         assertEq(prizePool.getNextDrawId(), 2);
-        assertEq(prizePool.drawStartedAt(), drawStartedAt + drawPeriodSeconds);
+        assertEq(prizePool.lastCompletedDrawStartedAt(), lastCompletedDrawStartedAt);
     }
 
     function testCompleteAndStartNextDraw_withLiquidity() public {
@@ -148,7 +148,7 @@ contract PrizePoolTest is Test {
             twabController,
             uint32(365),
             drawPeriodSeconds,
-            drawStartedAt,
+            lastCompletedDrawStartedAt,
             uint8(4), // higher number of tiers
             100e18,
             10e18,
@@ -350,6 +350,37 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.canaryClaimCount(), 1);
     }
 
+    function testlastCompletedDrawStartedAt() public {
+        assertEq(prizePool.lastCompletedDrawStartedAt(), 0);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.lastCompletedDrawStartedAt(), lastCompletedDrawStartedAt);
+    }
+
+    function testNextDrawStartsAt_zeroDraw() public {
+        // current time *is* lastCompletedDrawStartedAt
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+    }
+
+    function testNextDrawStartsAt_zeroDrawPartwayThrough() public {
+        // current time is halfway through first draw
+        vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds / 2);
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+    }
+
+    function testNextDrawStartsAt_zeroDrawWithLongDelay() public {
+        // current time is halfway through *second* draw
+        vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds + drawPeriodSeconds / 2); // warp halfway through second draw
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+    }
+
+    function testNextDrawStartsAt_nextDraw() public {
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt+drawPeriodSeconds);
+    }
+
+
+
     // function testCalculatePrizeSize() public {
     //     contribute(100e18);
     //     prizePool.calculatePrizeSize();
@@ -357,7 +388,7 @@ contract PrizePoolTest is Test {
 
     function testGetVaultUserBalanceAndTotalSupplyTwab() public {
         completeAndStartNextDraw(winningRandomNumber);
-        mockTwab(msg.sender, prizePool.drawStartedAt() + drawPeriodSeconds - 365 * drawPeriodSeconds, prizePool.drawStartedAt() + drawPeriodSeconds);
+        mockTwab(msg.sender, prizePool.lastCompletedDrawStartedAt() + drawPeriodSeconds - 365 * drawPeriodSeconds, prizePool.lastCompletedDrawStartedAt() + drawPeriodSeconds);
         (uint256 twab, uint256 twabTotalSupply) = prizePool.getVaultUserBalanceAndTotalSupplyTwab(address(this), msg.sender, 365);
         assertEq(twab, 366e30);
         assertEq(twabTotalSupply, 1e30);
@@ -440,7 +471,7 @@ contract PrizePoolTest is Test {
     }
 
     function completeAndStartNextDraw(uint256 _winningRandomNumber) public {
-        vm.warp(prizePool.drawStartedAt() + drawPeriodSeconds);
+        vm.warp(prizePool.nextDrawStartsAt());
         prizePool.completeAndStartNextDraw(_winningRandomNumber);
     }
 
