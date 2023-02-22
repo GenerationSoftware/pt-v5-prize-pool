@@ -226,11 +226,7 @@ contract PrizePool {
      * Returns the start time of the draw for the next successful completeAndStartNextDraw
      */
     function nextDrawStartsAt() external view returns (uint256) {
-        if (lastCompletedDrawId != 0) {
-            return lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
-        } else {
-            return lastCompletedlastCompletedDrawStartedAt_;
-        }
+        return _nextDrawStartsAt();
     }
 
     /**
