@@ -12,7 +12,7 @@ import { SD1x18 } from "prb-math/SD1x18.sol";
 // import { TwabController } from "./interfaces/TwabController.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { DrawAccumulatorLib } from "./libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 import { BitLib } from "./libraries/BitLib.sol";
 
@@ -98,7 +98,7 @@ contract PrizePool {
 
     uint96 public immutable reserveShares;
 
-    uint256 internal _internalBalance;
+    uint256 internal _totalClaimedPrizes;
 
     UD60x18 public prizeTokenPerShare;
 
@@ -114,9 +114,9 @@ contract PrizePool {
 
     uint8 public largestTierClaimed;
 
-    uint32 public _drawId;
+    uint32 public lastCompletedDrawId;
 
-    uint64 public drawStartedAt;
+    uint64 internal lastCompletedlastCompletedDrawStartedAt_;
 
     // TODO: add requires
     constructor (
@@ -124,7 +124,7 @@ contract PrizePool {
         TwabController _twabController,
         uint32 _grandPrizePeriodDraws,
         uint32 _drawPeriodSeconds,
-        uint64 _drawStartedAt,
+        uint64 nextDrawStartsAt_,
         uint8 _numberOfTiers,
         uint96 _tierShares,
         uint96 _canaryShares,
@@ -142,7 +142,7 @@ contract PrizePool {
         alpha = _alpha;
         claimExpansionThreshold = _claimExpansionThreshold;
         drawPeriodSeconds = _drawPeriodSeconds;
-        drawStartedAt = _drawStartedAt;
+        lastCompletedlastCompletedDrawStartedAt_ = nextDrawStartsAt_;
 
         require(numberOfTiers >= MINIMUM_NUMBER_OF_TIERS, "num-tiers-gt-1");
 
@@ -182,45 +182,39 @@ contract PrizePool {
         return _winningRandomNumber;
     }
 
-    function getDrawId() external view returns (uint256) {
-        return _drawId;
+    function getLastCompletedDrawId() external view returns (uint256) {
+        return lastCompletedDrawId;
     }
 
-    // TODO: see if we can transfer via a callback from the liquidator and add events
     function contributePrizeTokens(address _prizeVault, uint256 _amount) external returns(uint256) {
-        // how do we know how many new tokens there are?
-        uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - _internalBalance;
-
+        uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - _accountedBalance();
         require(_deltaBalance >=  _amount, "PP/deltaBalance-gte-amount");
-
-        _internalBalance += _amount;
-
-        DrawAccumulatorLib.add(vaultAccumulators[_prizeVault], _amount, _drawId + 1, alpha.intoSD59x18());
-        DrawAccumulatorLib.add(totalAccumulator, _amount, _drawId + 1, alpha.intoSD59x18());
-
+        DrawAccumulatorLib.add(vaultAccumulators[_prizeVault], _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
+        DrawAccumulatorLib.add(totalAccumulator, _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
         return _deltaBalance;
     }
 
-    function getNextDrawId() external view returns (uint256) {
-        return uint256(_drawId) + 1;
-    }
-/*
-    function drawStartedAt() external view returns (uint64) {
-        return drawStartedAt;
+    function _accountedBalance() internal view returns (uint256) {
+        Observation memory obs = DrawAccumulatorLib.newestObservation(totalAccumulator);
+        return (obs.available + obs.disbursed) - _totalClaimedPrizes;
     }
 
-    function numberOfTiers() external view returns (uint8) {
-        return numberOfTiers;
+    function getNextDrawId() external view returns (uint256) {
+        return uint256(lastCompletedDrawId) + 1;
     }
-*/
+
+    function lastCompletedDrawStartedAt() external view returns (uint64) {
+        if (lastCompletedDrawId != 0) {
+            return lastCompletedlastCompletedDrawStartedAt_;
+        } else {
+            return 0;
+        }
+    }
+
     function reserve() external view returns (uint256) {
         return _reserve;
     }
-/*
-    function prizeTokenPerShare() external view returns (uint256) {
-        return UD60x18.unwrap(prizeTokenPerShare);
-    }
-*/
+
     function withdrawReserve(address _to, uint256 _amount) external {
         // NOTE: must make this function privileged
         require(_amount <= _reserve, "insuff");
@@ -228,10 +222,29 @@ contract PrizePool {
         prizeToken.transfer(_to, _amount);
     }
 
+    /**
+     * Returns the start time of the draw for the next successful completeAndStartNextDraw
+     */
+    function nextDrawStartsAt() external view returns (uint256) {
+        return _nextDrawStartsAt();
+    }
+
+    /**
+     * Returns the start time of the draw for the next successful completeAndStartNextDraw
+     */
+    function _nextDrawStartsAt() internal view returns (uint64) {
+        if (lastCompletedDrawId != 0) {
+            return lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
+        } else {
+            return lastCompletedlastCompletedDrawStartedAt_;
+        }
+    }
+
     function completeAndStartNextDraw(uint256 winningRandomNumber_) external returns (uint32) {
         // check winning random number
         require(winningRandomNumber_ != 0, "num invalid");
-        require(block.timestamp >= drawStartedAt + drawPeriodSeconds, "not elapsed");
+        uint64 nextDrawStartsAt_ = _nextDrawStartsAt();
+        require(block.timestamp >= nextDrawStartsAt_, "not elapsed");
 
         uint8 numTiers = numberOfTiers;
         uint8 nextNumberOfTiers = numberOfTiers;
@@ -239,7 +252,7 @@ contract PrizePool {
         // console2.log("completeAndStartNextDraw largestTierClaimed", largestTierClaimed);
         // console2.log("completeAndStartNextDraw numTiers", numTiers);
         // if the draw was eligible
-        if (_drawId != 0) {
+        if (lastCompletedDrawId != 0) {
             if (largestTierClaimed < numTiers) {
                 nextNumberOfTiers = largestTierClaimed > MINIMUM_NUMBER_OF_TIERS ? largestTierClaimed+1 : MINIMUM_NUMBER_OF_TIERS;
                 reclaimedLiquidity = _reclaimTierLiquidity(numTiers, nextNumberOfTiers);
@@ -260,13 +273,13 @@ contract PrizePool {
 
         _winningRandomNumber = winningRandomNumber_;
         numberOfTiers = nextNumberOfTiers;
-        _drawId += 1;
+        lastCompletedDrawId += 1;
         claimCount = 0;
         canaryClaimCount = 0;
         largestTierClaimed = 0;
         // reset canary tier
         _tierExchangeRates[nextNumberOfTiers] = prizeTokenPerShare;
-        drawStartedAt = _calculateNextDrawStartedAt(drawStartedAt, drawPeriodSeconds, uint64(block.timestamp));
+        lastCompletedlastCompletedDrawStartedAt_ = nextDrawStartsAt_;
         
         (UD60x18 deltaExchangeRate, uint256 remainder) = _computeDrawDeltaExchangeRate(nextNumberOfTiers);
         prizeTokenPerShare = prizeTokenPerShare.add(deltaExchangeRate);
@@ -277,23 +290,7 @@ contract PrizePool {
         // console2.log("completeAndStartNextDraw remainder", remainder);
         _reserve += _additionalReserve + reclaimedLiquidity + remainder;
 
-        return _drawId;
-    }
-
-    /**
-     * @notice Calculates when the next beacon period will start
-     * @param _drawStartedAt The timestamp at which the beacon period started
-     * @param _drawPeriodSeconds The duration of the beacon period in seconds
-     * @param _currentTime The timestamp to use as the current time
-     * @return The timestamp at which the next beacon period would start
-     */
-    function _calculateNextDrawStartedAt(
-        uint64 _drawStartedAt,
-        uint32 _drawPeriodSeconds,
-        uint64 _currentTime
-    ) internal pure returns (uint64) {
-        uint64 elapsedPeriods = (_currentTime - _drawStartedAt) / _drawPeriodSeconds;
-        return _drawStartedAt + (elapsedPeriods * _drawPeriodSeconds);
+        return lastCompletedDrawId;
     }
 
     function _reclaimTierLiquidity(uint8 _numberOfTiers, uint8 _nextNumberOfTiers) internal view returns (uint256) {
@@ -309,7 +306,7 @@ contract PrizePool {
     }
 
     function _computeDrawDeltaExchangeRate(uint8 _numberOfTiers) internal view returns (UD60x18 deltaExchangeRate, uint256 remainder) {
-        return TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(_numberOfTiers), DrawAccumulatorLib.getAvailableAt(totalAccumulator, _drawId, alpha.intoSD59x18()));
+        return TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(_numberOfTiers), DrawAccumulatorLib.getAvailableAt(totalAccumulator, lastCompletedDrawId, alpha.intoSD59x18()));
     }
 
     function _canaryClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
@@ -340,13 +337,13 @@ contract PrizePool {
             revert("did not win");
         }
         ClaimRecord memory claimRecord = claimRecords[_winner];
-        if (claimRecord.drawId != _drawId) {
-            claimRecord = ClaimRecord({drawId: _drawId, claimedTiers: uint8(0)});
+        if (claimRecord.drawId != lastCompletedDrawId) {
+            claimRecord = ClaimRecord({drawId: lastCompletedDrawId, claimedTiers: uint8(0)});
         } else if (BitLib.getBit(claimRecord.claimedTiers, _tier)) {
             return 0;
         }
         require(_fee <= prizeSize, "fee too large");
-        _internalBalance -= prizeSize;
+        _totalClaimedPrizes += prizeSize;
         uint256 payout = prizeSize - _fee;
         if (largestTierClaimed < _tier) {
             largestTierClaimed = _tier;
@@ -356,12 +353,12 @@ contract PrizePool {
         } else {
             claimCount++;
         }
-        claimRecords[_winner] = ClaimRecord({drawId: _drawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
+        claimRecords[_winner] = ClaimRecord({drawId: lastCompletedDrawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
         prizeToken.transfer(_to, payout);
         if (_fee > 0) {
             prizeToken.transfer(_feeRecipient, _fee);
         }
-        emit ClaimedPrize(_drawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
+        emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
         return payout;
     }
 
@@ -386,13 +383,13 @@ contract PrizePool {
         address _user,
         uint8 _tier
     ) internal returns (bool) {
-        require(_drawId > 0, "no draw");
+        require(lastCompletedDrawId > 0, "no draw");
         require(_tier <= numberOfTiers, "invalid tier");
 
         SD59x18 tierOdds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriodDraws);
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, drawDuration);
-        SD59x18 vaultPortion = _getVaultPortion(_vault, _drawId, uint32(drawDuration), alpha.intoSD59x18());
+        SD59x18 vaultPortion = _getVaultPortion(_vault, lastCompletedDrawId, uint32(drawDuration), alpha.intoSD59x18());
         SD59x18 tierPrizeCount;
         if (_tier == numberOfTiers) { // then canary tier
             tierPrizeCount = sd(int256(_canaryPrizeCount(_tier).unwrap()));
@@ -404,13 +401,13 @@ contract PrizePool {
 
     function calculateTierTwabTimestamps(uint8 _tier) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
-        endTimestamp = drawStartedAt + drawPeriodSeconds;
+        endTimestamp = lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
         startTimestamp = uint64(endTimestamp - drawDuration * drawPeriodSeconds);
     }
 
     function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal returns (uint256 twab, uint256 twabTotalSupply) {
         {
-            uint64 endTimestamp = drawStartedAt + drawPeriodSeconds;
+            uint64 endTimestamp = lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
             uint64 startTimestamp = uint64(endTimestamp - _drawDuration * drawPeriodSeconds);
 
             // console2.log("startTimestamp", startTimestamp);
@@ -462,7 +459,7 @@ contract PrizePool {
     }
 
     function _calculatePrizeSize(uint8 _tier) internal view returns (uint256) {
-        if (_drawId == 0) {
+        if (lastCompletedDrawId == 0) {
             return 0;
         }
         if (_tier < numberOfTiers) {

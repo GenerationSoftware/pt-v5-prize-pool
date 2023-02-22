@@ -7,16 +7,16 @@ import "forge-std/console2.sol";
 import { RingBufferLib } from "./RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
+struct Observation {
+    // track the total amount available as of this Observation
+    uint96 available;
+    // track the total accumulated previously
+    uint168 disbursed;
+}
+
 library DrawAccumulatorLib {
 
     uint24 internal constant MAX_CARDINALITY = 366;
-
-    struct Observation {
-        // track the total amount available as of this Observation
-        uint96 available;
-        // track the total accumulated previously
-        uint168 disbursed;
-    }
 
     struct RingBufferInfo {
         uint16 nextIndex;
@@ -79,6 +79,10 @@ library DrawAccumulatorLib {
         require(_endDrawId >= newestDrawId, "invalid draw");
         Observation memory newestObservation = accumulator.observations[newestDrawId];
         return integrateInf(_alpha, _endDrawId - newestDrawId, newestObservation.available);
+    }
+
+    function newestObservation(Accumulator storage accumulator) internal view returns (Observation memory) {
+        return accumulator.observations[RingBufferLib.newestIndex(accumulator.ringBufferInfo.nextIndex, MAX_CARDINALITY)];
     }
 
     function getAvailableAt(Accumulator storage accumulator, uint32 _drawId, SD59x18 _alpha) internal view returns (uint256) {
@@ -227,7 +231,7 @@ library DrawAccumulatorLib {
         uint32 _oldestIndex,
         uint32 _newestIndex,
         uint32 _cardinality,
-        uint32 _targetDrawId
+        uint32 _targetLastCompletedDrawId
     ) internal view returns (
         uint32 beforeOrAtIndex,
         uint32 beforeOrAtDrawId,
@@ -251,10 +255,10 @@ library DrawAccumulatorLib {
             afterOrAtIndex = uint32(RingBufferLib.nextIndex(currentIndex, _cardinality));
             afterOrAtDrawId = _drawRingBuffer[afterOrAtIndex];
 
-            bool targetAtOrAfter = beforeOrAtDrawId <= _targetDrawId;
+            bool targetAtOrAfter = beforeOrAtDrawId <= _targetLastCompletedDrawId;
 
             // Check if we've found the corresponding Observation.
-            if (targetAtOrAfter && _targetDrawId <= afterOrAtDrawId) {
+            if (targetAtOrAfter && _targetLastCompletedDrawId <= afterOrAtDrawId) {
                 break;
             }
 
