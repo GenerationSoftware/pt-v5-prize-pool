@@ -405,13 +405,10 @@ contract PrizePool {
         startTimestamp = uint64(endTimestamp - drawDuration * drawPeriodSeconds);
     }
 
-    function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal returns (uint256 twab, uint256 twabTotalSupply) {
+    function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal view returns (uint256 twab, uint256 twabTotalSupply) {
         {
-            uint64 endTimestamp = lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
-            uint64 startTimestamp = uint64(endTimestamp - _drawDuration * drawPeriodSeconds);
-
-            // console2.log("startTimestamp", startTimestamp);
-            // console2.log("endTimestamp", endTimestamp);
+            uint32 endTimestamp = uint32(lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds);
+            uint32 startTimestamp = uint32(endTimestamp - _drawDuration * drawPeriodSeconds);
 
             twab = twabController.getAverageBalanceBetween(
                 _vault,
@@ -420,21 +417,15 @@ contract PrizePool {
                 endTimestamp
             );
 
-            uint64[] memory startTimestamps = new uint64[](1);
-            startTimestamps[0] = startTimestamp;
-            uint64[] memory endTimestamps = new uint64[](1);
-            endTimestamps[0] = endTimestamp;
-
-            uint256[] memory _vaultTwabTotalSupplies = twabController.getAverageTotalSuppliesBetween(
+            twabTotalSupply = twabController.getAverageTotalSupplyBetween(
                 _vault,
-                startTimestamps,
-                endTimestamps
+                startTimestamp,
+                endTimestamp
             );
-            twabTotalSupply = _vaultTwabTotalSupplies[0];
         }
     }
 
-    function getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) external returns (uint256, uint256) {
+    function getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) external view returns (uint256, uint256) {
         return _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, _drawDuration);
     }
 

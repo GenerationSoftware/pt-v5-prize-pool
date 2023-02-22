@@ -402,17 +402,11 @@ contract PrizePoolTest is Test {
         );
     }
 
-    function mockGetAverageTotalSupplyBetween(address _vault, uint64 _startTime, uint64 _endTime, uint256 _result) internal {
-        uint64[] memory startTimes = new uint64[](1);
-        startTimes[0] = _startTime;
-        uint64[] memory endTimes = new uint64[](1);
-        endTimes[0] = _endTime;
-        uint256[] memory result = new uint256[](1);
-        result[0] = _result;
+    function mockGetAverageTotalSupplyBetween(address _vault, uint32 _startTime, uint32 _endTime, uint256 _result) internal {
         vm.mockCall(
             address(twabController),
-            abi.encodeWithSelector(TwabController.getAverageTotalSuppliesBetween.selector, _vault, startTimes, endTimes),
-            abi.encode(result)
+            abi.encodeWithSelector(TwabController.getAverageTotalSupplyBetween.selector, _vault, _startTime, _endTime),
+            abi.encode(_result)
         );
     }
 
@@ -480,20 +474,20 @@ contract PrizePoolTest is Test {
         return result;
     }
 
-    function mockTwab(address _account, uint64 startTime, uint64 endTime) public {
+    function mockTwab(address _account, uint256 startTime, uint256 endTime) public {
         // console2.log("mockTwab startTime", startTime);
         // console2.log("mockTwab endTime", endTime);
         mockGetAverageBalanceBetween(
             address(this),
             _account,
-            startTime,
-            endTime,
+            uint32(startTime),
+            uint32(endTime),
             366e30
         );
         mockGetAverageTotalSupplyBetween(
             address(this),
-            startTime,
-            endTime,
+            uint32(startTime),
+            uint32(endTime),
             1e30
         );
     }
