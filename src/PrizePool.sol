@@ -191,6 +191,7 @@ contract PrizePool {
         require(_deltaBalance >=  _amount, "PP/deltaBalance-gte-amount");
         DrawAccumulatorLib.add(vaultAccumulators[_prizeVault], _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
         DrawAccumulatorLib.add(totalAccumulator, _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
+        console2.log("contributePrizeTokens lastCompletedDrawId + 1", lastCompletedDrawId + 1);
         return _deltaBalance;
     }
 
@@ -432,8 +433,10 @@ contract PrizePool {
     function _getVaultPortion(address _vault, uint32 drawId_, uint32 _durationInDraws, SD59x18 _alpha) internal view returns (SD59x18) {
         uint32 _startDrawIdIncluding = uint32(_durationInDraws > drawId_ ? 0 : drawId_-_durationInDraws+1);
         uint32 _endDrawIdExcluding = drawId_ + 1;
-        uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulators[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
-        uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        console2.log("_getVaultPortion _startDrawIdIncluding", _startDrawIdIncluding);
+        console2.log("_getVaultPortion _endDrawIdExcluding", _endDrawIdExcluding);
+        uint256 vaultContributed = 0;//DrawAccumulatorLib.getDisbursedBetween(vaultAccumulators[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        uint256 totalContributed = 0;//DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         if (totalContributed != 0) {
             return sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
         } else {

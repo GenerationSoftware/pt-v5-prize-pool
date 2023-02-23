@@ -2,4 +2,5 @@ forge-std/=lib/forge-std/src/
 prb-math/=lib/prb-math/src/
 openzeppelin=lib/openzeppelin-contracts/contracts/
 src/=src/
+test/=test/
 v5-twab-controller/=lib/v5-twab-controller/src/

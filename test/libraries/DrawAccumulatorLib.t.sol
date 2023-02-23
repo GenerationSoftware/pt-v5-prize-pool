@@ -4,20 +4,23 @@ pragma solidity 0.8.17;
 import "forge-std/Test.sol";
 
 import { DrawAccumulatorLib } from "src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLibWrapper } from "test/wrappers/DrawAccumulatorLibWrapper.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 
 contract DrawAccumulatorLibTest is Test {
     using DrawAccumulatorLib for DrawAccumulatorLib.Accumulator;
 
     DrawAccumulatorLib.Accumulator accumulator;
+    DrawAccumulatorLibWrapper wrapper;
     SD59x18 alpha;
 
     function setUp() public {
         alpha = sd(0.9e18);
+        wrapper = new DrawAccumulatorLibWrapper();
     }
 
     function testAddOne() public {
-        accumulator.add(100, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 100, 1, alpha);
         assertEq(accumulator.ringBufferInfo.cardinality, 1);
         assertEq(accumulator.ringBufferInfo.nextIndex, 1);
         assertEq(accumulator.drawRingBuffer[0], 1);
@@ -25,8 +28,8 @@ contract DrawAccumulatorLibTest is Test {
     }
 
     function testAddSame() public {
-        accumulator.add(100, 1, alpha);
-        accumulator.add(200, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 100, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 200, 1, alpha);
 
         assertEq(accumulator.ringBufferInfo.cardinality, 1);
         assertEq(accumulator.ringBufferInfo.nextIndex, 1);
@@ -35,8 +38,8 @@ contract DrawAccumulatorLibTest is Test {
     }
 
     function testAddSecond() public {
-        accumulator.add(100, 1, alpha);
-        accumulator.add(200, 3, alpha);
+        DrawAccumulatorLib.add(accumulator, 100, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 200, 3, alpha);
 
         assertEq(accumulator.ringBufferInfo.cardinality, 2);
         assertEq(accumulator.ringBufferInfo.nextIndex, 2);
@@ -49,50 +52,55 @@ contract DrawAccumulatorLibTest is Test {
     }
 
     function testGetAvailableAt() public {
-        accumulator.add(10000, 1, alpha);
-        accumulator.add(20000, 3, alpha);
+        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 20000, 3, alpha);
 
-        assertEq(accumulator.getAvailableAt(1, alpha), 1000);
-        assertEq(accumulator.getAvailableAt(2, alpha), 899);
-        assertEq(accumulator.getAvailableAt(3, alpha), 2810);
+        assertEq(DrawAccumulatorLib.getAvailableAt(accumulator, 1, alpha), 1000);
+        assertEq(DrawAccumulatorLib.getAvailableAt(accumulator, 2, alpha), 899);
+        assertEq(DrawAccumulatorLib.getAvailableAt(accumulator, 3, alpha), 2810);
     }
 
 
     function testGetTotalRemaining() public {
-        accumulator.add(10000, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
 
         assertEq(accumulator.getTotalRemaining(2, alpha), 9000);
     }
 
     function testGetDisbursedBetweenEmpty() public {
-        assertEq(accumulator.getDisbursedBetween(1, 4, alpha), 0);
+        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 1, 4, alpha), 0);
     }
 
     function testGetDisbursedBetweenWithOne() public {
-        accumulator.add(10000, 1, alpha);
-        assertEq(accumulator.getDisbursedBetween(1, 4, alpha), 2709);
+        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
+        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 1, 4, alpha), 2709);
+    }
+
+    function testGetDisbursedBetween_withOne_searchAfter() public {
+        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
+        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 2, 4, alpha), 2709);
     }
 
     function testGetDisbursedBetweenWithTwo() public {
-        accumulator.add(10000, 1, alpha);
-        accumulator.add(10000, 3, alpha);
+        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 10000, 3, alpha);
 
-        assertEq(accumulator.getDisbursedBetween(1, 4, alpha), 3709);
-        assertEq(accumulator.getDisbursedBetween(2, 4, alpha), 2709);
-        assertEq(accumulator.getDisbursedBetween(3, 4, alpha), 1810);
+        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 1, 4, alpha), 3709);
+        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 2, 4, alpha), 2709);
+        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 3, 4, alpha), 1810);
     }
 
     function testGetDisbursedPreviousDraw() public {
-        accumulator.add(10000, 1, alpha);
-        accumulator.add(10000, 4, alpha);
+        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 10000, 4, alpha);
 
-        assertEq(accumulator.getDisbursedBetween(1, 3, alpha), 1899);
+        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 1, 3, alpha), 1899);
     }
 
     function testGetDisbursedWithMatching() public {
-        accumulator.add(10000, 1, alpha);
-        accumulator.add(10000, 3, alpha);
-        assertEq(accumulator.getDisbursedBetween(4, 4, alpha), 0);
+        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
+        DrawAccumulatorLib.add(accumulator, 10000, 3, alpha);
+        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 4, 4, alpha), 0);
     }
 
     function testIntegrateInf() public {
@@ -111,8 +119,8 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchTwoWithFirstMatchingTarget() public {
         fillDrawRingBuffer([1, 3, 0, 0, 0]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = DrawAccumulatorLib.binarySearch(
-            accumulator.drawRingBuffer, 0, 2, 2, 1
+        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+            0, 2, 2, 1
         );
         assertEq(beforeOrAtIndex, 0);
         assertEq(beforeOrAtDrawId, 1);
@@ -122,8 +130,8 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchMatchingTarget() public {
         fillDrawRingBuffer([1, 2, 3, 4, 5]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = DrawAccumulatorLib.binarySearch(
-            accumulator.drawRingBuffer, 0, 4, 5, 3
+        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+            0, 4, 5, 3
         );
         assertEq(beforeOrAtIndex, 2);
         assertEq(beforeOrAtDrawId, 3);
@@ -133,8 +141,8 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchFirstMatchingTarget() public {
         fillDrawRingBuffer([1, 2, 3, 4, 5]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = DrawAccumulatorLib.binarySearch(
-            accumulator.drawRingBuffer, 0, 4, 5, 1
+        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+            0, 4, 5, 1
         );
         assertEq(beforeOrAtIndex, 0);
         assertEq(beforeOrAtDrawId, 1);
@@ -144,8 +152,8 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchLastMatchingTarget() public {
         fillDrawRingBuffer([1, 2, 3, 4, 5]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = DrawAccumulatorLib.binarySearch(
-            accumulator.drawRingBuffer, 0, 4, 5, 5
+        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+            0, 4, 5, 5
         );
         assertEq(beforeOrAtIndex, 3);
         assertEq(beforeOrAtDrawId, 4);
@@ -155,8 +163,8 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchTargetBetween() public {
         fillDrawRingBuffer([2, 4, 5, 6, 7]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = DrawAccumulatorLib.binarySearch(
-            accumulator.drawRingBuffer, 0, 4, 5, 3
+        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+            0, 4, 5, 3
         );
         assertEq(beforeOrAtIndex, 0);
         assertEq(beforeOrAtDrawId, 2);
@@ -165,12 +173,10 @@ contract DrawAccumulatorLibTest is Test {
     }
 
     function fillDrawRingBuffer(uint8[5] memory values) internal {
-        for (uint i = 0; i < values.length; i++) {
-            accumulator.drawRingBuffer[i] = values[i];
+        for (uint16 i = 0; i < values.length; i++) {
+            wrapper.setDrawRingBuffer(i, values[i]);
         }
-        accumulator.ringBufferInfo.cardinality = uint16(values.length);
-        accumulator.ringBufferInfo.nextIndex = uint16(values.length);
+        wrapper.setRingBufferInfo(uint16(values.length), uint16(values.length));
     }
-
 
 }

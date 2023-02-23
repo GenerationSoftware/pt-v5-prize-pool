@@ -208,6 +208,15 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.numberOfTiers(), 3);
     }
 
+    function testCompleteAndStartNextDraw_multipleDraws() public {
+        contribute(1e18);
+        completeAndStartNextDraw(1234);
+        completeAndStartNextDraw(1234);
+
+        mockTwab(sender5, 2);
+        claimPrize(sender5, 2);
+    }
+
     function testGetTotalShares() public {
         assertEq(prizePool.getTotalShares(), 220e18);
     }
@@ -350,7 +359,7 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.canaryClaimCount(), 1);
     }
 
-    function testlastCompletedDrawStartedAt() public {
+    function testLastCompletedDrawStartedAt() public {
         assertEq(prizePool.lastCompletedDrawStartedAt(), 0);
         completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizePool.lastCompletedDrawStartedAt(), lastCompletedDrawStartedAt);

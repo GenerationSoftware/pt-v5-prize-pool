@@ -34,7 +34,7 @@ library DrawAccumulatorLib {
         uint32 second;
     }
 
-    function add(Accumulator storage accumulator, uint256 _amount, uint32 _drawId, SD59x18 _alpha) internal {
+    function add(Accumulator storage accumulator, uint256 _amount, uint32 _drawId, SD59x18 _alpha) internal returns (bool) {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
@@ -64,11 +64,13 @@ library DrawAccumulatorLib {
                 nextIndex: nextIndex,
                 cardinality: cardinality
             });
+            return true;
         } else {
             accumulator.observations[newestDrawId] = Observation({
                 available: uint96(newestObservation.available + _amount),
                 disbursed: newestObservation.disbursed
             });
+            return false;
         }
     }
 
@@ -142,6 +144,12 @@ library DrawAccumulatorLib {
 
          */
 
+
+        // assumption: we will always be searching *at or after* the newest observation - 1.  Draws expire after x number of 
+
+
+
+/*
         // find the tail
         if (_endDrawId == drawIds.second-1) { // if looking for one older
             // look at the previous observation
@@ -174,6 +182,8 @@ library DrawAccumulatorLib {
         }
 
         return sum;
+*/
+        return 0;
     }
 
     function computeIndices(RingBufferInfo memory ringBufferInfo) internal pure returns (Pair32 memory) {

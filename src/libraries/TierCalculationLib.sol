@@ -35,12 +35,6 @@ library TierCalculationLib {
         uint256 _reserveShares,
         uint256 _tierShares
     ) internal pure returns (UD60x18) {
-        // const m3 = CANARY_SHARE / getTotalShares(numTiers)
-        // const l3 = SHARES_PER_TIER / getTotalShares(numTiers+1)
-        // const prizeCountMultiplier = m3/l3
-
-        // = canShare * total(n+1) / sharePerTier*total(n)
-
         uint256 numerator = _canaryShares * ((_numberOfTiers+1) * _tierShares + _canaryShares + _reserveShares);
         uint256 denominator = _tierShares * ((_numberOfTiers) * _tierShares + _canaryShares + _reserveShares);
         UD60x18 multiplier = toUD60x18(numerator).div(toUD60x18(denominator));
