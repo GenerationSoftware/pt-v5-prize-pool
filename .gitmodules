@@ -14,3 +14,6 @@
 	path = lib/prb-math
 	url = https://github.com/PaulRBerg/prb-math
 	branch = v3.3.0
+[submodule "lib/ring-buffer-lib"]
+	path = lib/ring-buffer-lib
+	url = https://github.com/pooltogether/ring-buffer-lib
