@@ -116,7 +116,7 @@ contract PrizePool {
 
     uint32 public lastCompletedDrawId;
 
-    uint64 internal lastCompletedlastCompletedDrawStartedAt_;
+    uint64 internal lastCompletedDrawStartedAt_;
 
     // TODO: add requires
     constructor (
@@ -142,7 +142,7 @@ contract PrizePool {
         alpha = _alpha;
         claimExpansionThreshold = _claimExpansionThreshold;
         drawPeriodSeconds = _drawPeriodSeconds;
-        lastCompletedlastCompletedDrawStartedAt_ = nextDrawStartsAt_;
+        lastCompletedDrawStartedAt_ = nextDrawStartsAt_;
 
         require(numberOfTiers >= MINIMUM_NUMBER_OF_TIERS, "num-tiers-gt-1");
 
@@ -206,7 +206,7 @@ contract PrizePool {
 
     function lastCompletedDrawStartedAt() external view returns (uint64) {
         if (lastCompletedDrawId != 0) {
-            return lastCompletedlastCompletedDrawStartedAt_;
+            return lastCompletedDrawStartedAt_;
         } else {
             return 0;
         }
@@ -226,11 +226,11 @@ contract PrizePool {
     /**
      * Returns the start time of the draw for the next successful completeAndStartNextDraw
      */
-    function nextDrawStartsAt() external view returns (uint256) {
+    function nextDrawStartsAt() external view returns (uint64) {
         return _nextDrawStartsAt();
     }
 
-    function nextDrawEndsAt() external view returns (uint256) {
+    function nextDrawEndsAt() external view returns (uint64) {
         return _nextDrawEndsAt();
     }
 
@@ -239,17 +239,17 @@ contract PrizePool {
      */
     function _nextDrawStartsAt() internal view returns (uint64) {
         if (lastCompletedDrawId != 0) {
-            return lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
+            return lastCompletedDrawStartedAt_ + drawPeriodSeconds;
         } else {
-            return lastCompletedlastCompletedDrawStartedAt_;
+            return lastCompletedDrawStartedAt_;
         }
     }
 
     function _nextDrawEndsAt() internal view returns (uint64) {
         if (lastCompletedDrawId != 0) {
-            return lastCompletedlastCompletedDrawStartedAt_ + 2 * drawPeriodSeconds;
+            return lastCompletedDrawStartedAt_ + 2 * drawPeriodSeconds;
         } else {
-            return lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
+            return lastCompletedDrawStartedAt_ + drawPeriodSeconds;
         }
     }
 
@@ -292,7 +292,7 @@ contract PrizePool {
         largestTierClaimed = 0;
         // reset canary tier
         _tierExchangeRates[nextNumberOfTiers] = prizeTokenPerShare;
-        lastCompletedlastCompletedDrawStartedAt_ = nextDrawStartsAt_;
+        lastCompletedDrawStartedAt_ = nextDrawStartsAt_;
         
         (UD60x18 deltaExchangeRate, uint256 remainder) = _computeDrawDeltaExchangeRate(nextNumberOfTiers);
         prizeTokenPerShare = prizeTokenPerShare.add(deltaExchangeRate);
@@ -421,13 +421,13 @@ contract PrizePool {
 
     function calculateTierTwabTimestamps(uint8 _tier) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
-        endTimestamp = lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
+        endTimestamp = lastCompletedDrawStartedAt_ + drawPeriodSeconds;
         startTimestamp = uint64(endTimestamp - drawDuration * drawPeriodSeconds);
     }
 
     function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal view returns (uint256 twab, uint256 twabTotalSupply) {
         {
-            uint32 endTimestamp = uint32(lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds);
+            uint32 endTimestamp = uint32(lastCompletedDrawStartedAt_ + drawPeriodSeconds);
             uint32 startTimestamp = uint32(endTimestamp - _drawDuration * drawPeriodSeconds);
 
             twab = twabController.getAverageBalanceBetween(
