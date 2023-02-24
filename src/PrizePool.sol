@@ -230,6 +230,10 @@ contract PrizePool {
         return _nextDrawStartsAt();
     }
 
+    function nextDrawEndsAt() external view returns (uint256) {
+        return _nextDrawEndsAt();
+    }
+
     /**
      * Returns the start time of the draw for the next successful completeAndStartNextDraw
      */
@@ -241,11 +245,19 @@ contract PrizePool {
         }
     }
 
+    function _nextDrawEndsAt() internal view returns (uint64) {
+        if (lastCompletedDrawId != 0) {
+            return lastCompletedlastCompletedDrawStartedAt_ + 2 * drawPeriodSeconds;
+        } else {
+            return lastCompletedlastCompletedDrawStartedAt_ + drawPeriodSeconds;
+        }
+    }
+
     function completeAndStartNextDraw(uint256 winningRandomNumber_) external returns (uint32) {
         // check winning random number
         require(winningRandomNumber_ != 0, "num invalid");
         uint64 nextDrawStartsAt_ = _nextDrawStartsAt();
-        require(block.timestamp >= nextDrawStartsAt_, "not elapsed");
+        require(block.timestamp >= _nextDrawEndsAt(), "not elapsed");
 
         uint8 numTiers = numberOfTiers;
         uint8 nextNumberOfTiers = numberOfTiers;
