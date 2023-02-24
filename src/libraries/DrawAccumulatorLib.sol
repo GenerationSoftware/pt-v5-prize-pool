@@ -42,18 +42,18 @@ library DrawAccumulatorLib {
 
         require(_drawId >= newestDrawId, "invalid draw");
 
-        Observation memory newestObservation = accumulator.observations[newestDrawId];
+        Observation memory newestObservation_ = accumulator.observations[newestDrawId];
         if (_drawId != newestDrawId) {
 
             uint256 relativeDraw = _drawId - newestDrawId;
 
-            uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation.available);
-            uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation.available);
+            uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation_.available);
+            uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation_.available);
 
             accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
             accumulator.observations[_drawId] = Observation({
                 available: uint96(_amount + remainingAmount),
-                disbursed: uint168(newestObservation.disbursed + disbursedAmount)
+                disbursed: uint168(newestObservation_.disbursed + disbursedAmount)
             });
             uint16 nextIndex = uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY));
             uint16 cardinality = ringBufferInfo.cardinality;
@@ -67,8 +67,8 @@ library DrawAccumulatorLib {
             return true;
         } else {
             accumulator.observations[newestDrawId] = Observation({
-                available: uint96(newestObservation.available + _amount),
-                disbursed: newestObservation.disbursed
+                available: uint96(newestObservation_.available + _amount),
+                disbursed: newestObservation_.disbursed
             });
             return false;
         }
@@ -82,8 +82,8 @@ library DrawAccumulatorLib {
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
         uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
         require(_endDrawId >= newestDrawId, "invalid draw");
-        Observation memory newestObservation = accumulator.observations[newestDrawId];
-        return integrateInf(_alpha, _endDrawId - newestDrawId, newestObservation.available);
+        Observation memory newestObservation_ = accumulator.observations[newestDrawId];
+        return integrateInf(_alpha, _endDrawId - newestDrawId, newestObservation_.available);
     }
 
     function newestObservation(Accumulator storage accumulator) internal view returns (Observation memory) {

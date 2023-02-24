@@ -307,7 +307,7 @@ contract DrawAccumulatorLibTest is Test {
         wrapper.add(10000, drawId, alpha);
     }
 
-    function getDisbursedBetween(uint32 _startDrawId, uint32 _endDrawId) internal returns (uint256) {
+    function getDisbursedBetween(uint32 _startDrawId, uint32 _endDrawId) internal view returns (uint256) {
         return wrapper.getDisbursedBetween(_startDrawId, _endDrawId, alpha);
     }
 

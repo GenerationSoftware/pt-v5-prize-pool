@@ -88,6 +88,32 @@ contract PrizePoolTest is Test {
         assertEq(prizeToken.balanceOf(address(this)), 1e18);
     }
 
+    function testCanaryPrizeCount_noParam() public {
+        assertEq(prizePool.canaryPrizeCount(), 2);
+    }
+
+    function testCanaryPrizeCount_param() public {
+        assertEq(prizePool.canaryPrizeCount(3), 8);
+    }
+
+    function testGetTotalContributedBetween() public {
+        contribute(10e18);
+        assertEq(prizePool.getTotalContributedBetween(1, 1), 1e18);
+    }
+
+    function testGetContributedBetween() public {
+        contribute(10e18);
+        assertEq(prizePool.getContributedBetween(address(this), 1, 1), 1e18);
+    }
+
+    function testGetTierAccrualDurationInDraws() public {
+        assertEq(prizePool.getTierAccrualDurationInDraws(0), 366);
+    }
+
+    function testGetTierPrizeCount() public {
+        assertEq(prizePool.getTierPrizeCount(3), 4**3);
+    }
+
     function testContributePrizeTokens() public {
         contribute(100);
         assertEq(prizeToken.balanceOf(address(prizePool)), 100);
