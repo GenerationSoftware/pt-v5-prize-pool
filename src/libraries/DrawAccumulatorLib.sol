@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/console2.sol";
 
-import { RingBufferLib } from "./RingBufferLib.sol";
+import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
 struct Observation {
@@ -76,6 +76,9 @@ library DrawAccumulatorLib {
 
     function getTotalRemaining(Accumulator storage accumulator, uint32 _endDrawId, SD59x18 _alpha) internal view returns (uint256) {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
+        if (ringBufferInfo.cardinality == 0) {
+            return 0;
+        }
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
         uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
         require(_endDrawId >= newestDrawId, "invalid draw");
@@ -87,103 +90,143 @@ library DrawAccumulatorLib {
         return accumulator.observations[RingBufferLib.newestIndex(accumulator.ringBufferInfo.nextIndex, MAX_CARDINALITY)];
     }
 
-    function getAvailableAt(Accumulator storage accumulator, uint32 _drawId, SD59x18 _alpha) internal view returns (uint256) {
-        RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
-        Pair32 memory indexes = computeIndices(ringBufferInfo);
-        uint32 beforeOrAtDrawId = accumulator.drawRingBuffer[indexes.second];
-        Observation memory beforeOrAtObservation;
-        if (_drawId >= beforeOrAtDrawId) {
-            beforeOrAtObservation = accumulator.observations[beforeOrAtDrawId];
-        } else {
-            uint32 oldestDrawId = accumulator.drawRingBuffer[indexes.first];
-            // console2.log("oldestDrawId ", oldestDrawId);
-            require(_drawId >= oldestDrawId, "too old");
-            (,beforeOrAtDrawId,,) = binarySearch(
-                accumulator.drawRingBuffer, indexes.first, indexes.second, ringBufferInfo.cardinality, _drawId
-            );
-            beforeOrAtObservation = accumulator.observations[beforeOrAtDrawId];
-        }
-        uint drawIdDiff = _drawId - beforeOrAtDrawId;
-        return integrate(_alpha, drawIdDiff, drawIdDiff+1, beforeOrAtObservation.available);
-    }
-
     /**
-     * Requires endDrawId to be greater than (the newest draw id - 1)
+     * @param _endDrawId Must be be greater than (newest draw id - 1)
      */
     function getDisbursedBetween(
-        Accumulator storage accumulator,
+        Accumulator storage _accumulator,
         uint32 _startDrawId,
         uint32 _endDrawId,
         SD59x18 _alpha
     ) internal view returns (uint256) {
-        RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
+        require(_startDrawId <= _endDrawId, "invalid draw range");
+
+        RingBufferInfo memory ringBufferInfo = _accumulator.ringBufferInfo;
 
         if (ringBufferInfo.cardinality == 0) {
             return 0;
         }
 
         Pair32 memory indexes = computeIndices(ringBufferInfo);
-        Pair32 memory drawIds = readDrawIds(accumulator, indexes);
+        Pair32 memory drawIds = readDrawIds(_accumulator, indexes);
+
         require(_endDrawId >= drawIds.second-1, "DAL/curr-invalid");
 
-        if (_endDrawId == _startDrawId) {
+        if (_endDrawId < drawIds.first) {
             return 0;
         }
 
         /*
 
         head: residual accrual from observation before start. (if any)
-        body: if there is more than one observations between start and current, then take the past accumulator diff
+        body: if there is more than one observations between start and current, then take the past _accumulator diff
         tail: accrual between the newest observation and current.  if card > 1 there is a tail (almost always)
-        
-           |        |
-        o       o       o
 
-        |           |
-          o     o       o
+        let:
+            - s = start draw id
+            - e = end draw id
+            - o = observation
+            - h = "head". residual balance from the last o occurring before s.  head is the disbursed amount between (o, s)
+            - t = "tail". the residual balance from the last o occuring before e.  tail is the disbursed amount between (o, e)
+            - b = "body". if there are *two* observations between s and e we calculate how much was disbursed. body is (last obs disbursed - first obs disbursed)
+
+        total = head + body + tail
+        
+        
+        lastObservationOccurringAtOrBeforeEnd
+        firstObservationOccurringAtOrAfterStart
+
+        Like so
+
+           s        e
+        o  <h>  o  <t>  o
+
+           s                 e
+        o  <h> o   <b>  o  <t>  o
 
          */
 
-
-        // assumption: we will always be searching *at or after* the newest observation - 1.  Draws expire after x number of 
-
-
-
-/*
-        // find the tail
-        if (_endDrawId == drawIds.second-1) { // if looking for one older
-            // look at the previous observation
-            drawIds.second = accumulator.drawRingBuffer[RingBufferLib.offset(indexes.second, 1, ringBufferInfo.cardinality)];
-        }
-
-        Observation memory newestObservation = accumulator.observations[drawIds.second];
-        // Add the tail
-        uint256 sum = integrate(_alpha, 0, _endDrawId - drawIds.second, newestObservation.available);
-
-        // Calculate the head (if any)
-        uint32 afterOrAtDrawId;
-        if (drawIds.first < _startDrawId) {
-            uint32 beforeOrAtDrawId;
-            // calculate body
-            (, beforeOrAtDrawId, , afterOrAtDrawId) = binarySearch(
-                accumulator.drawRingBuffer, indexes.first, indexes.second, ringBufferInfo.cardinality, _startDrawId
-            );
-            Observation memory beforeOrAt = accumulator.observations[beforeOrAtDrawId];
-
-            sum += integrate(_alpha, _startDrawId - beforeOrAtDrawId, afterOrAtDrawId - beforeOrAtDrawId, beforeOrAt.available); // head
+        uint32 lastObservationDrawIdOccurringAtOrBeforeEnd;
+        if (_endDrawId >= drawIds.second) {
+            // then it must be the end
+            lastObservationDrawIdOccurringAtOrBeforeEnd = drawIds.second;
         } else {
-            afterOrAtDrawId = drawIds.first;
+            // otherwise it must be the previous one
+            lastObservationDrawIdOccurringAtOrBeforeEnd = _accumulator.drawRingBuffer[uint32(RingBufferLib.offset(indexes.second, 1, ringBufferInfo.cardinality))];
         }
 
-        // Calculate the body
-        if (afterOrAtDrawId != drawIds.second) {
-            Observation memory afterOrAt = accumulator.observations[afterOrAtDrawId];
-            sum += newestObservation.disbursed - afterOrAt.disbursed; // body
+        uint32 observationDrawIdBeforeOrAtStart;
+        uint32 firstObservationDrawIdOccurringAtOrAfterStart;
+        // if there is only one observation, or startId is after the oldest record
+        if (_startDrawId >= drawIds.second) {
+            // then use the last record
+            observationDrawIdBeforeOrAtStart = drawIds.second;
+        } else if (_startDrawId <= drawIds.first) { // if the start is before the newest record
+            // then set to the oldest record.
+            firstObservationDrawIdOccurringAtOrAfterStart = drawIds.first;
+        } else { // The start must be between newest and oldest
+            // binary search
+            (, observationDrawIdBeforeOrAtStart, , firstObservationDrawIdOccurringAtOrAfterStart) = binarySearch(
+                _accumulator.drawRingBuffer, indexes.first, indexes.second, ringBufferInfo.cardinality, _startDrawId
+            );
         }
 
-        return sum;
-*/
-        return 0;
+        // console2.log("observationDrawIdBeforeOrAtStart", observationDrawIdBeforeOrAtStart);
+        // console2.log("firstObservationDrawIdOccurringAtOrAfterStart", firstObservationDrawIdOccurringAtOrAfterStart);
+        // console2.log("lastObservationDrawIdOccurringAtOrBeforeEnd", lastObservationDrawIdOccurringAtOrBeforeEnd);
+
+        uint256 total;
+
+        // if a "head" exists
+        if (observationDrawIdBeforeOrAtStart > 0 &&
+            firstObservationDrawIdOccurringAtOrAfterStart > 0 &&
+            observationDrawIdBeforeOrAtStart != lastObservationDrawIdOccurringAtOrBeforeEnd) {
+            Observation memory beforeOrAtStart = _accumulator.observations[observationDrawIdBeforeOrAtStart];
+            uint32 headStartDrawId = _startDrawId - observationDrawIdBeforeOrAtStart;
+            uint32 headEndDrawId = headStartDrawId + (firstObservationDrawIdOccurringAtOrAfterStart - _startDrawId);
+            // console2.log("headLog observationDrawIdBeforeOrAtStart", observationDrawIdBeforeOrAtStart);
+            // console2.log("headLog range start", headStartDrawId);
+            // console2.log("headLog range end", headEndDrawId);
+            uint amount = integrate(_alpha, headStartDrawId, headEndDrawId, beforeOrAtStart.available);
+            // console2.log("headLog amount", amount);
+            total += amount;
+        }
+
+        Observation memory atOrBeforeEnd;
+        // if a "body" exists
+        if (firstObservationDrawIdOccurringAtOrAfterStart > 0 &&
+            firstObservationDrawIdOccurringAtOrAfterStart < lastObservationDrawIdOccurringAtOrBeforeEnd) {
+            Observation memory atOrAfterStart = _accumulator.observations[firstObservationDrawIdOccurringAtOrAfterStart];
+            atOrBeforeEnd = _accumulator.observations[lastObservationDrawIdOccurringAtOrBeforeEnd];
+            uint amount = atOrBeforeEnd.disbursed - atOrAfterStart.disbursed;
+            total += amount;
+            // console2.log("bodyLog firstObservationDrawIdOccurringAtOrAfterStart", firstObservationDrawIdOccurringAtOrAfterStart);
+            // console2.log("bodyLog lastObservationDrawIdOccurringAtOrBeforeEnd", lastObservationDrawIdOccurringAtOrBeforeEnd);
+            // console2.log("bodyLog amount", amount);
+        }
+
+        total += _computeTail(_accumulator, _startDrawId, _endDrawId, lastObservationDrawIdOccurringAtOrBeforeEnd, _alpha);
+
+        return total;
+    }
+
+    function _computeTail(
+        Accumulator storage accumulator,
+        uint32 _startDrawId,
+        uint32 _endDrawId,
+        uint32 _lastObservationDrawIdOccurringAtOrBeforeEnd,
+        SD59x18 _alpha
+    ) internal view returns (uint256) {
+        Observation memory lastObservation = accumulator.observations[_lastObservationDrawIdOccurringAtOrBeforeEnd];
+        uint32 tailRangeStartDrawId = (_startDrawId > _lastObservationDrawIdOccurringAtOrBeforeEnd ? _startDrawId : _lastObservationDrawIdOccurringAtOrBeforeEnd) - _lastObservationDrawIdOccurringAtOrBeforeEnd;
+        uint256 amount = integrate(_alpha, tailRangeStartDrawId, _endDrawId - _lastObservationDrawIdOccurringAtOrBeforeEnd + 1, lastObservation.available);
+        // console2.log("tailLog _lastObservationDrawIdOccurringAtOrBeforeEnd", _lastObservationDrawIdOccurringAtOrBeforeEnd);
+        // console2.log("tailLog tailRangeStartDrawId", tailRangeStartDrawId);
+        // console2.log("tailLog lastObservation.available", lastObservation.available);
+        // console2.log("tailLog _startDrawId", _startDrawId);
+        // console2.log("tailLog _endDrawId", _endDrawId);
+        // console2.log("tailLog amount", amount);
+        return amount;
     }
 
     function computeIndices(RingBufferInfo memory ringBufferInfo) internal pure returns (Pair32 memory) {

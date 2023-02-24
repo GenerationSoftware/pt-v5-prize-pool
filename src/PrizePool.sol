@@ -191,7 +191,7 @@ contract PrizePool {
         require(_deltaBalance >=  _amount, "PP/deltaBalance-gte-amount");
         DrawAccumulatorLib.add(vaultAccumulators[_prizeVault], _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
         DrawAccumulatorLib.add(totalAccumulator, _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
-        console2.log("contributePrizeTokens lastCompletedDrawId + 1", lastCompletedDrawId + 1);
+        // console2.log("contributePrizeTokens lastCompletedDrawId + 1", lastCompletedDrawId + 1);
         return _deltaBalance;
     }
 
@@ -307,7 +307,7 @@ contract PrizePool {
     }
 
     function _computeDrawDeltaExchangeRate(uint8 _numberOfTiers) internal view returns (UD60x18 deltaExchangeRate, uint256 remainder) {
-        return TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(_numberOfTiers), DrawAccumulatorLib.getAvailableAt(totalAccumulator, lastCompletedDrawId, alpha.intoSD59x18()));
+        return TierCalculationLib.computeNextExchangeRateDelta(_getTotalShares(_numberOfTiers), DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, lastCompletedDrawId, lastCompletedDrawId, alpha.intoSD59x18()));
     }
 
     function _canaryClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
@@ -388,9 +388,16 @@ contract PrizePool {
         require(_tier <= numberOfTiers, "invalid tier");
 
         SD59x18 tierOdds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriodDraws);
+
+        // console2.log("tierOdds", tierOdds.unwrap());
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
+        // console2.log("drawDuration", drawDuration);
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, drawDuration);
+        // console2.log("_userTwab", _userTwab);
+        // console2.log("_vaultTwabTotalSupply", _vaultTwabTotalSupply);
+        // console2.log("lastCompletedDrawId", lastCompletedDrawId);
         SD59x18 vaultPortion = _getVaultPortion(_vault, lastCompletedDrawId, uint32(drawDuration), alpha.intoSD59x18());
+        // console2.log("vaultPortion", vaultPortion.unwrap());
         SD59x18 tierPrizeCount;
         if (_tier == numberOfTiers) { // then canary tier
             tierPrizeCount = sd(int256(_canaryPrizeCount(_tier).unwrap()));
@@ -433,10 +440,10 @@ contract PrizePool {
     function _getVaultPortion(address _vault, uint32 drawId_, uint32 _durationInDraws, SD59x18 _alpha) internal view returns (SD59x18) {
         uint32 _startDrawIdIncluding = uint32(_durationInDraws > drawId_ ? 0 : drawId_-_durationInDraws+1);
         uint32 _endDrawIdExcluding = drawId_ + 1;
-        console2.log("_getVaultPortion _startDrawIdIncluding", _startDrawIdIncluding);
-        console2.log("_getVaultPortion _endDrawIdExcluding", _endDrawIdExcluding);
-        uint256 vaultContributed = 0;//DrawAccumulatorLib.getDisbursedBetween(vaultAccumulators[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
-        uint256 totalContributed = 0;//DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        // console2.log("_getVaultPortion _startDrawIdIncluding", _startDrawIdIncluding);
+        // console2.log("_getVaultPortion _endDrawIdExcluding", _endDrawIdExcluding);
+        uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulators[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         if (totalContributed != 0) {
             return sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
         } else {

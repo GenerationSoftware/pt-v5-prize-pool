@@ -13,10 +13,28 @@ contract DrawAccumulatorLibTest is Test {
     DrawAccumulatorLib.Accumulator accumulator;
     DrawAccumulatorLibWrapper wrapper;
     SD59x18 alpha;
+    uint contribution = 10000;
 
     function setUp() public {
         alpha = sd(0.9e18);
+        /*
+            Alpha of 0.9 and contribution of 10000 result in disbursal of:
+
+            1	    1000
+            2		900
+            3		810
+            4		729
+            5       656
+            6       590
+            ...
+        */
         wrapper = new DrawAccumulatorLibWrapper();
+    }
+
+    function testAddInvalidDraw() public {
+        add(4);
+        vm.expectRevert("invalid draw");
+        add(3);
     }
 
     function testAddOne() public {
@@ -51,56 +69,162 @@ contract DrawAccumulatorLibTest is Test {
         assertEq(accumulator.observations[3].available, 281);
     }
 
-    function testGetAvailableAt() public {
-        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
-        DrawAccumulatorLib.add(accumulator, 20000, 3, alpha);
+    function testGetTotalRemaining() public {
+        add(1);
 
-        assertEq(DrawAccumulatorLib.getAvailableAt(accumulator, 1, alpha), 1000);
-        assertEq(DrawAccumulatorLib.getAvailableAt(accumulator, 2, alpha), 899);
-        assertEq(DrawAccumulatorLib.getAvailableAt(accumulator, 3, alpha), 2810);
+        assertEq(wrapper.getTotalRemaining(2, alpha), 9000);
     }
 
+    function testGetTotalRemaining_empty() public {
+        assertEq(wrapper.getTotalRemaining(1, alpha), 0);
+    }
 
-    function testGetTotalRemaining() public {
-        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
-
-        assertEq(accumulator.getTotalRemaining(2, alpha), 9000);
+    function testGetTotalRemaining_invalidDraw() public {
+        add(4);
+        vm.expectRevert("invalid draw");
+        wrapper.getTotalRemaining(2, alpha);
     }
 
     function testGetDisbursedBetweenEmpty() public {
-        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 1, 4, alpha), 0);
+        assertEq(getDisbursedBetween(1, 4), 0);
     }
 
-    function testGetDisbursedBetweenWithOne() public {
-        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
-        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 1, 4, alpha), 2709);
+    function testGetDisbursedBetween_invalidRange() public {
+        vm.expectRevert("invalid draw range");
+        getDisbursedBetween(2, 1);
     }
 
-    function testGetDisbursedBetween_withOne_searchAfter() public {
-        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
-        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 2, 4, alpha), 2709);
+    function testGetDisbursedBetween_invalidEnd() public {
+        add(3);
+        vm.expectRevert("DAL/curr-invalid");
+        getDisbursedBetween(1, 1);
     }
 
-    function testGetDisbursedBetweenWithTwo() public {
-        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
-        DrawAccumulatorLib.add(accumulator, 10000, 3, alpha);
-
-        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 1, 4, alpha), 3709);
-        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 2, 4, alpha), 2709);
-        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 3, 4, alpha), 1810);
+    function testGetDisbursedBetween_onOne() public {
+        add(1);
+        /*
+            should include draw 1, 2, 3 and 4:
+            1	    1000
+            2		900
+            3		810
+            4		729
+        */
+        assertEq(getDisbursedBetween(1, 4), 3438);
     }
 
-    function testGetDisbursedPreviousDraw() public {
-        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
-        DrawAccumulatorLib.add(accumulator, 10000, 4, alpha);
-
-        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 1, 3, alpha), 1899);
+    function testGetDisbursedBetween_beforeOne() public {
+        add(4);
+        // should include draw 2, 3 and 4
+        assertEq(getDisbursedBetween(2, 3), 0);
     }
 
-    function testGetDisbursedWithMatching() public {
-        DrawAccumulatorLib.add(accumulator, 10000, 1, alpha);
-        DrawAccumulatorLib.add(accumulator, 10000, 3, alpha);
-        assertEq(DrawAccumulatorLib.getDisbursedBetween(accumulator, 4, 4, alpha), 0);
+    function testGetDisbursedBetween_endOnOne() public {
+        add(4);
+        // should include draw 2, 3 and 4
+        assertEq(getDisbursedBetween(2, 4), 1000);
+    }
+
+    function testGetDisbursedBetween_startOnOne() public {
+        add(4);
+        // should include draw 2, 3 and 4
+        assertEq(getDisbursedBetween(4, 4), 1000);
+    }
+
+    function testGetDisbursedBetween_afterOne() public {
+        add(1);
+        // should include draw 2, 3 and 4
+        assertEq(getDisbursedBetween(2, 4), 2438);
+    }
+
+    function testGetDisbursedBetween_beforeTwo() public {
+        add(3);
+        add(5);
+        /*
+            should include draw 1, 2, 3 and 4:
+            3	    1000
+            4		900
+            5		810 + 1000
+            6		729 + 900
+        */
+        assertEq(getDisbursedBetween(1, 4), 1899);
+    }
+
+    function testGetDisbursedBetween_beforeOnTwo() public {
+        add(4);
+        add(5);
+        /*
+            should include draw 1, 2, 3 and 4:
+            1	    1000
+            2		900
+            3		810 + 1000
+            4		729 + 900
+        */
+        assertEq(getDisbursedBetween(1, 4), 1000);
+    }
+
+    function testGetDisbursedBetween_aroundFirstOfTwo() public {
+        add(4);
+        add(6);
+        /*
+            should include draw 1, 2, 3 and 4:
+            1	    1000
+            2		900
+            3		810 + 1000
+            4		729 + 900
+        */
+        assertEq(getDisbursedBetween(1, 5), 1899);
+    }
+
+    function testGetDisbursedBetween_acrossTwo() public {
+        add(2);
+        add(4);
+        /*
+            should include draw 2, 3 and 4:
+            2	    1000
+            3		900
+            4		810 + 1000
+            5		729 + 900
+        */
+        assertEq(getDisbursedBetween(1, 4), 3709);
+    }
+
+    function testGetDisbursedBetween_onOneBetweenTwo() public {
+        add(2);
+        add(4);
+        /*
+            should include draw 2, 3 and 4:
+            2	    1000
+            3		900
+            4		810 + 1000
+            5		729 + 900
+        */
+        assertEq(getDisbursedBetween(3, 3), 899);
+    }
+
+    function testGetDisbursedBetween_betweenTwo() public {
+        add(1);
+        add(4);
+        /*
+            should include draw 1, 2, 3 and 4:
+            1	    1000
+            2		900
+            3		810
+            4		729 + 1000
+        */
+        assertEq(getDisbursedBetween(2, 3), 1709);
+    }
+
+    function testGetDisbursedBetween_aroundLastOfTwo() public {
+        add(1);
+        add(4);
+        /*
+            should include draw 1, 2, 3 and 4:
+            1	    1000
+            2		900
+            3		810
+            4		729 + 1000
+        */
+        assertEq(getDisbursedBetween(3, 4), 2538);
     }
 
     function testIntegrateInf() public {
@@ -177,6 +301,14 @@ contract DrawAccumulatorLibTest is Test {
             wrapper.setDrawRingBuffer(i, values[i]);
         }
         wrapper.setRingBufferInfo(uint16(values.length), uint16(values.length));
+    }
+
+    function add(uint32 drawId) internal {
+        wrapper.add(10000, drawId, alpha);
+    }
+
+    function getDisbursedBetween(uint32 _startDrawId, uint32 _endDrawId) internal returns (uint256) {
+        return wrapper.getDisbursedBetween(_startDrawId, _endDrawId, alpha);
     }
 
 }

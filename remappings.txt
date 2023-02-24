@@ -4,3 +4,4 @@ openzeppelin=lib/openzeppelin-contracts/contracts/
 src/=src/
 test/=test/
 v5-twab-controller/=lib/v5-twab-controller/src/
+ring-buffer-lib/=lib/ring-buffer-lib/src/

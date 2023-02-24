@@ -212,9 +212,10 @@ contract PrizePoolTest is Test {
         contribute(1e18);
         completeAndStartNextDraw(1234);
         completeAndStartNextDraw(1234);
+        completeAndStartNextDraw(554);
 
-        mockTwab(sender5, 2);
-        claimPrize(sender5, 2);
+        mockTwab(sender5, 1);
+        assertTrue(claimPrize(sender5, 1) > 0, "has prize");
     }
 
     function testGetTotalShares() public {
