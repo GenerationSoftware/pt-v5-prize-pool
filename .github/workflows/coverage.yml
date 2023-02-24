@@ -1,4 +1,4 @@
-name: coverage
+name: Tests with 100% Coverage
 
 on: ["push", "pull_request"]
 
@@ -42,5 +42,5 @@ jobs:
         uses: zgosalvez/github-actions-report-lcov@v1.5.0
         with:
           coverage-files: lcov.info
-          minimum-coverage: 90
+          minimum-coverage: 100
           github-token: ${{ secrets.GITHUB_TOKEN }}

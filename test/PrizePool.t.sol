@@ -114,7 +114,29 @@ contract PrizePoolTest is Test {
         assertEq(nextDrawId, 1);
     }
 
-    function testCompleteAndStartNextDraw_notElapsed() public {
+    function testCompleteAndStartNextDraw_notElapsed_atStart() public {
+        vm.warp(lastCompletedDrawStartedAt);
+        vm.expectRevert("not elapsed");
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
+    }
+
+    function testCompleteAndStartNextDraw_notElapsed_subsequent() public {
+        vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds);
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
+        vm.expectRevert("not elapsed");
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
+    }
+
+    function testCompleteAndStartNextDraw_notElapsed_nextDrawPartway() public {
+        vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds);
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
+        vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds + drawPeriodSeconds / 2);
+        vm.expectRevert("not elapsed");
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
+    }
+
+    function testCompleteAndStartNextDraw_notElapsed_partway() public {
+        vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds / 2);
         vm.expectRevert("not elapsed");
         prizePool.completeAndStartNextDraw(winningRandomNumber);
     }
@@ -475,7 +497,7 @@ contract PrizePoolTest is Test {
     }
 
     function completeAndStartNextDraw(uint256 _winningRandomNumber) public {
-        vm.warp(prizePool.nextDrawStartsAt());
+        vm.warp(prizePool.nextDrawEndsAt());
         prizePool.completeAndStartNextDraw(_winningRandomNumber);
     }
 
