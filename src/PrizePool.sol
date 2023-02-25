@@ -67,7 +67,7 @@ contract PrizePool {
     UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_14_TIERS;
     UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_15_TIERS;
 
-    mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulators;
+    mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulator;
 
     DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
@@ -186,10 +186,26 @@ contract PrizePool {
         return lastCompletedDrawId;
     }
 
+    function getTotalContributedBetween(uint32 _startDrawIdInclusive, uint32 _endDrawIdInclusive) external view returns (uint256) {
+        return DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdInclusive, _endDrawIdInclusive, alpha.intoSD59x18());
+    }
+
+    function getContributedBetween(address _vault, uint32 _startDrawIdInclusive, uint32 _endDrawIdInclusive) external view returns (uint256) {
+        return DrawAccumulatorLib.getDisbursedBetween(vaultAccumulator[_vault], _startDrawIdInclusive, _endDrawIdInclusive, alpha.intoSD59x18());
+    }
+
+    function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint32) {
+        return uint32(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws));
+    }
+
+    function getTierPrizeCount(uint8 _tier) external pure returns (uint256) {
+        return TierCalculationLib.prizeCount(_tier);
+    }
+
     function contributePrizeTokens(address _prizeVault, uint256 _amount) external returns(uint256) {
         uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - _accountedBalance();
         require(_deltaBalance >=  _amount, "PP/deltaBalance-gte-amount");
-        DrawAccumulatorLib.add(vaultAccumulators[_prizeVault], _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
+        DrawAccumulatorLib.add(vaultAccumulator[_prizeVault], _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
         DrawAccumulatorLib.add(totalAccumulator, _amount, lastCompletedDrawId + 1, alpha.intoSD59x18());
         // console2.log("contributePrizeTokens lastCompletedDrawId + 1", lastCompletedDrawId + 1);
         return _deltaBalance;
@@ -383,7 +399,7 @@ contract PrizePool {
         address _vault,
         address _user,
         uint8 _tier
-    ) external returns (bool) {
+    ) external view returns (bool) {
         return _isWinner(_vault, _user, _tier);
     }
 
@@ -395,7 +411,7 @@ contract PrizePool {
         address _vault,
         address _user,
         uint8 _tier
-    ) internal returns (bool) {
+    ) internal view returns (bool) {
         require(lastCompletedDrawId > 0, "no draw");
         require(_tier <= numberOfTiers, "invalid tier");
 
@@ -454,7 +470,7 @@ contract PrizePool {
         uint32 _endDrawIdExcluding = drawId_ + 1;
         // console2.log("_getVaultPortion _startDrawIdIncluding", _startDrawIdIncluding);
         // console2.log("_getVaultPortion _endDrawIdExcluding", _endDrawIdExcluding);
-        uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulators[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
+        uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulator[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdIncluding, _endDrawIdExcluding, _alpha);
         if (totalContributed != 0) {
             return sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
@@ -522,13 +538,13 @@ contract PrizePool {
         return _canaryPrizeCount(numTiers);
     }
 
-    // function canaryPrizeCount() external view returns (uint32) {
-    //     return uint32(fromUD60x18(_canaryPrizeCount(numberOfTiers).floor()));
-    // }
+    function canaryPrizeCount() external view returns (uint32) {
+        return uint32(fromUD60x18(_canaryPrizeCount(numberOfTiers).floor()));
+    }
 
-    // function canaryPrizeCount(uint8 numTiers) external view returns (uint32) {
-    //     return uint32(fromUD60x18(_canaryPrizeCount(numTiers).floor()));
-    // }
+    function canaryPrizeCount(uint8 _numTiers) external view returns (uint32) {
+        return uint32(fromUD60x18(_canaryPrizeCount(_numTiers).floor()));
+    }
 
     function _estimatedPrizeCount(uint8 numTiers) internal view returns (uint32) {
         if (numTiers == 2) {
