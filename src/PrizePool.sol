@@ -110,7 +110,7 @@ contract PrizePool {
 
     uint8 public largestTierClaimed;
 
-    uint32 public lastCompletedDrawId;
+    uint32 internal lastCompletedDrawId;
 
     uint64 internal lastCompletedDrawStartedAt_;
 
@@ -174,13 +174,18 @@ contract PrizePool {
         CANARY_PRIZE_COUNT_FOR_15_TIERS = TierCalculationLib.canaryPrizeCount(15, _canaryShares, _reserveShares, _tierShares);
     }
 
+    /// @notice Returns the current draw id
+    /// @return The current draw id
     function getWinningRandomNumber() external view returns (uint256) {
         return _winningRandomNumber;
     }
 
+    /// @notice Returns the current draw id
+    /// @return The last completed draw id
     function getLastCompletedDrawId() external view returns (uint256) {
         return lastCompletedDrawId;
     }
+
 
     function getTotalContributedBetween(uint32 _startDrawIdInclusive, uint32 _endDrawIdInclusive) external view returns (uint256) {
         return DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdInclusive, _endDrawIdInclusive, alpha.intoSD59x18());
@@ -264,6 +269,9 @@ contract PrizePool {
         }
     }
 
+    /// @notice Completes the current prize period and starts the next one, updating the number of tiers, the winning random number, and the prize pool reserve
+    /// @param winningRandomNumber_ The winning random number for the current draw
+    /// @return The ID of the completed draw
     function completeAndStartNextDraw(uint256 winningRandomNumber_) external returns (uint32) {
         // check winning random number
         require(winningRandomNumber_ != 0, "num invalid");
@@ -315,7 +323,6 @@ contract PrizePool {
     function _reclaimTierLiquidity(uint8 _numberOfTiers, uint8 _nextNumberOfTiers) internal view returns (uint256) {
         uint256 reclaimedLiquidity;
         for (uint8 i = _numberOfTiers - 1; i >= _nextNumberOfTiers; i--) {
-            // reclaim the current unclaimed liquidity for that tier
             reclaimedLiquidity += _getLiquidity(i, tierShares);
         }
         return reclaimedLiquidity;
@@ -337,6 +344,26 @@ contract PrizePool {
         return fromUD60x18(prizeTokenPerShare.mul(toUD60x18(_getTotalShares(numberOfTiers))));
     }
 
+    /**
+    @dev Claims a prize for a given winner and tier.
+    This function takes in an address _winner, a uint8 _tier, an address _to, a uint96 _fee, and an
+    address _feeRecipient. It checks if _winner is actually the winner of the _tier for the calling vault.
+    If so, it calculates the prize size and transfers it to _to. If not, it reverts with an error message.
+    The function then checks the claim record of _winner to see if they have already claimed the prize for the
+    current draw. If not, it updates the claim record with the claimed tier and emits a ClaimedPrize event with
+    information about the claim.
+    Note that this function can modify the state of the contract by updating the claim record, changing the largest
+    tier claimed and the claim count, and transferring prize tokens. The function is marked as external which
+    means that it can be called from outside the contract.
+    @param _winner The address of the winner to claim the prize for.
+    @param _tier The tier of the prize to be claimed.
+    @param _to The address that the prize will be transferred to.
+    @param _fee The fee associated with claiming the prize.
+    @param _feeRecipient The address to receive the fee.
+    @return The payout size of the claimed prize after deducting the fee.
+    @throws "did not win" if _winner did not win the prize for the _tier.
+    @throws "fee too large" if _fee is greater than the prize size.
+    */
     function claimPrize(
         address _winner,
         uint8 _tier,
@@ -379,8 +406,11 @@ contract PrizePool {
     }
 
     /**
-    * TODO: check that beaconPeriodStartedAt is the timestamp at which the draw started
-    * Add in memory start and end timestamp
+    * @notice Checks if the given user has won the prize for the specified tier in the given vault.
+    * @param _vault The address of the vault to check.
+    * @param _user The address of the user to check for the prize.
+    * @param _tier The tier for which the prize is to be checked.
+    * @return A boolean value indicating whether the user has won the prize or not.
     */
     function isWinner(
         address _vault,
@@ -391,8 +421,11 @@ contract PrizePool {
     }
 
     /**
-    * TODO: check that beaconPeriodStartedAt is the timestamp at which the draw started
-    * Add in memory start and end timestamp
+    * @notice Checks if the given user has won the prize for the specified tier in the given vault.
+    * @param _vault The address of the vault to check.
+    * @param _user The address of the user to check for the prize.
+    * @param _tier The tier for which the prize is to be checked.
+    * @return A boolean value indicating whether the user has won the prize or not.
     */
     function _isWinner(
         address _vault,
@@ -401,7 +434,6 @@ contract PrizePool {
     ) internal view returns (bool) {
         require(lastCompletedDrawId > 0, "no draw");
         require(_tier <= numberOfTiers, "invalid tier");
-
         SD59x18 tierOdds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriodDraws);
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, drawDuration);
@@ -415,12 +447,25 @@ contract PrizePool {
         return TierCalculationLib.isWinner(_user, _tier, _userTwab, _vaultTwabTotalSupply, vaultPortion, tierOdds, tierPrizeCount, _winningRandomNumber);
     }
 
+    /***
+    * @notice Calculates the start and end timestamps of the time-weighted average balance (TWAB) for the specified tier.
+    * @param _tier The tier for which to calculate the TWAB timestamps.
+    * @return The start and end timestamps of the TWAB.
+    */
     function calculateTierTwabTimestamps(uint8 _tier) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
         endTimestamp = lastCompletedDrawStartedAt_ + drawPeriodSeconds;
         startTimestamp = uint64(endTimestamp - drawDuration * drawPeriodSeconds);
     }
 
+    /**
+    * @notice Returns the time-weighted average balance (TWAB) and the TWAB total supply for the specified user in the given vault over a specified period.
+    * @dev This function calculates the TWAB for a user by calling the getAverageBalanceBetween function of the TWAB controller for a specified period of time.
+    * @param _vault The address of the vault for which to get the TWAB.
+    * @param _user The address of the user for which to get the TWAB.
+    * @param _drawDuration The duration of the period over which to calculate the TWAB, in number of draw periods.
+    * @return The TWAB and the TWAB total supply for the specified user in the given vault over the specified period.
+    */
     function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal view returns (uint256 twab, uint256 twabTotalSupply) {
         uint32 endTimestamp = uint32(lastCompletedDrawStartedAt_ + drawPeriodSeconds);
         uint32 startTimestamp = uint32(endTimestamp - _drawDuration * drawPeriodSeconds);
@@ -439,10 +484,25 @@ contract PrizePool {
         );
     }
 
+    /**
+    * @notice Returns the time-weighted average balance (TWAB) and the TWAB total supply for the specified user in the given vault over a specified period.
+    * @param _vault The address of the vault for which to get the TWAB.
+    * @param _user The address of the user for which to get the TWAB.
+    * @param _drawDuration The duration of the period over which to calculate the TWAB, in number of draw periods.
+    * @return The TWAB and the TWAB total supply for the specified user in the given vault over the specified period.
+    */
     function getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) external view returns (uint256, uint256) {
         return _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, _drawDuration);
     }
 
+    /**
+    * @notice Calculates the portion of the vault's contribution to the prize pool over a specified duration in draws.
+    * @param _vault The address of the vault for which to calculate the portion.
+    * @param drawId_ The draw ID for which to calculate the portion.
+    * @param _durationInDraws The duration of the period over which to calculate the portion, in number of draws.
+    * @param _alpha The alpha value to use for calculating the portion.
+    * @return The portion of the vault's contribution to the prize pool over the specified duration in draws.
+    */
     function _getVaultPortion(address _vault, uint32 drawId_, uint32 _durationInDraws, SD59x18 _alpha) internal view returns (SD59x18) {
         uint32 _startDrawIdIncluding = uint32(_durationInDraws > drawId_ ? 0 : drawId_-_durationInDraws+1);
         uint32 _endDrawIdExcluding = drawId_ + 1;
@@ -455,6 +515,19 @@ contract PrizePool {
         }
     }
 
+/**
+@dev Returns the portion of a vault's contributions in a given draw range.
+This function takes in an address _vault, a uint32 startDrawId, and a uint32 endDrawId.
+It calculates the portion of the _vault's contributions in the given draw range by calling the internal
+_getVaultPortion function with the _vault argument, startDrawId as the drawId_ argument,
+endDrawId - startDrawId as the _durationInDraws argument, and alpha.intoSD59x18() as the _alpha
+argument. The function then returns the resulting SD59x18 value representing the portion of the
+vault's contributions.
+@param _vault The address of the vault to calculate the contribution portion for.
+@param startDrawId The starting draw ID of the draw range to calculate the contribution portion for.
+@param endDrawId The ending draw ID of the draw range to calculate the contribution portion for.
+@return The portion of the _vault's contributions in the given draw range as an SD59x18 value.
+*/
     function getVaultPortion(address _vault, uint32 startDrawId, uint32 endDrawId) external view returns (SD59x18) {
         return _getVaultPortion(_vault, startDrawId, endDrawId, alpha.intoSD59x18());
     }
