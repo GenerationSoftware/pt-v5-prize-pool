@@ -239,6 +239,10 @@ contract PrizePool {
         prizeToken.transfer(_to, _amount);
     }
 
+    function hasDrawFinished(uint32 drawId) external view returns (bool) {
+        return lastCompletedDrawId >= drawId;
+    }
+
     /**
      * Returns the start time of the draw for the next successful completeAndStartNextDraw
      */
