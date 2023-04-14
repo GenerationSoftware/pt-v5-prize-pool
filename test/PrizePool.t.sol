@@ -493,24 +493,24 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.estimatedPrizeCount(16), 1291645048);
     }
 
-    function testCanaryPrizeCountMultiplier() public {
+    function testcanaryPrizeCountFractional() public {
         // assuming 10 reserve, 10 canary, and 100 per tier
-        assertEq(prizePool.canaryPrizeCountMultiplier(1).unwrap(), 0);
-        assertEq(prizePool.canaryPrizeCountMultiplier(17).unwrap(), 0);
-        assertEq(prizePool.canaryPrizeCountMultiplier(2).unwrap(), 2327272727272727264);
-        assertEq(prizePool.canaryPrizeCountMultiplier(3).unwrap(), 8400000000000000000);
-        assertEq(prizePool.canaryPrizeCountMultiplier(4).unwrap(), 31695238095238095104);
-        assertEq(prizePool.canaryPrizeCountMultiplier(5).unwrap(), 122092307692307691520);
-        assertEq(prizePool.canaryPrizeCountMultiplier(6).unwrap(), 475664516129032257536);
-        assertEq(prizePool.canaryPrizeCountMultiplier(7).unwrap(), 1865955555555555540992);
-        assertEq(prizePool.canaryPrizeCountMultiplier(8).unwrap(), 7352819512195121938432);
-        assertEq(prizePool.canaryPrizeCountMultiplier(9).unwrap(), 29063791304347825995776);
-        assertEq(prizePool.canaryPrizeCountMultiplier(10).unwrap(), 115137756862745097011200);
-        assertEq(prizePool.canaryPrizeCountMultiplier(11).unwrap(), 456879542857142854746112);
-        assertEq(prizePool.canaryPrizeCountMultiplier(12).unwrap(), 1815239763934426215481344);
-        assertEq(prizePool.canaryPrizeCountMultiplier(13).unwrap(), 7219286884848484797644800);
-        assertEq(prizePool.canaryPrizeCountMultiplier(14).unwrap(), 28733936135211267454402560);
-        assertEq(prizePool.canaryPrizeCountMultiplier(15).unwrap(), 114438273347368420374478848);
+        assertEq(prizePool.canaryPrizeCountFractional(1).unwrap(), 0);
+        assertEq(prizePool.canaryPrizeCountFractional(17).unwrap(), 0);
+        assertEq(prizePool.canaryPrizeCountFractional(2).unwrap(), 2327272727272727264);
+        assertEq(prizePool.canaryPrizeCountFractional(3).unwrap(), 8400000000000000000);
+        assertEq(prizePool.canaryPrizeCountFractional(4).unwrap(), 31695238095238095104);
+        assertEq(prizePool.canaryPrizeCountFractional(5).unwrap(), 122092307692307691520);
+        assertEq(prizePool.canaryPrizeCountFractional(6).unwrap(), 475664516129032257536);
+        assertEq(prizePool.canaryPrizeCountFractional(7).unwrap(), 1865955555555555540992);
+        assertEq(prizePool.canaryPrizeCountFractional(8).unwrap(), 7352819512195121938432);
+        assertEq(prizePool.canaryPrizeCountFractional(9).unwrap(), 29063791304347825995776);
+        assertEq(prizePool.canaryPrizeCountFractional(10).unwrap(), 115137756862745097011200);
+        assertEq(prizePool.canaryPrizeCountFractional(11).unwrap(), 456879542857142854746112);
+        assertEq(prizePool.canaryPrizeCountFractional(12).unwrap(), 1815239763934426215481344);
+        assertEq(prizePool.canaryPrizeCountFractional(13).unwrap(), 7219286884848484797644800);
+        assertEq(prizePool.canaryPrizeCountFractional(14).unwrap(), 28733936135211267454402560);
+        assertEq(prizePool.canaryPrizeCountFractional(15).unwrap(), 114438273347368420374478848);
     }
 
     function contribute(uint256 amountContributed) public {
