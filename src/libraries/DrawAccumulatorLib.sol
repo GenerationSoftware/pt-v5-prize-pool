@@ -14,8 +14,12 @@ struct Observation {
     uint168 disbursed;
 }
 
+/// @title Draw Accumulator Lib
+/// @author PoolTogether Inc. Team
+/// @notice This contract distributes tokens over time according to an exponential weighted average. Time is divided into discrete "draws", of which each is allocated tokens.
 library DrawAccumulatorLib {
 
+    /// @notice The maximum number of observations that can be recorded.
     uint24 internal constant MAX_CARDINALITY = 366;
 
     struct RingBufferInfo {
@@ -34,6 +38,12 @@ library DrawAccumulatorLib {
         uint32 second;
     }
 
+    /// @notice Adds balance for the given draw id to the accumulator.
+    /// @param accumulator The accumulator to add to
+    /// @param _amount The amount of balance to add
+    /// @param _drawId The draw id to which to add balance to. This must be greater than or equal to the previous addition's draw id.
+    /// @param _alpha The alpha value to use for the exponential weighted average.
+    /// @return True if a new observation was created, false otherwise.
     function add(Accumulator storage accumulator, uint256 _amount, uint32 _drawId, SD59x18 _alpha) internal returns (bool) {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
@@ -74,25 +84,37 @@ library DrawAccumulatorLib {
         }
     }
 
-    function getTotalRemaining(Accumulator storage accumulator, uint32 _endDrawId, SD59x18 _alpha) internal view returns (uint256) {
+    /// @notice Gets the total remaining balance after and including the given start draw id. This is the sum of all draw balances from start draw id to infinity.
+    /// The start draw id must be greater than or equal to the newest draw id.
+    /// @param accumulator The accumulator to sum
+    /// @param _startDrawId The draw id to start summing from, inclusive
+    /// @param _alpha The alpha value to use for the exponential weighted average
+    /// @return The sum of draw balances from start draw to infinity
+    function getTotalRemaining(Accumulator storage accumulator, uint32 _startDrawId, SD59x18 _alpha) internal view returns (uint256) {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
         if (ringBufferInfo.cardinality == 0) {
             return 0;
         }
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
         uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
-        require(_endDrawId >= newestDrawId, "invalid draw");
+        require(_startDrawId >= newestDrawId, "invalid draw");
         Observation memory newestObservation_ = accumulator.observations[newestDrawId];
-        return integrateInf(_alpha, _endDrawId - newestDrawId, newestObservation_.available);
+        return integrateInf(_alpha, _startDrawId - newestDrawId, newestObservation_.available);
     }
 
+    /// @notice Retrieves the newest observation from the accumulator
+    /// @param accumulator The accumulator to retrieve the newest observation from
+    /// @return The newest observation
     function newestObservation(Accumulator storage accumulator) internal view returns (Observation memory) {
         return accumulator.observations[RingBufferLib.newestIndex(accumulator.ringBufferInfo.nextIndex, MAX_CARDINALITY)];
     }
 
-    /**
-     * @param _endDrawId Must be be greater than (newest draw id - 1)
-     */
+    /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
+    /// @param _accumulator The accumulator to get the disbursed balance from
+    /// @param _startDrawId The start draw id, inclusive
+    /// @param _endDrawId The end draw id, inclusive
+    /// @param _alpha The alpha value to use for the exponential weighted average
+    /// @return The disbursed balance between the given start and end draw ids, inclusive
     function getDisbursedBetween(
         Accumulator storage _accumulator,
         uint32 _startDrawId,
@@ -171,10 +193,6 @@ library DrawAccumulatorLib {
             );
         }
 
-        // console2.log("observationDrawIdBeforeOrAtStart", observationDrawIdBeforeOrAtStart);
-        // console2.log("firstObservationDrawIdOccurringAtOrAfterStart", firstObservationDrawIdOccurringAtOrAfterStart);
-        // console2.log("lastObservationDrawIdOccurringAtOrBeforeEnd", lastObservationDrawIdOccurringAtOrBeforeEnd);
-
         uint256 total;
 
         // if a "head" exists
@@ -184,11 +202,7 @@ library DrawAccumulatorLib {
             Observation memory beforeOrAtStart = _accumulator.observations[observationDrawIdBeforeOrAtStart];
             uint32 headStartDrawId = _startDrawId - observationDrawIdBeforeOrAtStart;
             uint32 headEndDrawId = headStartDrawId + (firstObservationDrawIdOccurringAtOrAfterStart - _startDrawId);
-            // console2.log("headLog observationDrawIdBeforeOrAtStart", observationDrawIdBeforeOrAtStart);
-            // console2.log("headLog range start", headStartDrawId);
-            // console2.log("headLog range end", headEndDrawId);
             uint amount = integrate(_alpha, headStartDrawId, headEndDrawId, beforeOrAtStart.available);
-            // console2.log("headLog amount", amount);
             total += amount;
         }
 
@@ -200,9 +214,6 @@ library DrawAccumulatorLib {
             atOrBeforeEnd = _accumulator.observations[lastObservationDrawIdOccurringAtOrBeforeEnd];
             uint amount = atOrBeforeEnd.disbursed - atOrAfterStart.disbursed;
             total += amount;
-            // console2.log("bodyLog firstObservationDrawIdOccurringAtOrAfterStart", firstObservationDrawIdOccurringAtOrAfterStart);
-            // console2.log("bodyLog lastObservationDrawIdOccurringAtOrBeforeEnd", lastObservationDrawIdOccurringAtOrBeforeEnd);
-            // console2.log("bodyLog amount", amount);
         }
 
         total += _computeTail(_accumulator, _startDrawId, _endDrawId, lastObservationDrawIdOccurringAtOrBeforeEnd, _alpha);
@@ -210,6 +221,12 @@ library DrawAccumulatorLib {
         return total;
     }
 
+    /// @notice Computes the "tail" for the given accumulator and range. The tail is the residual balance from the last observation occurring before the end draw id.
+    /// @param accumulator The accumulator to compute for
+    /// @param _startDrawId The start draw id, inclusive
+    /// @param _endDrawId The end draw id, inclusive
+    /// @param _lastObservationDrawIdOccurringAtOrBeforeEnd The last observation draw id occurring at or before the end draw id
+    /// @return The total balance of the tail of the range.
     function _computeTail(
         Accumulator storage accumulator,
         uint32 _startDrawId,
@@ -220,15 +237,12 @@ library DrawAccumulatorLib {
         Observation memory lastObservation = accumulator.observations[_lastObservationDrawIdOccurringAtOrBeforeEnd];
         uint32 tailRangeStartDrawId = (_startDrawId > _lastObservationDrawIdOccurringAtOrBeforeEnd ? _startDrawId : _lastObservationDrawIdOccurringAtOrBeforeEnd) - _lastObservationDrawIdOccurringAtOrBeforeEnd;
         uint256 amount = integrate(_alpha, tailRangeStartDrawId, _endDrawId - _lastObservationDrawIdOccurringAtOrBeforeEnd + 1, lastObservation.available);
-        // console2.log("tailLog _lastObservationDrawIdOccurringAtOrBeforeEnd", _lastObservationDrawIdOccurringAtOrBeforeEnd);
-        // console2.log("tailLog tailRangeStartDrawId", tailRangeStartDrawId);
-        // console2.log("tailLog lastObservation.available", lastObservation.available);
-        // console2.log("tailLog _startDrawId", _startDrawId);
-        // console2.log("tailLog _endDrawId", _endDrawId);
-        // console2.log("tailLog amount", amount);
         return amount;
     }
 
+    /// @notice Computes the first and last indices of observations for the given ring buffer info
+    /// @param ringBufferInfo The ring buffer info to compute for
+    /// @return A pair of indices, where the first is the oldest index and the second is the newest index
     function computeIndices(RingBufferInfo memory ringBufferInfo) internal pure returns (Pair32 memory) {
         return Pair32({
             first: uint32(RingBufferLib.oldestIndex(ringBufferInfo.nextIndex, ringBufferInfo.cardinality, MAX_CARDINALITY)),
@@ -236,6 +250,10 @@ library DrawAccumulatorLib {
         });
     }
 
+    /// @notice Retrieves the draw ids for the given accumulator observation indices
+    /// @param accumulator The accumulator to retrieve from
+    /// @param indices The indices to retrieve
+    /// @return A pair of draw ids, where the first is the draw id of the pair's first index and the second is the draw id of the pair's second index
     function readDrawIds(Accumulator storage accumulator, Pair32 memory indices) internal view returns (Pair32 memory) {
         return Pair32({
             first: uint32(accumulator.drawRingBuffer[indices.first]),
@@ -243,25 +261,28 @@ library DrawAccumulatorLib {
         });
     }
 
-    /**
-     * @notice Returns the remaining prize tokens available from relative draw _x
-     */
+    /// @notice Integrates from the given x to infinity for the exponential weighted average
+    /// @param _alpha The EWA smoothing parameter.
+    /// @param _x The x value to integrate from.
+    /// @param _k The k value to scale the sum (this is the total available balance).
+    /// @return The integration from x to inf of the EWA for the given parameters.
     function integrateInf(SD59x18 _alpha, uint _x, uint _k) internal pure returns (uint256) {
         return uint256(fromSD59x18(computeC(_alpha, _x, _k)));
     }
 
-    /**
-     * @notice returns the number of tokens that were given out between draw _start and draw _end
-     */
+    /// @notice Integrates from the given start x to end x for the exponential weighted average
+    /// @param _alpha The EWA smoothing parameter.
+    /// @param _start The x value to integrate from.
+    /// @param _end The x value to integrate to
+    /// @param _k The k value to scale the sum (this is the total available balance).
+    /// @return The integration from start to end of the EWA for the given parameters.
     function integrate(SD59x18 _alpha, uint _start, uint _end, uint _k) internal pure returns (uint256) {
         int start = unwrap(
             computeC(_alpha, _start, _k)
         );
-        // console2.log("integrate start" , start);
         int end = unwrap(
             computeC(_alpha, _end, _k)
         );
-        // console2.log("integrate end" , end);
         return uint256(
             fromSD59x18(
                 sd(
@@ -273,12 +294,25 @@ library DrawAccumulatorLib {
         );
     }
 
+    /// @notice Computes the interim value C for the EWA
+    /// @param _alpha The EWA smoothing parameter.
+    /// @param _x The x value to compute for
+    /// @param _k The total available balance
+    /// @return The value C
     function computeC(SD59x18 _alpha, uint _x, uint _k) internal pure returns (SD59x18) {
         return toSD59x18(int(_k)).mul(_alpha.pow(toSD59x18(int256(_x))));
     }
 
-    /**
-     */
+    /// @notice Binary searches an array of draw ids for the given target draw id.
+    /// @param _drawRingBuffer The array of draw ids to search
+    /// @param _oldestIndex The oldest index in the ring buffer
+    /// @param _newestIndex The newest index in the ring buffer
+    /// @param _cardinality The number of items in the ring buffer
+    /// @param _targetLastCompletedDrawId The target draw id to search for
+    /// @return beforeOrAtIndex The index of the observation occurring at or before the target draw id
+    /// @return beforeOrAtDrawId The draw id of the observation occurring at or before the target draw id
+    /// @return afterOrAtIndex The index of the observation occurring at or after the target draw id
+    /// @return afterOrAtDrawId The draw id of the observation occurring at or after the target draw id 
     function binarySearch(
         uint32[MAX_CARDINALITY] storage _drawRingBuffer,
         uint32 _oldestIndex,
