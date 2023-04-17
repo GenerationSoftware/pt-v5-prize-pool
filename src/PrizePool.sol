@@ -239,8 +239,8 @@ contract PrizePool {
         prizeToken.transfer(_to, _amount);
     }
 
-    function hasDrawFinished(uint32 drawId) external view returns (bool) {
-        return lastCompletedDrawId >= drawId;
+    function hasDrawFinished() external view returns (bool) {
+        return block.timestamp >= _nextDrawEndsAt();
     }
 
     /**
