@@ -305,7 +305,7 @@ contract PrizePool {
     }
 
     /// @notice Returns whether the next draw has finished
-    function hasDrawFinished() external view returns (bool) {
+    function hasNextDrawFinished() external view returns (bool) {
         return block.timestamp >= _nextDrawEndsAt();
     }
 
