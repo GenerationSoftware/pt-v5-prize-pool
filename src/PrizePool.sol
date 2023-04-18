@@ -304,6 +304,11 @@ contract PrizePool {
         prizeToken.transfer(_to, _amount);
     }
 
+    /// @notice Returns whether the next draw has finished
+    function hasDrawFinished() external view returns (bool) {
+        return block.timestamp >= _nextDrawEndsAt();
+    }
+
     /// @notice Returns the start time of the draw for the next successful completeAndStartNextDraw
     function nextDrawStartsAt() external view returns (uint64) {
         return _nextDrawStartsAt();

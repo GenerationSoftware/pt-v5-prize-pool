@@ -414,6 +414,14 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.lastCompletedDrawStartedAt(), lastCompletedDrawStartedAt);
     }
 
+    function testHasDrawFinished() public {
+        assertEq(prizePool.hasDrawFinished(), false);
+        vm.warp(prizePool.nextDrawEndsAt() - 1);
+        assertEq(prizePool.hasDrawFinished(), false);
+        vm.warp(prizePool.nextDrawEndsAt());
+        assertEq(prizePool.hasDrawFinished(), true);
+    }
+
     function testNextDrawStartsAt_zeroDraw() public {
         // current time *is* lastCompletedDrawStartedAt
         assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
