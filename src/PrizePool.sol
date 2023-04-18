@@ -19,6 +19,8 @@ import { BitLib } from "./libraries/BitLib.sol";
  */
 contract PrizePool {
 
+    error InsufficientFeesError(uint256 requested, uint256 available);
+
     struct ClaimRecord {
         uint32 drawId;
         uint8 claimedTiers;
@@ -85,6 +87,9 @@ contract PrizePool {
 
     /// @notice Records the claim record for a winner
     mapping(address => ClaimRecord) internal claimRecords;
+
+    /// @notice Tracks the total fees accrued to each claimer
+    mapping(address => uint256) internal claimerFees;
 
     /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing. Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
     SD1x18 public immutable smoothing;
@@ -476,10 +481,33 @@ contract PrizePool {
         claimRecords[_winner] = ClaimRecord({drawId: lastCompletedDrawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
         prizeToken.transfer(_to, payout);
         if (_fee > 0) {
-            prizeToken.transfer(_feeRecipient, _fee);
+            claimerFees[_feeRecipient] += _fee;
         }
         emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
         return payout;
+    }
+
+    /**
+    * @notice Withdraws the claim fees for the caller.
+    * @param _to The address to transfer the claim fees to.
+    * @param _amount The amount of claim fees to withdraw
+    */
+    function withdrawClaimFees(address _to, uint256 _amount) external {
+        uint256 available = claimerFees[msg.sender];
+        if (_amount > available) {
+            revert InsufficientFeesError(_amount, available);
+        }
+        claimerFees[msg.sender] -= _amount;
+        prizeToken.transfer(_to, _amount);
+    }
+
+    /**
+    * @notice Returns the balance of fees for a given claimer
+    * @param _claimer The claimer to retrieve the fee balance for
+    * @return The balance of fees for the given claimer
+    */
+    function balanceOfClaimFees(address _claimer) external view returns (uint256) {
+        return claimerFees[_claimer];
     }
 
     /**
