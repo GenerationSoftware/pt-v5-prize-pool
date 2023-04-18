@@ -105,12 +105,12 @@ library TierCalculationLib {
             return false;
         }
         /*
-            1. We generate a psuedo-random number that will be unique to the user and tier.
-            2. Fit the PRN within the vault total supply.
+            1. We generate a pseudo-random number that will be unique to the user and tier.
+            2. Fit the pseudo-random number within the vault total supply.
         */
         uint256 prn = calculatePseudoRandomNumber(_user, _tier, _winningRandomNumber) % _vaultTwabTotalSupply;
         /*
-            The user-held portion of the total supply is the "winning zone". If the above PRN falls within the winning zone, the user has won this tier
+            The user-held portion of the total supply is the "winning zone". If the above pseudo-random number falls within the winning zone, the user has won this tier
 
             However, we scale the size of the zone based on:
                 - Odds of the tier occuring
@@ -123,16 +123,16 @@ library TierCalculationLib {
         return prn < winningZone;
     }
 
-    /// @notice Calculates a psuedo-random number that is unique to the user, tier, and winning random number
+    /// @notice Calculates a pseudo-random number that is unique to the user, tier, and winning random number
     /// @param _user The user
     /// @param _tier The tier
     /// @param _winningRandomNumber The winning random number
-    /// @return A psuedo-random number
+    /// @return A pseudo-random number
     function calculatePseudoRandomNumber(address _user, uint32 _tier, uint256 _winningRandomNumber) internal pure returns (uint256) {
         return uint256(keccak256(abi.encode(_user, _tier, _winningRandomNumber)));
     }
 
-    /// @notice Calculates the winning zone for a user. If their PRN falls within this zone, they win the tier.
+    /// @notice Calculates the winning zone for a user. If their pseudo-random number falls within this zone, they win the tier.
     /// @param _userTwab The user's time weighted average balance
     /// @param _tierOdds The odds of the tier occurring
     /// @param _vaultContributionFraction The portion of the prize that was contributed by the vault

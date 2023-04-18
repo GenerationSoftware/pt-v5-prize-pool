@@ -262,7 +262,7 @@ library DrawAccumulatorLib {
     }
 
     /// @notice Integrates from the given x to infinity for the exponential weighted average
-    /// @param _alpha The EWA smoothing parameter.
+    /// @param _alpha The exponential weighted average smoothing parameter.
     /// @param _x The x value to integrate from.
     /// @param _k The k value to scale the sum (this is the total available balance).
     /// @return The integration from x to inf of the EWA for the given parameters.
@@ -271,7 +271,7 @@ library DrawAccumulatorLib {
     }
 
     /// @notice Integrates from the given start x to end x for the exponential weighted average
-    /// @param _alpha The EWA smoothing parameter.
+    /// @param _alpha The exponential weighted average smoothing parameter.
     /// @param _start The x value to integrate from.
     /// @param _end The x value to integrate to
     /// @param _k The k value to scale the sum (this is the total available balance).
@@ -295,7 +295,7 @@ library DrawAccumulatorLib {
     }
 
     /// @notice Computes the interim value C for the EWA
-    /// @param _alpha The EWA smoothing parameter.
+    /// @param _alpha The exponential weighted average smoothing parameter.
     /// @param _x The x value to compute for
     /// @param _k The total available balance
     /// @return The value C

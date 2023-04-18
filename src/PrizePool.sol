@@ -25,6 +25,14 @@ contract PrizePool {
     }
 
     /// @notice Emitted when a prize is claimed.
+    /// @param drawId The draw ID of the draw that was claimed.
+    /// @param vault The address of the vault that claimed the prize.
+    /// @param winner The address of the winner
+    /// @param tier The prize tier that was claimed.
+    /// @param payout The amount of prize tokens that were paid out to the winner
+    /// @param to The address that the prize tokens were sent to
+    /// @param fee The amount of prize tokens that were paid to the claimer
+    /// @param feeRecipient The address that the claim fee was sent to
     event ClaimedPrize(
         uint32 indexed drawId,
         address indexed vault,
@@ -69,14 +77,16 @@ contract PrizePool {
     UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_14_TIERS;
     UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_15_TIERS;
 
+    /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault
     mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulator;
 
-    // tier number => tier exchange rate is prizeToken per share
+    /// @notice Tracks the amount of prize liquidity for each tier. Track as prizeToken per share
     mapping(uint256 => UD60x18) internal _tierExchangeRates;
 
+    /// @notice Records the claim record for a winner
     mapping(address => ClaimRecord) internal claimRecords;
 
-    /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing.
+    /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing. Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
     SD1x18 public immutable smoothing;
 
     /// @notice The token that is being contributed and awarded as prizes
@@ -109,8 +119,10 @@ contract PrizePool {
     /// @notice The current number of prize tokens per share
     UD60x18 public prizeTokenPerShare;
 
+    /// @notice The amount of available reserve
     uint256 internal _reserve;
 
+    /// @notice The winner random number for the last completed draw
     uint256 internal _winningRandomNumber;
 
     /// @notice The number of tiers for the last completed draw
@@ -125,6 +137,7 @@ contract PrizePool {
     /// @notice The largest tier claimed so far for the last completed draw
     uint8 public largestTierClaimed;
 
+    /// @notice The exponential weighted average of all vault contributions
     DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
     uint32 internal lastCompletedDrawId;
@@ -560,7 +573,7 @@ contract PrizePool {
     * @param _vault The address of the vault for which to calculate the portion.
     * @param drawId_ The draw ID for which to calculate the portion.
     * @param _durationInDraws The duration of the period over which to calculate the portion, in number of draws.
-    * @param _smoothing The alpha value to use for calculating the portion.
+    * @param _smoothing The smoothing value to use for calculating the portion.
     * @return The portion of the vault's contribution to the prize pool over the specified duration in draws.
     */
     function _getVaultPortion(address _vault, uint32 drawId_, uint32 _durationInDraws, SD59x18 _smoothing) internal view returns (SD59x18) {
