@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, fromUD60x18, toUD60x18 } from "prb-math/UD60x18.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
@@ -17,7 +18,7 @@ import { BitLib } from "./libraries/BitLib.sol";
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
-contract PrizePool {
+contract PrizePool is Multicall {
 
     struct ClaimRecord {
         uint32 drawId;
