@@ -359,7 +359,8 @@ contract PrizePoolTest is Test {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
-        assertEq(prizePool.claimPrize(msg.sender, 0, msg.sender, 1e18, address(this)), 3.5454545454545454e18);
+        // total prize size is returned
+        assertEq(prizePool.claimPrize(msg.sender, 0, msg.sender, 1e18, address(this)), 4.5454545454545454e18);
         // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
         assertEq(prizeToken.balanceOf(msg.sender), 3.5454545454545454e18);
         assertEq(prizePool.claimCount(), 1);

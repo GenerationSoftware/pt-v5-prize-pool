@@ -444,7 +444,7 @@ contract PrizePool {
         @param _to The address that the prize will be transferred to.
         @param _fee The fee associated with claiming the prize.
         @param _feeRecipient The address to receive the fee.
-        @return The payout size of the claimed prize after deducting the fee.
+        @return The total prize size of the claimed prize. prize size = payout to winner + fee
     */
     function claimPrize(
         address _winner,
@@ -484,7 +484,7 @@ contract PrizePool {
             claimerRewards[_feeRecipient] += _fee;
         }
         emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
-        return payout;
+        return prizeSize;
     }
 
     /**
