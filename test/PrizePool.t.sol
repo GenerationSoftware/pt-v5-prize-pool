@@ -363,7 +363,7 @@ contract PrizePoolTest is Test {
         // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
         assertEq(prizeToken.balanceOf(msg.sender), 3.5454545454545454e18);
         assertEq(prizePool.claimCount(), 1);
-        assertEq(prizeToken.balanceOf(address(this)), 1e18);
+        assertEq(prizePool.balanceOfClaimRewards(address(this)), 1e18);
     }
 
     function testClaimPrize_notWinner() public {
@@ -420,6 +420,20 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.hasNextDrawFinished(), false);
         vm.warp(prizePool.nextDrawEndsAt());
         assertEq(prizePool.hasNextDrawFinished(), true);
+    }
+
+    function testwithdrawClaimRewards_sufficient() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, 0);
+        assertEq(prizePool.claimPrize(msg.sender, 0, msg.sender, 1e18, address(this)), 3.5454545454545454e18);
+        prizePool.withdrawClaimRewards(address(this), 1e18);
+        assertEq(prizeToken.balanceOf(address(this)), 1e18);
+    }
+
+    function testwithdrawClaimRewards_insufficient() public {
+        vm.expectRevert(abi.encodeWithSelector(PrizePool.InsufficientFeesError.selector, 1e18, 0));
+        prizePool.withdrawClaimRewards(address(this), 1e18);
     }
 
     function testNextDrawStartsAt_zeroDraw() public {
