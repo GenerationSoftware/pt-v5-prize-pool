@@ -89,7 +89,7 @@ contract PrizePool {
     mapping(address => ClaimRecord) internal claimRecords;
 
     /// @notice Tracks the total fees accrued to each claimer
-    mapping(address => uint256) internal claimerFees;
+    mapping(address => uint256) internal claimerRewards;
 
     /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing. Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
     SD1x18 public immutable smoothing;
@@ -481,7 +481,7 @@ contract PrizePool {
         claimRecords[_winner] = ClaimRecord({drawId: lastCompletedDrawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
         prizeToken.transfer(_to, payout);
         if (_fee > 0) {
-            claimerFees[_feeRecipient] += _fee;
+            claimerRewards[_feeRecipient] += _fee;
         }
         emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
         return payout;
@@ -492,12 +492,12 @@ contract PrizePool {
     * @param _to The address to transfer the claim fees to.
     * @param _amount The amount of claim fees to withdraw
     */
-    function withdrawClaimFees(address _to, uint256 _amount) external {
-        uint256 available = claimerFees[msg.sender];
+    function withdrawClaimRewards(address _to, uint256 _amount) external {
+        uint256 available = claimerRewards[msg.sender];
         if (_amount > available) {
             revert InsufficientFeesError(_amount, available);
         }
-        claimerFees[msg.sender] -= _amount;
+        claimerRewards[msg.sender] -= _amount;
         prizeToken.transfer(_to, _amount);
     }
 
@@ -506,8 +506,8 @@ contract PrizePool {
     * @param _claimer The claimer to retrieve the fee balance for
     * @return The balance of fees for the given claimer
     */
-    function balanceOfClaimFees(address _claimer) external view returns (uint256) {
-        return claimerFees[_claimer];
+    function balanceOfClaimRewards(address _claimer) external view returns (uint256) {
+        return claimerRewards[_claimer];
     }
 
     /**
