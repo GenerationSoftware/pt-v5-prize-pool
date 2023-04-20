@@ -58,6 +58,8 @@ contract PrizePoolTest is Test {
             sd1x18(0.9e18) // alpha
         );
 
+        prizePool.setManager(address(this));
+
         vault = address(this);
     }
 
@@ -204,6 +206,7 @@ contract PrizePoolTest is Test {
             ud2x18(0.9e18), // claim threshold of 90%
             sd1x18(0.9e18) // alpha
         );
+        prizePool.setManager(address(this));
 
         contribute(420e18);
         completeAndStartNextDraw(1234);
@@ -427,7 +430,7 @@ contract PrizePoolTest is Test {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
-        assertEq(prizePool.claimPrize(msg.sender, 0, msg.sender, 1e18, address(this)), 3.5454545454545454e18);
+        assertEq(prizePool.claimPrize(msg.sender, 0, msg.sender, 1e18, address(this)), 4.5454545454545454e18);
         prizePool.withdrawClaimRewards(address(this), 1e18);
         assertEq(prizeToken.balanceOf(address(this)), 1e18);
     }
