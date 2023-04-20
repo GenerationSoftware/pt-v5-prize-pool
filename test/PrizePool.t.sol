@@ -433,7 +433,7 @@ contract PrizePoolTest is Test {
     }
 
     function testwithdrawClaimRewards_insufficient() public {
-        vm.expectRevert(abi.encodeWithSelector(PrizePool.InsufficientFeesError.selector, 1e18, 0));
+        vm.expectRevert(abi.encodeWithSelector(PrizePool.InsufficientRewardsError.selector, 1e18, 0));
         prizePool.withdrawClaimRewards(address(this), 1e18);
     }
 
