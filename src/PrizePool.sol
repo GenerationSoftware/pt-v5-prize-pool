@@ -168,7 +168,6 @@ contract PrizePool is Manageable, Multicall {
      * @param _reserveShares The number of shares to allocate to the reserve.
      * @param _claimExpansionThreshold The percentage of prizes that must be claimed to bump the number of tiers. This threshold is used for both standard prizes and canary prizes.
      * @param _smoothing The amount of smoothing to apply to vault contributions. Must be less than 1. A value of 0 is no smoothing, while greater values smooth until approaching infinity
-     * @param _owner The owner of the Prize Pool. Can configure the manager of the prize pool.
      */
     constructor (
         IERC20 _prizeToken,
@@ -181,9 +180,8 @@ contract PrizePool is Manageable, Multicall {
         uint96 _canaryShares,
         uint96 _reserveShares,
         UD2x18 _claimExpansionThreshold,
-        SD1x18 _smoothing,
-        address _owner
-    ) Ownable(_owner) {
+        SD1x18 _smoothing
+    ) Ownable(msg.sender) {
         prizeToken = _prizeToken;
         twabController = _twabController;
         grandPrizePeriodDraws = _grandPrizePeriodDraws;

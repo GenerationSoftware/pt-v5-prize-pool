@@ -55,8 +55,7 @@ contract PrizePoolTest is Test {
             10e18,
             10e18,
             ud2x18(0.9e18), // claim threshold of 90%
-            sd1x18(0.9e18), // alpha
-            address(this)
+            sd1x18(0.9e18) // alpha
         );
 
         prizePool.setManager(address(this));
@@ -205,8 +204,7 @@ contract PrizePoolTest is Test {
             10e18,
             10e18,
             ud2x18(0.9e18), // claim threshold of 90%
-            sd1x18(0.9e18), // alpha
-            address(this)
+            sd1x18(0.9e18) // alpha
         );
         prizePool.setManager(address(this));
 
