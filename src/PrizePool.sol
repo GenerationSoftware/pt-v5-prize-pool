@@ -7,6 +7,8 @@ import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, fromUD60x18, toUD60x18 } from "prb-math/UD60x18.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
+import { Manageable } from "owner-manager-contracts/Manageable.sol";
+import { Ownable } from "owner-manager-contracts/Ownable.sol";
 
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
@@ -18,9 +20,10 @@ import { BitLib } from "./libraries/BitLib.sol";
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
-contract PrizePool is Multicall {
+contract PrizePool is Manageable, Multicall {
 
-    error InsufficientFeesError(uint256 requested, uint256 available);
+    /// @notice Emitted when someone tries to withdraw too many rewards
+    error InsufficientRewardsError(uint256 requested, uint256 available);
 
     struct ClaimRecord {
         uint32 drawId;
@@ -146,8 +149,10 @@ contract PrizePool is Multicall {
     /// @notice The exponential weighted average of all vault contributions
     DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
+    /// @notice The draw id of the last completed draw
     uint32 internal lastCompletedDrawId;
 
+    /// @notice The timestamp at which the last completed draw started
     uint64 internal lastCompletedDrawStartedAt_;
 
     /**
@@ -176,7 +181,7 @@ contract PrizePool is Multicall {
         uint96 _reserveShares,
         UD2x18 _claimExpansionThreshold,
         SD1x18 _smoothing
-    ) {
+    ) Ownable(msg.sender) {
         prizeToken = _prizeToken;
         twabController = _twabController;
         grandPrizePeriodDraws = _grandPrizePeriodDraws;
@@ -300,11 +305,10 @@ contract PrizePool is Multicall {
         return _reserve;
     }
 
-    /// @notice Withdraws tokens from the reserve
+    /// @notice Allows the Manager to withdraw tokens from the reserve
     /// @param _to The address to send the tokens to
     /// @param _amount The amount of tokens to withdraw
-    function withdrawReserve(address _to, uint256 _amount) external {
-        // NOTE: must make this function privileged
+    function withdrawReserve(address _to, uint256 _amount) external onlyManager {
         require(_amount <= _reserve, "insuff");
         _reserve -= _amount;
         prizeToken.transfer(_to, _amount);
@@ -343,10 +347,10 @@ contract PrizePool is Multicall {
         }
     }
 
-    /// @notice Completes the current prize period and starts the next one, updating the number of tiers, the winning random number, and the prize pool reserve
+    /// @notice Allows the Manager to complete the current prize period and starts the next one, updating the number of tiers, the winning random number, and the prize pool reserve
     /// @param winningRandomNumber_ The winning random number for the current draw
     /// @return The ID of the completed draw
-    function completeAndStartNextDraw(uint256 winningRandomNumber_) external returns (uint32) {
+    function completeAndStartNextDraw(uint256 winningRandomNumber_) external onlyManager returns (uint32) {
         // check winning random number
         require(winningRandomNumber_ != 0, "num invalid");
         uint64 nextDrawStartsAt_ = _nextDrawStartsAt();
@@ -496,7 +500,7 @@ contract PrizePool is Multicall {
     function withdrawClaimRewards(address _to, uint256 _amount) external {
         uint256 available = claimerRewards[msg.sender];
         if (_amount > available) {
-            revert InsufficientFeesError(_amount, available);
+            revert InsufficientRewardsError(_amount, available);
         }
         claimerRewards[msg.sender] -= _amount;
         prizeToken.transfer(_to, _amount);
