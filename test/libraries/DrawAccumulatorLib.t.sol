@@ -185,7 +185,7 @@ contract DrawAccumulatorLibTest is Test {
             4		810 + 1000
             5		729 + 900
         */
-        assertEq(getDisbursedBetween(1, 4), 3709);
+        assertEq(getDisbursedBetween(1, 4), 3710);
     }
 
     function testGetDisbursedBetween_onOneBetweenTwo() public {

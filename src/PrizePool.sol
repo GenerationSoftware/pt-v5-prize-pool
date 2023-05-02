@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
+import "forge-std/console2.sol";
+
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
@@ -283,6 +285,12 @@ contract PrizePool is Manageable, Multicall {
         return (obs.available + obs.disbursed) - _totalClaimedPrizes;
     }
 
+    /// @notice Computes how many tokens have been accounted for
+    /// @return The balance of tokens that have been accounted for
+    function accountedBalance() external view returns (uint256) {
+        return _accountedBalance();
+    }
+
     /// @notice Retrieves the id of the next draw to be completed.
     /// @return The next draw id
     function getNextDrawId() external view returns (uint256) {
@@ -376,6 +384,9 @@ contract PrizePool is Manageable, Multicall {
                 }
             }
         }
+        // console2.log("nextNumberOfTiers", nextNumberOfTiers);
+        // console2.log("numTiers", numTiers);
+        // console2.log("reclaimedLiquidity", reclaimedLiquidity);
         // add back canary liquidity
         reclaimedLiquidity += _getLiquidity(numTiers, canaryShares);
 
@@ -391,6 +402,7 @@ contract PrizePool is Manageable, Multicall {
         
         (UD60x18 deltaExchangeRate, uint256 remainder) = _computeDrawDeltaExchangeRate(nextNumberOfTiers);
         prizeTokenPerShare = prizeTokenPerShare.add(deltaExchangeRate);
+        // console2.log("prizeTokenPerShare", prizeTokenPerShare.unwrap());
 
         uint256 _additionalReserve = fromUD60x18(deltaExchangeRate.mul(toUD60x18(reserveShares)));
         _reserve += _additionalReserve + reclaimedLiquidity + remainder;
@@ -398,13 +410,14 @@ contract PrizePool is Manageable, Multicall {
         return lastCompletedDrawId;
     }
 
-    /// @notice Reclaims liquidity from a tier
+    /// @notice Reclaims liquidity from tiers, starting at the highest tier
     /// @param _count The number of tiers to reclaim liquidity for
     /// @return The total reclaimed liquidity
     function _reclaimTierLiquidity(uint8 _count) internal view returns (uint256) {
         uint256 reclaimedLiquidity;
-        for (uint8 i = 0; i < _count; i++) {
+        for (uint8 i = numberOfTiers - _count; i < numberOfTiers; i++) {
             reclaimedLiquidity += _getLiquidity(i, tierShares);
+            // console2.log("_reclaimTierLiquidity reclaimedLiquidity", reclaimedLiquidity);
         }
         return reclaimedLiquidity;
     }
@@ -458,6 +471,7 @@ contract PrizePool is Manageable, Multicall {
         uint96 _fee,
         address _feeRecipient
     ) external returns (uint256) {
+        // console2.log("starting claimPrize for drawId", lastCompletedDrawId);
         address _vault = msg.sender;
         uint256 prizeSize;
         if (_isWinner(_vault, _winner, _tier)) {
@@ -466,6 +480,7 @@ contract PrizePool is Manageable, Multicall {
         } else {
             revert("did not win");
         }
+        // console2.log("continueing drawid", lastCompletedDrawId);
         ClaimRecord memory claimRecord = claimRecords[_winner];
         if (claimRecord.drawId != lastCompletedDrawId) {
             claimRecord = ClaimRecord({drawId: lastCompletedDrawId, claimedTiers: uint8(0)});
@@ -484,12 +499,27 @@ contract PrizePool is Manageable, Multicall {
             claimCount++;
         }
         claimRecords[_winner] = ClaimRecord({drawId: lastCompletedDrawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
+        UD60x18 deltaExchangeRate = _computeTierDeltaExchangeRate(prizeSize, _tier);
+        // console2.log("deltaExchangeRate", deltaExchangeRate.unwrap());
+        // console2.log("_tierExchangeRates[_tier]", _tierExchangeRates[_tier].unwrap());
+        UD60x18 test = ud(_tierExchangeRates[_tier].unwrap() + deltaExchangeRate.unwrap());
+        _tierExchangeRates[_tier] = _tierExchangeRates[_tier].add(test);
+        // console2.log("GOT HERE????");
         prizeToken.transfer(_to, payout);
         if (_fee > 0) {
             claimerRewards[_feeRecipient] += _fee;
         }
         emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
+        // console2.log("ALLL DONE");
         return prizeSize;
+    }
+
+    function _computeTierDeltaExchangeRate(uint256 _prizeSize, uint8 _tier) internal view returns (UD60x18) {
+        if (_tierExchangeRates[_tier].gte(prizeTokenPerShare)) {
+            return ud(0);
+        }
+        UD60x18 deltaExchangeRate = prizeTokenPerShare.sub(_tierExchangeRates[_tier]);
+        return deltaExchangeRate.mul(toUD60x18(_prizeSize)).div(toUD60x18(_getLiquidity(_tier, tierShares)));
     }
 
     /**
@@ -679,13 +709,16 @@ contract PrizePool is Manageable, Multicall {
         }
     }
 
-    /// @notice Computes the totl liquidity available to a tier
+    /// @notice Computes the total liquidity available to a tier
     /// @param _tier The tier to calculate liquidity for
     /// @param _shares The number of shares that the tier has (can be tierShares or canaryShares)
     /// @return The total available liquidity
     function _getLiquidity(uint8 _tier, uint256 _shares) internal view returns (uint256) {
+        // console2.log("getting liquidity...");
+        if (_tierExchangeRates[_tier].gte(prizeTokenPerShare)) {
+            return 0;
+        }
         UD60x18 _numberOfPrizeTokenPerShareOutstanding = ud(UD60x18.unwrap(prizeTokenPerShare) - UD60x18.unwrap(_tierExchangeRates[_tier]));
-
         return fromUD60x18(_numberOfPrizeTokenPerShareOutstanding.mul(UD60x18.wrap(_shares*1e18)));
     }
 

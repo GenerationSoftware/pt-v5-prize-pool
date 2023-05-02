@@ -121,6 +121,42 @@ contract PrizePoolTest is Test {
         assertEq(prizeToken.balanceOf(address(prizePool)), 100);
     }
 
+    function testAccountedBalance_noClaims() public {
+        contribute(100);
+        assertEq(prizePool.accountedBalance(), 100);
+    }
+
+    function testAccountedBalance_oneClaim() public {
+        contribute(100e18);
+        completeAndStartNextDraw(1);
+        mockTwab(msg.sender, 0);
+        assertEq(claimPrize(msg.sender, 0), 4.5454545454545454e18);
+        assertEq(prizePool.accountedBalance(), 95.4545454545454546e18);
+    }
+
+    function testAccountedBalance_oneClaim_andMoreContrib() public {
+        contribute(100e18);
+        completeAndStartNextDraw(1);
+        mockTwab(msg.sender, 0);
+        assertEq(claimPrize(msg.sender, 0), 4.5454545454545454e18);
+        contribute(10e18);
+        assertEq(prizePool.accountedBalance(), 105.4545454545454546e18);
+    }
+
+    function testAccountedBalance_twoClaims() public {
+        contribute(100e18);
+        completeAndStartNextDraw(1);
+        mockTwab(msg.sender, 0);
+        assertEq(claimPrize(msg.sender, 0), 4.5454545454545454e18);
+        // 10e18 - 4.5454545454545454e18 = 5.4545454545454546e18
+        completeAndStartNextDraw(1);
+        mockTwab(msg.sender, 0);
+        // 9e18*100/220 = 4.0909090909090909e18
+        assertEq(prizePool.accountedBalance(), 95.4545454545454546e18, "accounted balance");
+         // notice that the liquidity does not match! still need to carry over
+        assertEq(claimPrize(msg.sender, 0), 4.0909090909090903e18, "prize money for draw 2");
+    }
+
     function testGetVaultPortionWhenEmpty() public {
         assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 1)), 0);
     }
@@ -191,6 +227,20 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.totalDrawLiquidity(), 10e18 - 120); // ensure not a single wei is lost!
     }
 
+    function testTotalDrawLiquidity_noClaims() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.totalDrawLiquidity(), 9999999999999999880, "first draw"); // 10e18
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.totalDrawLiquidity(), 18999999999999998540, "second draw"); // 10e18 + 9e18
+    }
+
+    function testTotalDrawLiquidity_claims() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.totalDrawLiquidity(), 9999999999999999880); // 10e18
+    }
+
     function testCompleteAndStartNextDraw_shrinkTiers() public {
         // reset prize pool at higher tiers
         prizePool = new PrizePool(
@@ -228,11 +278,11 @@ contract PrizePoolTest is Test {
 
         completeAndStartNextDraw(4567);
         // reclaimed tier 2, 3, and canary.  22e18 in total.
-        // draw 2 has 37.8.  Reserve is 10/220.0 * 37.8 = 1.718181818181818
-
+        // draw 2 has 37.8.  Reserve is 10/220.0 * 37.8e18 = 1.718181818181818e18
+        // 22e18 + 1.718181818181818e18 = 23.718181818181818e18
         // shrink by 2
         assertEq(prizePool.numberOfTiers(), 2);
-        assertEq(prizePool.reserve(), 23.718181818181818010e18);
+        assertEq(prizePool.reserve(), 23.71818181818181801e18, "size of reserve");
     }
 
     function testCompleteAndStartNextDraw_expandingTiers() public {
@@ -299,6 +349,19 @@ contract PrizePoolTest is Test {
         // expansion prize size: 6.875 / 16 = 0.433
 
         assertEq(prizePool.calculatePrizeSize(2), 0.429687500000000001e18);
+    }
+
+    function testCalculatePrizeSize_secondDraw() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.calculatePrizeSize(0), 4.5454545454545454e18, "first draw first tier");
+        assertEq(prizePool.calculatePrizeSize(1), 1.136363636363636350e18, "first draw second tier");
+        completeAndStartNextDraw(winningRandomNumber);
+        // an additional 9e18 is unlocked, so previous prize carries over
+        // tier 0 = 100/220 * 9e18 + 4.5454545454545454e18 = 8.636363636363637e18
+        // tier 1 = (100/220 * 9e18)/4 + 1.136363636363636350e18 = 2.1590909090909092e18
+        assertEq(prizePool.calculatePrizeSize(0), 8.6363636363636357e18, "second draw first tier");
+        assertEq(prizePool.calculatePrizeSize(1), 2.159090909090908925e18, "second draw second tier");
     }
 
     function testGetTierLiquidity_invalidTier() public {
