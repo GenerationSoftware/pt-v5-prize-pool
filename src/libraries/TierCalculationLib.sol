@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.17;
 
+import "forge-std/console2.sol";
+
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18, ceil } from "prb-math/SD59x18.sol";
 import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
 
@@ -64,23 +66,6 @@ library TierCalculationLib {
         return multiplier.mul(toUD60x18(prizeCount(_numberOfTiers)));
     }
 
-    /// @notice Computes the prizes per share, along with remainder.
-    /// @param _totalShares The total number of shares
-    /// @param _totalContributed The total balance of tokens to be distributed
-    /// @return deltaExchangeRate The amount of tokens to be distributed per share
-    /// @return remainder The _totalContributed, less the shares * deltaExchangeRate
-    function computeNextExchangeRateDelta(
-        uint256 _totalShares,
-        uint256 _totalContributed
-    ) internal pure returns (
-        UD60x18 deltaExchangeRate,
-        uint256 remainder
-    ) {
-        UD60x18 totalShares = toUD60x18(_totalShares);
-        deltaExchangeRate = toUD60x18(_totalContributed).div(totalShares);
-        remainder = _totalContributed - fromUD60x18(deltaExchangeRate.mul(totalShares));
-    }
-
     /// @notice Determines if a user won a prize tier
     /// @param _user The user to check
     /// @param _tier The tier to check
@@ -100,7 +85,7 @@ library TierCalculationLib {
         SD59x18 _tierOdds,
         SD59x18 _tierPrizeCount,
         uint256 _winningRandomNumber
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         if (_vaultTwabTotalSupply == 0) {
             return false;
         }
@@ -109,6 +94,7 @@ library TierCalculationLib {
             2. Fit the pseudo-random number within the vault total supply.
         */
         uint256 prn = calculatePseudoRandomNumber(_user, _tier, _winningRandomNumber) % _vaultTwabTotalSupply;
+
         /*
             The user-held portion of the total supply is the "winning zone". If the above pseudo-random number falls within the winning zone, the user has won this tier
 
