@@ -79,6 +79,9 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     // 64 bits
     UD2x18 public immutable claimExpansionThreshold;
 
+    /// @notice The exponential weighted average of all vault contributions
+    DrawAccumulatorLib.Accumulator internal totalAccumulator;
+
     uint256 internal _totalClaimedPrizes;
 
     /// @notice The winner random number for the last completed draw
@@ -92,9 +95,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /// @notice The largest tier claimed so far for the last completed draw
     uint8 public largestTierClaimed;
-
-    /// @notice The exponential weighted average of all vault contributions
-    DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
     /// @notice The timestamp at which the last completed draw started
     uint64 internal lastCompletedDrawStartedAt_;
