@@ -81,7 +81,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testGetTotalRemaining_invalidDraw() public {
         add(4);
-        vm.expectRevert("invalid draw");
+        vm.expectRevert("invalid search draw");
         wrapper.getTotalRemaining(2, alpha);
     }
 

@@ -99,7 +99,7 @@ library DrawAccumulatorLib {
         }
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
         uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
-        require(_startDrawId >= newestDrawId, "invalid draw");
+        require(_startDrawId >= newestDrawId, "invalid search draw");
         Observation memory newestObservation_ = accumulator.observations[newestDrawId];
         return integrateInf(_alpha, _startDrawId - newestDrawId, newestObservation_.available);
     }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
+import "forge-std/console2.sol";
+
 import { DrawAccumulatorLib, Observation } from "src/libraries/DrawAccumulatorLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
@@ -11,9 +13,13 @@ contract DrawAccumulatorFuzzHarness {
 
     DrawAccumulatorLib.Accumulator internal accumulator;
 
-    function add(uint64 _amount, uint32 _drawId) public returns (bool) {
+    uint32 currentDrawId = 1;
+
+    function add(uint64 _amount, uint8 _drawInc) public returns (bool) {
+        currentDrawId += (_drawInc / 16);
+        console2.log("currentDrawId", currentDrawId);
         SD59x18 alpha = sd(0.9e18);
-        bool result = accumulator.add(_amount, _drawId, alpha);
+        bool result = accumulator.add(_amount, currentDrawId, alpha);
         totalAdded += _amount;
         return result;
     }

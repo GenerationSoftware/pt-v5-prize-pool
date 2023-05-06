@@ -15,6 +15,7 @@ import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4to
 
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
+import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 import { BitLib } from "./libraries/BitLib.sol";
 
@@ -23,7 +24,7 @@ import { BitLib } from "./libraries/BitLib.sol";
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
-contract PrizePool is Manageable, Multicall {
+contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /// @notice Emitted when someone tries to withdraw too many rewards
     error InsufficientRewardsError(uint256 requested, uint256 available);
@@ -53,49 +54,8 @@ contract PrizePool is Manageable, Multicall {
         address feeRecipient
     );
 
-    uint8 internal constant MINIMUM_NUMBER_OF_TIERS = 2;
-
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_12_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_15_TIERS;
-    uint32 immutable internal ESTIMATED_PRIZES_PER_DRAW_FOR_16_TIERS;
-
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_2_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_3_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_4_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_5_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_6_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_7_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_8_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_9_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_10_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_11_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_12_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_13_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_14_TIERS;
-    UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_15_TIERS;
-
     /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault
     mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulator;
-
-    struct TierLiquidity {
-        uint32 drawId;
-        uint96 prizeSize;
-        UD34x4 prizeTokenPerShare;
-    }
-
-    mapping(uint8 => TierLiquidity) internal _tierLiquidity;
 
     /// @notice Records the claim record for a winner
     mapping(address => ClaimRecord) internal claimRecords;
@@ -109,20 +69,8 @@ contract PrizePool is Manageable, Multicall {
     /// @notice The token that is being contributed and awarded as prizes
     IERC20 public immutable prizeToken;
 
-    /// @notice The number of draws that should statistically occur between grand prizes.
-    uint32 public immutable grandPrizePeriodDraws;
-
     /// @notice The Twab Controller to use to retrieve historic balances.
     TwabController public immutable twabController;
-
-    /// @notice The number of shares to allocate to each prize tier
-    uint8 public immutable tierShares;
-
-    /// @notice The number of shares to allocate to the canary tier
-    uint8 public immutable canaryShares;
-
-    /// @notice The number of shares to allocate to the reserve
-    uint8 public immutable reserveShares;
 
     /// @notice The number of seconds between draws
     uint32 public immutable drawPeriodSeconds;
@@ -133,17 +81,8 @@ contract PrizePool is Manageable, Multicall {
 
     uint256 internal _totalClaimedPrizes;
 
-    /// @notice The current number of prize tokens per share
-    UD34x4 public prizeTokenPerShare;
-
-    /// @notice The amount of available reserve
-    uint256 internal _reserve;
-
     /// @notice The winner random number for the last completed draw
     uint256 internal _winningRandomNumber;
-
-    /// @notice The number of tiers for the last completed draw
-    uint8 public numberOfTiers;
 
     /// @notice The number of prize claims for the last completed draw
     uint32 public claimCount;
@@ -156,9 +95,6 @@ contract PrizePool is Manageable, Multicall {
 
     /// @notice The exponential weighted average of all vault contributions
     DrawAccumulatorLib.Accumulator internal totalAccumulator;
-
-    /// @notice The draw id of the last completed draw
-    uint32 internal lastCompletedDrawId;
 
     /// @notice The timestamp at which the last completed draw started
     uint64 internal lastCompletedDrawStartedAt_;
@@ -189,52 +125,15 @@ contract PrizePool is Manageable, Multicall {
         uint8 _reserveShares,
         UD2x18 _claimExpansionThreshold,
         SD1x18 _smoothing
-    ) Ownable(msg.sender) {
+    ) Ownable(msg.sender) TieredLiquidityDistributor(_grandPrizePeriodDraws, _numberOfTiers, _tierShares, _canaryShares, _reserveShares) {
         prizeToken = _prizeToken;
         twabController = _twabController;
-        grandPrizePeriodDraws = _grandPrizePeriodDraws;
-        numberOfTiers = _numberOfTiers;
-        tierShares = _tierShares;
-        canaryShares = _canaryShares;
-        reserveShares = _reserveShares;
         smoothing = _smoothing;
         claimExpansionThreshold = _claimExpansionThreshold;
         drawPeriodSeconds = _drawPeriodSeconds;
         lastCompletedDrawStartedAt_ = nextDrawStartsAt_;
 
-        require(numberOfTiers >= MINIMUM_NUMBER_OF_TIERS, "num-tiers-gt-1");
         require(unwrap(_smoothing) < unwrap(UNIT), "smoothing-lt-1");
-
-        ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS = TierCalculationLib.estimatedClaimCount(2, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS = TierCalculationLib.estimatedClaimCount(3, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS = TierCalculationLib.estimatedClaimCount(4, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS = TierCalculationLib.estimatedClaimCount(5, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS = TierCalculationLib.estimatedClaimCount(6, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS = TierCalculationLib.estimatedClaimCount(7, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS = TierCalculationLib.estimatedClaimCount(8, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS = TierCalculationLib.estimatedClaimCount(9, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS = TierCalculationLib.estimatedClaimCount(10, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS = TierCalculationLib.estimatedClaimCount(11, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_12_TIERS = TierCalculationLib.estimatedClaimCount(12, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS = TierCalculationLib.estimatedClaimCount(13, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS = TierCalculationLib.estimatedClaimCount(14, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_15_TIERS = TierCalculationLib.estimatedClaimCount(15, _grandPrizePeriodDraws);
-        ESTIMATED_PRIZES_PER_DRAW_FOR_16_TIERS = TierCalculationLib.estimatedClaimCount(16, _grandPrizePeriodDraws);
-
-        CANARY_PRIZE_COUNT_FOR_2_TIERS = TierCalculationLib.canaryPrizeCount(2, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_3_TIERS = TierCalculationLib.canaryPrizeCount(3, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_4_TIERS = TierCalculationLib.canaryPrizeCount(4, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_5_TIERS = TierCalculationLib.canaryPrizeCount(5, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_6_TIERS = TierCalculationLib.canaryPrizeCount(6, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_7_TIERS = TierCalculationLib.canaryPrizeCount(7, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_8_TIERS = TierCalculationLib.canaryPrizeCount(8, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_9_TIERS = TierCalculationLib.canaryPrizeCount(9, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_10_TIERS = TierCalculationLib.canaryPrizeCount(10, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_11_TIERS = TierCalculationLib.canaryPrizeCount(11, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_12_TIERS = TierCalculationLib.canaryPrizeCount(12, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_13_TIERS = TierCalculationLib.canaryPrizeCount(13, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_14_TIERS = TierCalculationLib.canaryPrizeCount(14, _canaryShares, _reserveShares, _tierShares);
-        CANARY_PRIZE_COUNT_FOR_15_TIERS = TierCalculationLib.canaryPrizeCount(15, _canaryShares, _reserveShares, _tierShares);
     }
 
     /// @notice Returns the winning random number for the last completed draw
@@ -303,12 +202,6 @@ contract PrizePool is Manageable, Multicall {
         return _accountedBalance();
     }
 
-    /// @notice Retrieves the id of the next draw to be completed.
-    /// @return The next draw id
-    function getNextDrawId() external view returns (uint256) {
-        return uint256(lastCompletedDrawId) + 1;
-    }
-
     /// @notice Returns the start time of the last completed draw. If there was no completed draw, then it will be zero.
     /// @return The start time of the last completed draw
     function lastCompletedDrawStartedAt() external view returns (uint64) {
@@ -319,16 +212,10 @@ contract PrizePool is Manageable, Multicall {
         }
     }
 
-    /// @notice Returns the balance of the reserve
-    /// @return The amount of tokens that have been reserved.
-    function reserve() external view returns (uint256) {
-        return _reserve;
-    }
-
     /// @notice Allows the Manager to withdraw tokens from the reserve
     /// @param _to The address to send the tokens to
     /// @param _amount The amount of tokens to withdraw
-    function withdrawReserve(address _to, uint256 _amount) external onlyManager {
+    function withdrawReserve(address _to, uint104 _amount) external onlyManager {
         require(_amount <= _reserve, "insuff");
         _reserve -= _amount;
         prizeToken.transfer(_to, _amount);
@@ -389,80 +276,21 @@ contract PrizePool is Manageable, Multicall {
         require(block.timestamp >= _nextDrawEndsAt(), "not elapsed");
 
         uint8 numTiers = numberOfTiers;
-        uint32 completedDrawId = lastCompletedDrawId + 1;
         UD60x18 _prizeTokenPerShare = fromUD34x4toUD60x18(prizeTokenPerShare);
         uint8 nextNumberOfTiers = numTiers;
         if (lastCompletedDrawId != 0) {
             nextNumberOfTiers = _computeNextNumberOfTiers(numTiers);
         }
 
-        // console2.log("nextNumberOfTiers", nextNumberOfTiers);
-        uint256 totalShares = _getTotalShares(nextNumberOfTiers);
-        // console2.log("totalShares", totalShares);
-        (UD60x18 deltaPrizeTokensPerShare, UD60x18 remainder) = _computeDrawDeltaExchangeRate(toUD60x18(totalShares), toUD60x18(_contributionsForDraw(completedDrawId)));
+        _nextDraw(nextNumberOfTiers, uint96(_contributionsForDraw(lastCompletedDrawId+1)));
 
-        // console2.log("deltaPrizeTokensPerShare", deltaPrizeTokensPerShare.unwrap());
-        // console2.log("remainder", remainder.unwrap());
-        uint256 reclaimedLiquidity = _reclaimLiquidity(numTiers, nextNumberOfTiers, _prizeTokenPerShare);
-        UD60x18 newPrizeTokenPerShare = _prizeTokenPerShare.add(deltaPrizeTokensPerShare);
-
-        // Set canary tier
-        _tierLiquidity[nextNumberOfTiers] = TierLiquidity({
-            drawId: completedDrawId,
-            prizeTokenPerShare: prizeTokenPerShare,
-            prizeSize: uint96(_computePrizeSize(nextNumberOfTiers, nextNumberOfTiers, _prizeTokenPerShare, newPrizeTokenPerShare))
-        });
-        
-        // console2.log("newPrizeTokenPerShare", newPrizeTokenPerShare.unwrap());
-
-        uint256 reservePortion = fromUD60x18(deltaPrizeTokensPerShare.mul(toUD60x18(reserveShares)));
-
-        prizeTokenPerShare = fromUD60x18toUD34x4(newPrizeTokenPerShare);
         _winningRandomNumber = winningRandomNumber_;
-        numberOfTiers = nextNumberOfTiers;
-        lastCompletedDrawId = completedDrawId;
         claimCount = 0;
         canaryClaimCount = 0;
         largestTierClaimed = 0;
         lastCompletedDrawStartedAt_ = nextDrawStartsAt_;
-        // reserve += portion of contribution, reclaimed, plus any left over
-        _reserve += reservePortion + reclaimedLiquidity + fromUD60x18(remainder);
 
         return lastCompletedDrawId;
-    }
-
-    /// @notice Reclaims liquidity from tiers, starting at the highest tier
-    /// @param _numberOfTiers The existing number of tiers
-    /// @param _nextNumberOfTiers The next number of tiers. Must be less than _numberOfTiers
-    /// @return The total reclaimed liquidity
-    function _reclaimLiquidity(uint8 _numberOfTiers, uint8 _nextNumberOfTiers, UD60x18 _prizeTokenPerShare) internal view returns (uint256) {
-        UD60x18 reclaimedLiquidity;
-        for (uint8 i = _nextNumberOfTiers; i < _numberOfTiers; i++) {
-            TierLiquidity memory tierLiquidity = _tierLiquidity[i];
-            reclaimedLiquidity = reclaimedLiquidity.add(_getRemainingTierLiquidity(i, tierShares, fromUD34x4toUD60x18(_tierLiquidity[i].prizeTokenPerShare), _prizeTokenPerShare));
-        }
-        reclaimedLiquidity = reclaimedLiquidity.add(_getRemainingTierLiquidity(_numberOfTiers, canaryShares, fromUD34x4toUD60x18(_tierLiquidity[_numberOfTiers].prizeTokenPerShare), _prizeTokenPerShare));
-        return fromUD60x18(reclaimedLiquidity);
-    }
-
-    /// @notice Computes the remaining tier liquidity for the current draw
-    /// @param _tier The tier to calculate liquidity for
-    /// @param _shares The number of shares that the tier has (can be tierShares or canaryShares)
-    /// @return The total available liquidity
-    function _getRemainingTierLiquidity(uint8 _tier, uint256 _shares, UD60x18 _tierPrizeTokenPerShare, UD60x18 _prizeTokenPerShare) internal pure returns (UD60x18) {
-        if (_tierPrizeTokenPerShare.gte(_prizeTokenPerShare)) {
-            return ud(0);
-        }
-        UD60x18 delta = _prizeTokenPerShare.sub(_tierPrizeTokenPerShare);
-        return delta.mul(toUD60x18(_shares));
-    }
-
-    /// @notice Computes the contributed liquidity vs number of shares for the last completed draw
-    /// @return newPrizeTokensPerShare The number of prize tokens to distribute per share
-    /// @return remainder The remainder of the exchange rate
-    function _computeDrawDeltaExchangeRate(UD60x18 _totalShares, UD60x18 _totalContributed) internal view returns (UD60x18 newPrizeTokensPerShare, UD60x18 remainder) {
-        newPrizeTokensPerShare = _totalContributed.div(_totalShares);
-        remainder = _totalContributed.sub(_totalShares.mul(newPrizeTokensPerShare));
     }
 
     function _contributionsForDraw(uint32 _drawId) internal view returns (uint256) {
@@ -515,12 +343,11 @@ contract PrizePool is Manageable, Multicall {
         if (!_isWinner(_vault, _winner, _tier)) {
             revert("did not win");
         }
-        TierLiquidity memory tierLiquidity = _computeTierLiquidity(_tier, numberOfTiers, lastCompletedDrawId, fromUD34x4toUD60x18(prizeTokenPerShare));
+        Tier memory tierLiquidity = _getTier(_tier, numberOfTiers);
         uint96 prizeSize = tierLiquidity.prizeSize;
         ClaimRecord memory claimRecord = claimRecords[_winner];
-        if (claimRecord.drawId != lastCompletedDrawId) {
-            claimRecord = ClaimRecord({drawId: lastCompletedDrawId, claimedTiers: uint8(0)});
-        } else if (BitLib.getBit(claimRecord.claimedTiers, _tier)) {
+        if (claimRecord.drawId == tierLiquidity.drawId &&
+            BitLib.getBit(claimRecord.claimedTiers, _tier)) {
             return 0;
         }
         require(_fee <= prizeSize, "fee too large");
@@ -529,7 +356,7 @@ contract PrizePool is Manageable, Multicall {
         if (largestTierClaimed < _tier) {
             largestTierClaimed = _tier;
         }
-        uint96 shares;
+        uint8 shares;
         if (_tier == numberOfTiers) {
             canaryClaimCount++;
             shares = canaryShares;
@@ -537,39 +364,13 @@ contract PrizePool is Manageable, Multicall {
             claimCount++;
             shares = tierShares;
         }
-        claimRecords[_winner] = ClaimRecord({drawId: lastCompletedDrawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
-        tierLiquidity.prizeTokenPerShare = UD34x4.wrap(UD34x4.unwrap(tierLiquidity.prizeTokenPerShare) + UD34x4.unwrap(toUD34x4(prizeSize)) / shares);
-        _tierLiquidity[_tier] = tierLiquidity;
+        claimRecords[_winner] = ClaimRecord({drawId: tierLiquidity.drawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
+        _consumeLiquidity(tierLiquidity, _tier, shares, prizeSize);
         prizeToken.transfer(_to, payout);
         if (_fee > 0) {
             claimerRewards[_feeRecipient] += _fee;
         }
         emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
-        return prizeSize;
-    }
-
-    function _computeTierLiquidity(uint8 _tier, uint8 _numberOfTiers, uint32 _lastCompletedDrawId, UD60x18 _prizeTokenPerShare) internal view returns (TierLiquidity memory) {
-        TierLiquidity memory tierLiquidity = _tierLiquidity[_tier];
-        if (tierLiquidity.drawId != _lastCompletedDrawId) {
-            tierLiquidity.drawId = _lastCompletedDrawId;
-            tierLiquidity.prizeSize = uint96(_computePrizeSize(_tier, _numberOfTiers, fromUD34x4toUD60x18(tierLiquidity.prizeTokenPerShare), _prizeTokenPerShare));
-        }
-        return tierLiquidity;
-    }
-
-    function _computePrizeSize(uint8 _tier, uint8 _numberOfTiers, UD60x18 _tierPrizeTokenPerShare, UD60x18 _prizeTokenPerShare) internal view returns (uint256) {
-        assert(_tier <= _numberOfTiers);
-        uint256 prizeSize;
-        if (_prizeTokenPerShare.gt(_tierPrizeTokenPerShare)) {
-            UD60x18 delta = _prizeTokenPerShare.sub(_tierPrizeTokenPerShare);
-            if (delta.unwrap() > 0) {
-                if (_tier == _numberOfTiers) {
-                    prizeSize = fromUD60x18(delta.mul(toUD60x18(canaryShares)).div(_canaryPrizeCountFractional(_numberOfTiers)));
-                } else {
-                    prizeSize = fromUD60x18(delta.mul(toUD60x18(tierShares)).div(toUD60x18(TierCalculationLib.prizeCount(_tier))));
-                }
-            }
-        }
         return prizeSize;
     }
 
@@ -733,7 +534,7 @@ contract PrizePool is Manageable, Multicall {
         if (lastCompletedDrawId == 0 || _tier > numTiers) {
             return 0;
         }
-        TierLiquidity memory tierLiquidity = _tierLiquidity[_tier];
+        Tier memory tierLiquidity = _getTier(_tier, numTiers);
         return _computePrizeSize(_tier, numTiers, fromUD34x4toUD60x18(tierLiquidity.prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare));
     }
 
@@ -741,136 +542,15 @@ contract PrizePool is Manageable, Multicall {
     /// @param _tier The tier to compute the liquidity for
     /// @return The total liquidity
     function getRemainingTierLiquidity(uint8 _tier) external view returns (uint256) {
-        TierLiquidity memory tierLiquidity = _tierLiquidity[_tier];
-        if (UD34x4.unwrap(tierLiquidity.prizeTokenPerShare) >= UD34x4.unwrap(prizeTokenPerShare)) {
-            return 0;
-        }
-        UD60x18 delta = fromUD34x4toUD60x18(prizeTokenPerShare).sub(fromUD34x4toUD60x18(tierLiquidity.prizeTokenPerShare));
-        return fromUD60x18(delta.mul(toUD60x18(_tier == numberOfTiers ? canaryShares : tierShares)));
+        uint8 shares = _tier == numberOfTiers ? canaryShares : tierShares;
+        Tier memory tier = _getTier(_tier, numberOfTiers);
+        return fromUD60x18(_getRemainingTierLiquidity(_tier, shares, fromUD34x4toUD60x18(tier.prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare)));
     }
 
     /// @notice Computes the total shares in the system. That is `(number of tiers * tier shares) + canary shares + reserve shares`
     /// @return The total shares
     function getTotalShares() external view returns (uint256) {
         return _getTotalShares(numberOfTiers);
-    }
-
-    /// @notice Computes the total shares in the system given the number of tiers. That is `(number of tiers * tier shares) + canary shares + reserve shares`
-    /// @param _numberOfTiers The number of tiers to calculate the total shares for
-    /// @return The total shares
-    function _getTotalShares(uint8 _numberOfTiers) internal view returns (uint256) {
-        return uint256(_numberOfTiers) * uint256(tierShares) + uint256(canaryShares) + uint256(reserveShares);
-    }
-
-    /// @notice Estimates the number of prizes that will be awarded
-    /// @return The estimated prize count
-    function estimatedPrizeCount() external view returns (uint32) {
-        return _estimatedPrizeCount(numberOfTiers);         
-    }
-    
-    /// @notice Estimates the number of prizes that will be awarded given a number of tiers.
-    /// @param numTiers The number of tiers
-    /// @return The estimated prize count for the given number of tiers
-    function estimatedPrizeCount(uint8 numTiers) external view returns (uint32) {
-        return _estimatedPrizeCount(numTiers);
-    }
-
-    /// @notice Returns the number of canary prizes as a fraction. This allows the canary prize size to accurately represent the number of tiers + 1.
-    /// @param numTiers The number of prize tiers
-    /// @return The number of canary prizes
-    function canaryPrizeCountFractional(uint8 numTiers) external view returns (UD60x18) {
-        return _canaryPrizeCountFractional(numTiers);
-    }
-
-    /// @notice Computes the number of canary prizes for the last completed draw
-    function canaryPrizeCount() external view returns (uint32) {
-        return _canaryPrizeCount(numberOfTiers);
-    }
-
-    /// @notice Computes the number of canary prizes for the last completed draw
-    function _canaryPrizeCount(uint8 _numberOfTiers) internal view returns (uint32) {
-        return uint32(fromUD60x18(_canaryPrizeCountFractional(_numberOfTiers).floor()));
-    }
-
-    /// @notice Computes the number of canary prizes given the number of tiers.
-    /// @param _numTiers The number of prize tiers
-    /// @return The number of canary prizes
-    function canaryPrizeCount(uint8 _numTiers) external view returns (uint32) {
-        return _canaryPrizeCount(_numTiers);
-    }
-
-    /// @notice Estimates the prize count for the given tier
-    /// @param numTiers The number of prize tiers
-    /// @return The estimated total number of prizes
-    function _estimatedPrizeCount(uint8 numTiers) internal view returns (uint32) {
-        if (numTiers == 2) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS;
-        } else if (numTiers == 3) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS;
-        } else if (numTiers == 4) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS;
-        } else if (numTiers == 5) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS;
-        } else if (numTiers == 6) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS;
-        } else if (numTiers == 7) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS;
-        } else if (numTiers == 8) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS;
-        } else if (numTiers == 9) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS;
-        } else if (numTiers == 10) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS;
-        } else if (numTiers == 11) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS;
-        } else if (numTiers == 12) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_12_TIERS;
-        } else if (numTiers == 13) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS;
-        } else if (numTiers == 14) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS;
-        } else if (numTiers == 15) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_15_TIERS;
-        } else if (numTiers == 16) {
-            return ESTIMATED_PRIZES_PER_DRAW_FOR_16_TIERS;
-        }
-        return 0;
-    }
-
-    /// @notice Computes the canary prize count for the given number of tiers
-    /// @param numTiers The number of prize tiers
-    /// @return The fractional canary prize count
-    function _canaryPrizeCountFractional(uint8 numTiers) internal view returns (UD60x18) {
-        if (numTiers == 2) {
-            return CANARY_PRIZE_COUNT_FOR_2_TIERS;
-        } else if (numTiers == 3) {
-            return CANARY_PRIZE_COUNT_FOR_3_TIERS;
-        } else if (numTiers == 4) {
-            return CANARY_PRIZE_COUNT_FOR_4_TIERS;
-        } else if (numTiers == 5) {
-            return CANARY_PRIZE_COUNT_FOR_5_TIERS;
-        } else if (numTiers == 6) {
-            return CANARY_PRIZE_COUNT_FOR_6_TIERS;
-        } else if (numTiers == 7) {
-            return CANARY_PRIZE_COUNT_FOR_7_TIERS;
-        } else if (numTiers == 8) {
-            return CANARY_PRIZE_COUNT_FOR_8_TIERS;
-        } else if (numTiers == 9) {
-            return CANARY_PRIZE_COUNT_FOR_9_TIERS;
-        } else if (numTiers == 10) {
-            return CANARY_PRIZE_COUNT_FOR_10_TIERS;
-        } else if (numTiers == 11) {
-            return CANARY_PRIZE_COUNT_FOR_11_TIERS;
-        } else if (numTiers == 12) {
-            return CANARY_PRIZE_COUNT_FOR_12_TIERS;
-        } else if (numTiers == 13) {
-            return CANARY_PRIZE_COUNT_FOR_13_TIERS;
-        } else if (numTiers == 14) {
-            return CANARY_PRIZE_COUNT_FOR_14_TIERS;
-        } else if (numTiers == 15) {
-            return CANARY_PRIZE_COUNT_FOR_15_TIERS;
-        }
-        return ud(0);
     }
 
 }

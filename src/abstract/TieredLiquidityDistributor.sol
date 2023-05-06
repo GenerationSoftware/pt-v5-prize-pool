@@ -203,39 +203,49 @@ contract TieredLiquidityDistributor {
         return uint256(_numberOfTiers) * uint256(tierShares) + uint256(canaryShares) + uint256(reserveShares);
     }
 
-    function _consumeLiquidity(uint8 _tier, uint104 _liquidity) internal {
+    function _consumeLiquidity(uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
         uint8 numTiers = numberOfTiers;
-        Tier memory tier = _getTier(_tier, numTiers);
-        uint104 remainingLiquidity = uint104(_remainingTierLiquidity(_tier, numTiers, tier));
+        uint8 shares = _computeShares(_tier, numTiers);
+        Tier memory tier = _getTier(_tier, numberOfTiers);
+        tier = _consumeLiquidity(tier, _tier, shares, _liquidity);
+    }
+
+    function _computeShares(uint8 _tier, uint8 _numTiers) internal view returns (uint8) {
+        return _tier == numberOfTiers ? canaryShares : tierShares;
+    }
+
+    function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint8 _shares, uint104 _liquidity) internal returns (Tier memory) {
+        uint104 remainingLiquidity = uint104(_remainingTierLiquidity(_tierStruct, _shares));
         if (_liquidity > remainingLiquidity) {
             uint104 excess = _liquidity - remainingLiquidity;
             if (excess > _reserve) {
-                console2.log("ALSKDJFALSDKFJASD");
                 revert("insufficient liquidity");
             }
             _reserve -= excess;
-            _tiers[_tier].prizeTokenPerShare = prizeTokenPerShare;
+            _tierStruct.prizeTokenPerShare = prizeTokenPerShare;
         } else {
             UD34x4 delta = fromUD60x18toUD34x4(
-                toUD60x18(_liquidity).div(toUD60x18(_tier == numTiers ? canaryShares : tierShares))
+                toUD60x18(_liquidity).div(toUD60x18(_shares))
             );
-            _tiers[_tier].prizeTokenPerShare = UD34x4.wrap(UD34x4.unwrap(tier.prizeTokenPerShare) + UD34x4.unwrap(delta));
+            _tierStruct.prizeTokenPerShare = UD34x4.wrap(UD34x4.unwrap(_tierStruct.prizeTokenPerShare) + UD34x4.unwrap(delta));
         }
+        _tiers[_tier] = _tierStruct;
+        return _tierStruct;
     }
 
     /// @notice Computes the total liquidity available to a tier
     /// @param _tier The tier to compute the liquidity for
     /// @return The total liquidity
-    function _remainingTierLiquidity(uint8 _tier, uint8 _numberOfTiers, Tier memory _tierStruct) internal view returns (uint112) {
+    function _remainingTierLiquidity(Tier memory _tier, uint8 _shares) internal view returns (uint112) {
         UD34x4 _prizeTokenPerShare = prizeTokenPerShare;
-        if (UD34x4.unwrap(_tierStruct.prizeTokenPerShare) >= UD34x4.unwrap(_prizeTokenPerShare)) {
+        if (UD34x4.unwrap(_tier.prizeTokenPerShare) >= UD34x4.unwrap(_prizeTokenPerShare)) {
             return 0;
         }
-        UD60x18 delta = fromUD34x4toUD60x18(_prizeTokenPerShare).sub(fromUD34x4toUD60x18(_tierStruct.prizeTokenPerShare));
+        UD60x18 delta = fromUD34x4toUD60x18(_prizeTokenPerShare).sub(fromUD34x4toUD60x18(_tier.prizeTokenPerShare));
         // delta max int size is (uMAX_UD34x4 / 1e4)
         // max share size is 256
         // result max = (uMAX_UD34x4 / 1e4) * 256
-        return uint112(fromUD60x18(delta.mul(toUD60x18(_tier == _numberOfTiers ? canaryShares : tierShares))));
+        return uint112(fromUD60x18(delta.mul(toUD60x18(_shares))));
     }
 
     function _computePrizeSize(uint8 _tier, uint8 _numberOfTiers, UD60x18 _tierPrizeTokenPerShare, UD60x18 _prizeTokenPerShare) internal view returns (uint256) {
@@ -290,6 +300,12 @@ contract TieredLiquidityDistributor {
         remainder = _totalContributed.sub(_totalShares.mul(newPrizeTokensPerShare));
     }
 
+    /// @notice Retrieves the id of the next draw to be completed.
+    /// @return The next draw id
+    function getNextDrawId() external view returns (uint256) {
+        return uint256(lastCompletedDrawId) + 1;
+    }
+
     /// @notice Estimates the number of prizes that will be awarded
     /// @return The estimated prize count
     function estimatedPrizeCount() external view returns (uint32) {
@@ -325,6 +341,12 @@ contract TieredLiquidityDistributor {
     /// @return The number of canary prizes
     function canaryPrizeCount(uint8 _numTiers) external view returns (uint32) {
         return _canaryPrizeCount(_numTiers);
+    }
+
+    /// @notice Returns the balance of the reserve
+    /// @return The amount of tokens that have been reserved.
+    function reserve() external view returns (uint256) {
+        return _reserve;
     }
 
     /// @notice Estimates the prize count for the given tier

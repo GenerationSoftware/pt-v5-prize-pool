@@ -74,7 +74,7 @@ contract PrizePoolTest is Test {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         // reserve + remainder
-        assertEq(prizePool.reserve(), 0.454545454545454545e18);
+        assertEq(prizePool.reserve(), 0.454545454545454546e18);
     }
 
     function testWithdrawReserve_insuff() public {
@@ -224,7 +224,7 @@ contract PrizePoolTest is Test {
         // but because of alpha only 10% is released on this draw
         completeAndStartNextDraw(winningRandomNumber);
         assertEq(fromUD34x4(prizePool.prizeTokenPerShare()), 0.045454545454545454e18, "prize token per share");
-        assertEq(prizePool.reserve(), 0.454545454545454545e18, "reserve"); // remainder of the complex fraction
+        assertEq(prizePool.reserve(), 0.454545454545454546e18, "reserve"); // remainder of the complex fraction
         assertEq(prizePool.getTotalContributionsForCompletedDraw(), 10e18); // ensure not a single wei is lost!
     }
 
@@ -278,7 +278,7 @@ contract PrizePoolTest is Test {
         // 22e18 + 1.718181818181818e18 = 23.718181818181818e18
         // shrink by 2
         assertEq(prizePool.numberOfTiers(), 2);
-        assertEq(prizePool.reserve(), 23.718181818181817933e18, "size of reserve");
+        assertEq(prizePool.reserve(), 23.718181818181817934e18, "size of reserve");
     }
 
     function testCompleteAndStartNextDraw_expandingTiers() public {

@@ -27,7 +27,7 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
         uint256 availableLiquidity;
         for (uint8 i = 0; i <= numberOfTiers; i++) {
             Tier memory tier = _getTier(i, numberOfTiers);
-            uint256 tierLiquidity = _remainingTierLiquidity(i, numberOfTiers, tier);
+            uint256 tierLiquidity = _remainingTierLiquidity(tier, _computeShares(i, numberOfTiers));
             // console2.log("tier ", i);
             // console2.log("tier liquidity", tierLiquidity);
             availableLiquidity += tierLiquidity;
@@ -42,7 +42,9 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
         uint8 tier = _tier % numberOfTiers;
         tier = tier < 2 ? 2 : tier;
 
-        uint112 liq = _remainingTierLiquidity(tier, numberOfTiers, _getTier(tier, numberOfTiers));
+        Tier memory tier_ = _getTier(tier, numberOfTiers);
+        uint8 shares = _computeShares(tier, numberOfTiers);
+        uint112 liq = _remainingTierLiquidity(tier_, shares);
 
         // console2.log("tier ", tier);
         // console2.log("remaining ", liq);
@@ -54,7 +56,7 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
         // console2.log("liq ", liq);
 
         totalConsumed += liq;
-        _consumeLiquidity(tier, uint96(liq));
+        _consumeLiquidity(tier_, tier, shares, uint104(liq));
     }
 
 }
