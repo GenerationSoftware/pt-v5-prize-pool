@@ -19,15 +19,18 @@ import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDist
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 import { BitLib } from "./libraries/BitLib.sol";
 
+/// @notice Emitted when someone tries to claim a prize that was already claimed
+error AlreadyClaimedPrize(address winner, uint8 tier);
+
+/// @notice Emitted when someone tries to withdraw too many rewards
+error InsufficientRewardsError(uint256 requested, uint256 available);
+
 /**
  * @title PoolTogether V5 Prize Pool
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
 contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
-
-    /// @notice Emitted when someone tries to withdraw too many rewards
-    error InsufficientRewardsError(uint256 requested, uint256 available);
 
     struct ClaimRecord {
         uint32 drawId;
@@ -347,7 +350,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         ClaimRecord memory claimRecord = claimRecords[_winner];
         if (claimRecord.drawId == tierLiquidity.drawId &&
             BitLib.getBit(claimRecord.claimedTiers, _tier)) {
-            return 0;
+            revert AlreadyClaimedPrize(_winner, _tier);
         }
         require(_fee <= prizeSize, "fee too large");
         _totalClaimedPrizes += prizeSize;

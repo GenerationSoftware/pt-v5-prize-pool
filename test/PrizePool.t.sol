@@ -12,7 +12,7 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool } from "../src/PrizePool.sol";
+import { PrizePool, InsufficientRewardsError, AlreadyClaimedPrize } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -464,7 +464,8 @@ contract PrizePoolTest is Test {
         mockTwab(msg.sender, 0);
         assertEq(claimPrize(msg.sender, 0), 4.545454545454545454e18);
         // second claim is zero
-        assertEq(claimPrize(msg.sender, 0), 0);
+        vm.expectRevert(abi.encodeWithSelector(AlreadyClaimedPrize.selector, msg.sender, 0));
+        claimPrize(msg.sender, 0);
     }
 
     function testClaimPrize_secondTier_claimTwice() public {
@@ -529,7 +530,7 @@ contract PrizePoolTest is Test {
     }
 
     function testwithdrawClaimRewards_insufficient() public {
-        vm.expectRevert(abi.encodeWithSelector(PrizePool.InsufficientRewardsError.selector, 1e18, 0));
+        vm.expectRevert(abi.encodeWithSelector(InsufficientRewardsError.selector, 1e18, 0));
         prizePool.withdrawClaimRewards(address(this), 1e18);
     }
 
