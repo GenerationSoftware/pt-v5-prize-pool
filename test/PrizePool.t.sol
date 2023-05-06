@@ -421,6 +421,28 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.isWinner(address(this), msg.sender, 0), true);
     }
 
+    function testWasClaimed_not() public {
+        assertEq(prizePool.wasClaimed(msg.sender, 0), false);
+    }
+
+    function testWasClaimed_single() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, 0);
+        claimPrize(msg.sender, 0);
+        assertEq(prizePool.wasClaimed(msg.sender, 0), true);
+    }
+
+    function testWasClaimed_old_draw() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, 0);
+        claimPrize(msg.sender, 0);
+        assertEq(prizePool.wasClaimed(msg.sender, 0), true);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.wasClaimed(msg.sender, 0), false);
+    }
+
     function testClaimPrize_single() public {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);

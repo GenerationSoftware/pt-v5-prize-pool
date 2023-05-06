@@ -316,6 +316,15 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         return _contributionsForDraw(lastCompletedDrawId);
     }
 
+    /// @notice Returns whether the winner has claimed the tier for the last completed draw
+    /// @param _winner The account to check
+    /// @param _tier The tier to check
+    /// @return True if the winner claimed the tier for the current draw, false otherwise.
+    function wasClaimed(address _winner, uint8 _tier) external view returns (bool) {
+        ClaimRecord memory claimRecord = claimRecords[_winner];
+        return claimRecord.drawId == lastCompletedDrawId && BitLib.getBit(claimRecord.claimedTiers, _tier);
+    }
+
     /**
         @dev Claims a prize for a given winner and tier.
         This function takes in an address _winner, a uint8 _tier, an address _to, a uint96 _fee, and an
