@@ -17,7 +17,7 @@ uint128 constant uUNIT = 1e4;
 /// @dev Requirements:
 /// - x must be less than or equal to `uMAX_UD2x18`.
 function intoUD60x18(UD34x4 x) pure returns (UD60x18 result) {
-    uint256 xUint = UD34x4.unwrap(x) * 1e14;
+    uint256 xUint = uint256(UD34x4.unwrap(x)) * uint256(1e14);
     result = UD60x18.wrap(xUint);
 }
 

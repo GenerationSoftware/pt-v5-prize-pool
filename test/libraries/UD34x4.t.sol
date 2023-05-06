@@ -25,7 +25,7 @@ contract UD34x4Test is Test {
     }
 
     function testToUD34x4_overflow() public {
-        uint128 legalMax = type(uint128).max / uUNIT;
+        uint128 legalMax = uMAX_UD34x4 / uUNIT;
         vm.expectRevert(abi.encodeWithSelector(PRBMath_UD34x4_Convert_Overflow.selector, legalMax+1));
         toUD34x4(legalMax+1);
     }
@@ -34,6 +34,11 @@ contract UD34x4Test is Test {
         UD34x4 x = UD34x4.wrap(100e4);
         UD60x18 result = intoUD60x18(x);
         assertEq(result.unwrap(), 100e18);
+    }
+
+    function testIntoUD60x18_large() public {
+        UD34x4 x = UD34x4.wrap(6004291579826925202373984590);
+        intoUD60x18(x);
     }
 
     function testFromUD60x18_normal() public {
