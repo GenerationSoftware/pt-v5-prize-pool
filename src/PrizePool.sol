@@ -254,7 +254,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         }
     }
 
-    function _computeNextNumberOfTiers(uint8 _numTiers) internal returns (uint8) {
+    function _computeNextNumberOfTiers(uint8 _numTiers) internal view returns (uint8) {
         uint8 nextNumberOfTiers = largestTierClaimed > MINIMUM_NUMBER_OF_TIERS ? largestTierClaimed + 1 : MINIMUM_NUMBER_OF_TIERS;
         if (nextNumberOfTiers >= _numTiers) { // check to see if we need to expand the number of tiers
             if (canaryClaimCount >= _canaryClaimExpansionThreshold(claimExpansionThreshold, _numTiers) &&
@@ -276,7 +276,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         require(block.timestamp >= _nextDrawEndsAt(), "not elapsed");
 
         uint8 numTiers = numberOfTiers;
-        UD60x18 _prizeTokenPerShare = fromUD34x4toUD60x18(prizeTokenPerShare);
         uint8 nextNumberOfTiers = numTiers;
         if (lastCompletedDrawId != 0) {
             nextNumberOfTiers = _computeNextNumberOfTiers(numTiers);
@@ -542,9 +541,10 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @param _tier The tier to compute the liquidity for
     /// @return The total liquidity
     function getRemainingTierLiquidity(uint8 _tier) external view returns (uint256) {
-        uint8 shares = _tier == numberOfTiers ? canaryShares : tierShares;
-        Tier memory tier = _getTier(_tier, numberOfTiers);
-        return fromUD60x18(_getRemainingTierLiquidity(_tier, shares, fromUD34x4toUD60x18(tier.prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare)));
+        uint8 numTiers = numberOfTiers;
+        uint8 shares = _computeShares(_tier, numTiers);
+        Tier memory tier = _getTier(_tier, numTiers);
+        return fromUD60x18(_getRemainingTierLiquidity(shares, fromUD34x4toUD60x18(tier.prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare)));
     }
 
     /// @notice Computes the total shares in the system. That is `(number of tiers * tier shares) + canary shares + reserve shares`

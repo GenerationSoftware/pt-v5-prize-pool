@@ -18,4 +18,12 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
     function nextDraw(uint8 _nextNumTiers, uint96 liquidity) external {
         _nextDraw(_nextNumTiers, liquidity);
     }
+
+    function consumeLiquidity(uint8 _tier, uint104 _liquidity) external returns (Tier memory) {
+        return _consumeLiquidity(_tier, _liquidity);
+    }
+
+    function remainingTierLiquidity(uint8 _tier) external view returns (uint112) {
+        return _remainingTierLiquidity(_tier);
+    }
 }

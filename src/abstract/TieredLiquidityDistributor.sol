@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.17;
 
-import "forge-std/console2.sol";
+pragma solidity 0.8.17;
 
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, toUD60x18, fromUD60x18, intoSD59x18 } from "prb-math/UD60x18.sol";
@@ -10,12 +9,24 @@ import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
 import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18, toUD34x4 } from "src/libraries/UD34x4.sol";
 import { TierCalculationLib } from "src/libraries/TierCalculationLib.sol";
 
+/// @notice Struct that tracks tier liquidity information
 struct Tier {
     uint32 drawId;
     uint96 prizeSize;
     UD34x4 prizeTokenPerShare;
 }
 
+/// @notice Emitted when the number of tiers is less than the minimum number of tiers
+/// @param numTiers The invalid number of tiers
+error NumberOfTiersLessThanMinimum(uint8 numTiers);
+
+/// @notice Emitted when there is insufficient liquidity to consume. 
+/// @param requestedLiquidity The requested amount of liquidity
+error InsufficientLiquidity(uint112 requestedLiquidity);
+
+/// @title Tiered Liquidity Distributor
+/// @author PoolTogether Inc.
+/// @notice A contract that distributes liquidity according to PoolTogether V5 distribution rules.
 contract TieredLiquidityDistributor {
 
     uint8 internal constant MINIMUM_NUMBER_OF_TIERS = 2;
@@ -51,6 +62,7 @@ contract TieredLiquidityDistributor {
     UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_14_TIERS;
     UD60x18 immutable internal CANARY_PRIZE_COUNT_FOR_15_TIERS;
 
+    /// @notice The Tier liquidity data
     mapping(uint8 => Tier) internal _tiers;
 
     /// @notice The number of draws that should statistically occur between grand prizes.
@@ -98,7 +110,9 @@ contract TieredLiquidityDistributor {
         canaryShares = _canaryShares;
         reserveShares = _reserveShares;
 
-        require(numberOfTiers >= MINIMUM_NUMBER_OF_TIERS, "num-tiers-gt-1");
+        if(_numberOfTiers < MINIMUM_NUMBER_OF_TIERS) {
+            revert NumberOfTiersLessThanMinimum(_numberOfTiers);
+        }
 
         ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS = TierCalculationLib.estimatedClaimCount(2, _grandPrizePeriodDraws);
         ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS = TierCalculationLib.estimatedClaimCount(3, _grandPrizePeriodDraws);
@@ -132,23 +146,22 @@ contract TieredLiquidityDistributor {
         CANARY_PRIZE_COUNT_FOR_15_TIERS = TierCalculationLib.canaryPrizeCount(15, _canaryShares, _reserveShares, _tierShares);
     }
 
+    /// @notice Adjusts the number of tiers and distributes new liquidity
+    /// @param _nextNumberOfTiers The new number of tiers. Must be greater than minimum
+    /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
     function _nextDraw(uint8 _nextNumberOfTiers, uint96 _prizeTokenLiquidity) internal {
-        // console2.log("_nextDraw STARTING", _prizeTokenLiquidity);
-        require(_nextNumberOfTiers >= MINIMUM_NUMBER_OF_TIERS, "num-tiers-gt-1");
+        if(_nextNumberOfTiers < MINIMUM_NUMBER_OF_TIERS) {
+            revert NumberOfTiersLessThanMinimum(_nextNumberOfTiers);
+        }
+
         uint8 numTiers = numberOfTiers;
         uint16 completedDrawId = lastCompletedDrawId + 1;
-        // console2.log("prizeTokenPerShare", UD34x4.unwrap(prizeTokenPerShare));
         UD60x18 _prizeTokenPerShare = fromUD34x4toUD60x18(prizeTokenPerShare);
-        // console2.log("60x18 _prizeTokenPerShare", _prizeTokenPerShare.unwrap());
         uint256 totalShares = _getTotalShares(_nextNumberOfTiers);
-        // console2.log("totalShares", totalShares);
         UD60x18 deltaPrizeTokensPerShare = toUD60x18(_prizeTokenLiquidity).div(toUD60x18(totalShares));
 
-        // console2.log("deltaPrizeTokensPerShare", deltaPrizeTokensPerShare.unwrap());
         uint256 reclaimedLiquidity = _reclaimLiquidity(numTiers, _nextNumberOfTiers, _prizeTokenPerShare);
-        // console2.log("reclaimedLiquidity", reclaimedLiquidity);
         UD60x18 newPrizeTokenPerShare = _prizeTokenPerShare.add(deltaPrizeTokensPerShare);
-        // console2.log("newPrizeTokenPerShare", newPrizeTokenPerShare.unwrap());
 
         // if expanding, need to reset the new tier
         if (_nextNumberOfTiers > numTiers) {
@@ -159,7 +172,6 @@ contract TieredLiquidityDistributor {
                     prizeSize: uint96(_computePrizeSize(i, _nextNumberOfTiers, _prizeTokenPerShare, newPrizeTokenPerShare))
                 });
             }
-            // console2.log("computed expansion tier");
         }
 
         // Set canary tier
@@ -169,16 +181,8 @@ contract TieredLiquidityDistributor {
             prizeSize: uint96(_computePrizeSize(_nextNumberOfTiers, _nextNumberOfTiers, _prizeTokenPerShare, newPrizeTokenPerShare))
         });
 
-        // console2.log("set canary tier");
-
         uint256 remainder = _prizeTokenLiquidity - fromUD60x18(deltaPrizeTokensPerShare.mul(toUD60x18(totalShares)));
-        
         uint256 reservePortion = fromUD60x18(deltaPrizeTokensPerShare.mul(toUD60x18(reserveShares)));
-
-        uint256 total = fromUD60x18(deltaPrizeTokensPerShare.mul(toUD60x18(totalShares))) + remainder;
-        // console2.log("total", total);
-
-        // console2.log("reservePortion", reservePortion);
 
         prizeTokenPerShare = fromUD60x18toUD34x4(newPrizeTokenPerShare);
         numberOfTiers = _nextNumberOfTiers;
@@ -186,6 +190,10 @@ contract TieredLiquidityDistributor {
         _reserve += uint104(reservePortion + reclaimedLiquidity + remainder);
     }
 
+    /// @notice Retrieves an up-to-date Tier struct for the given tier
+    /// @param _tier The tier to retrieve
+    /// @param _numberOfTiers The number of tiers, should match the current. Passed explicitly as an optimization
+    /// @return An up-to-date Tier struct; if the prize is outdated then it is recomputed based on available liquidity and the draw id updated.
     function _getTier(uint8 _tier, uint8 _numberOfTiers) internal view returns (Tier memory) {
         Tier memory tier = _tiers[_tier];
         uint32 _lastCompletedDrawId = lastCompletedDrawId;
@@ -203,23 +211,38 @@ contract TieredLiquidityDistributor {
         return uint256(_numberOfTiers) * uint256(tierShares) + uint256(canaryShares) + uint256(reserveShares);
     }
 
+    /// @notice Consume liquidity from the given tier. Will pull from the tier, then pull from the reserve.
+    /// @param _tier The tier to consume liquidity from
+    /// @param _liquidity The amount of liquidity to consume
+    /// @return The Tier struct after consumption
     function _consumeLiquidity(uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
         uint8 numTiers = numberOfTiers;
         uint8 shares = _computeShares(_tier, numTiers);
         Tier memory tier = _getTier(_tier, numberOfTiers);
         tier = _consumeLiquidity(tier, _tier, shares, _liquidity);
+        return tier;
     }
 
+    /// @notice Computes the number of shares for the given tier. If the tier is the canary tier, then the canary shares are returned.  Normal tier shares otherwise.
+    /// @param _tier The tier to request share for
+    /// @param _numTiers The number of tiers. Passed explicitly as an optimization
+    /// @return The number of shares for the given tier
     function _computeShares(uint8 _tier, uint8 _numTiers) internal view returns (uint8) {
-        return _tier == numberOfTiers ? canaryShares : tierShares;
+        return _tier == _numTiers ? canaryShares : tierShares;
     }
 
+    /// @notice Consumes liquidity from the given tier.
+    /// @param _tierStruct The tier to consume liquidity from
+    /// @param _tier The tier number
+    /// @param _shares The number of shares allocated to this tier
+    /// @param _liquidity The amount of liquidity to consume
+    /// @return An updated Tier struct after consumption
     function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint8 _shares, uint104 _liquidity) internal returns (Tier memory) {
         uint104 remainingLiquidity = uint104(_remainingTierLiquidity(_tierStruct, _shares));
         if (_liquidity > remainingLiquidity) {
             uint104 excess = _liquidity - remainingLiquidity;
             if (excess > _reserve) {
-                revert("insufficient liquidity");
+                revert InsufficientLiquidity(_liquidity);
             }
             _reserve -= excess;
             _tierStruct.prizeTokenPerShare = prizeTokenPerShare;
@@ -231,6 +254,15 @@ contract TieredLiquidityDistributor {
         }
         _tiers[_tier] = _tierStruct;
         return _tierStruct;
+    }
+
+    /// @notice Computes the remaining liquidity for the given tier
+    /// @param _tier The tier to calculate for
+    /// @return The remaining liquidity
+    function _remainingTierLiquidity(uint8 _tier) internal view returns (uint112) {
+        uint8 shares = _computeShares(_tier, numberOfTiers);
+        Tier memory tier = _getTier(_tier, numberOfTiers);
+        return _remainingTierLiquidity(tier, shares);
     }
 
     /// @notice Computes the total liquidity available to a tier
@@ -248,9 +280,13 @@ contract TieredLiquidityDistributor {
         return uint112(fromUD60x18(delta.mul(toUD60x18(_shares))));
     }
 
+    /// @notice Computes the prize size of the given tier
+    /// @param _tier The tier to compute the prize size of
+    /// @param _numberOfTiers The current number of tiers
+    /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
+    /// @param _prizeTokenPerShare The global prizeTokenPerShare
+    /// @return The prize size
     function _computePrizeSize(uint8 _tier, uint8 _numberOfTiers, UD60x18 _tierPrizeTokenPerShare, UD60x18 _prizeTokenPerShare) internal view returns (uint256) {
-        // console2.log("_computePrizeSize _tier", _tier);
-        // console2.log("_computePrizeSize _numberOfTiers", _numberOfTiers);
         assert(_tier <= _numberOfTiers);
         uint256 prizeSize;
         if (_prizeTokenPerShare.gt(_tierPrizeTokenPerShare)) {
@@ -274,30 +310,23 @@ contract TieredLiquidityDistributor {
         UD60x18 reclaimedLiquidity;
         for (uint8 i = _nextNumberOfTiers; i < _numberOfTiers; i++) {
             Tier memory tierLiquidity = _tiers[i];
-            reclaimedLiquidity = reclaimedLiquidity.add(_getRemainingTierLiquidity(i, tierShares, fromUD34x4toUD60x18(_tiers[i].prizeTokenPerShare), _prizeTokenPerShare));
+            reclaimedLiquidity = reclaimedLiquidity.add(_getRemainingTierLiquidity(tierShares, fromUD34x4toUD60x18(tierLiquidity.prizeTokenPerShare), _prizeTokenPerShare));
         }
-        reclaimedLiquidity = reclaimedLiquidity.add(_getRemainingTierLiquidity(_numberOfTiers, canaryShares, fromUD34x4toUD60x18(_tiers[_numberOfTiers].prizeTokenPerShare), _prizeTokenPerShare));
+        reclaimedLiquidity = reclaimedLiquidity.add(_getRemainingTierLiquidity(canaryShares, fromUD34x4toUD60x18(_tiers[_numberOfTiers].prizeTokenPerShare), _prizeTokenPerShare));
         return fromUD60x18(reclaimedLiquidity);
     }
 
-    /// @notice Computes the remaining tier liquidity for the current draw
-    /// @param _tier The tier to calculate liquidity for
+    /// @notice Computes the remaining tier liquidity
     /// @param _shares The number of shares that the tier has (can be tierShares or canaryShares)
+    /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
+    /// @param _prizeTokenPerShare The global prizeTokenPerShare
     /// @return The total available liquidity
-    function _getRemainingTierLiquidity(uint8 _tier, uint256 _shares, UD60x18 _tierPrizeTokenPerShare, UD60x18 _prizeTokenPerShare) internal pure returns (UD60x18) {
+    function _getRemainingTierLiquidity(uint256 _shares, UD60x18 _tierPrizeTokenPerShare, UD60x18 _prizeTokenPerShare) internal pure returns (UD60x18) {
         if (_tierPrizeTokenPerShare.gte(_prizeTokenPerShare)) {
             return ud(0);
         }
         UD60x18 delta = _prizeTokenPerShare.sub(_tierPrizeTokenPerShare);
         return delta.mul(toUD60x18(_shares));
-    }
-
-    /// @notice Computes the contributed liquidity vs number of shares for the last completed draw
-    /// @return newPrizeTokensPerShare The number of prize tokens to distribute per share
-    /// @return remainder The remainder of the exchange rate
-    function _computeDrawDeltaExchangeRate(UD60x18 _totalShares, UD60x18 _totalContributed) internal view returns (UD60x18 newPrizeTokensPerShare, UD60x18 remainder) {
-        newPrizeTokensPerShare = _totalContributed.div(_totalShares);
-        remainder = _totalContributed.sub(_totalShares.mul(newPrizeTokensPerShare));
     }
 
     /// @notice Retrieves the id of the next draw to be completed.

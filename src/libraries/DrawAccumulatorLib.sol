@@ -49,14 +49,14 @@ library DrawAccumulatorLib {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-        uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
+        uint32 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
 
-        require(_drawId >= newestDrawId, "invalid draw");
+        require(_drawId >= newestDrawId_, "invalid draw");
 
-        Observation memory newestObservation_ = accumulator.observations[newestDrawId];
-        if (_drawId != newestDrawId) {
+        Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
+        if (_drawId != newestDrawId_) {
 
-            uint256 relativeDraw = _drawId - newestDrawId;
+            uint256 relativeDraw = _drawId - newestDrawId_;
 
             uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation_.available);
             uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation_.available);
@@ -78,7 +78,7 @@ library DrawAccumulatorLib {
             });
             return true;
         } else {
-            accumulator.observations[newestDrawId] = Observation({
+            accumulator.observations[newestDrawId_] = Observation({
                 available: uint96(newestObservation_.available + _amount),
                 disbursed: newestObservation_.disbursed
             });
@@ -98,10 +98,10 @@ library DrawAccumulatorLib {
             return 0;
         }
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-        uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
-        require(_startDrawId >= newestDrawId, "invalid search draw");
-        Observation memory newestObservation_ = accumulator.observations[newestDrawId];
-        return integrateInf(_alpha, _startDrawId - newestDrawId, newestObservation_.available);
+        uint32 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
+        require(_startDrawId >= newestDrawId_, "invalid search draw");
+        Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
+        return integrateInf(_alpha, _startDrawId - newestDrawId_, newestObservation_.available);
     }
 
     function newestDrawId(Accumulator storage accumulator) internal view returns (uint256) {

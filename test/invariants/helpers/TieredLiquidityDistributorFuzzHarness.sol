@@ -56,7 +56,7 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
         // console2.log("liq ", liq);
 
         totalConsumed += liq;
-        _consumeLiquidity(tier_, tier, shares, uint104(liq));
+        tier_ = _consumeLiquidity(tier_, tier, shares, uint104(liq));
     }
 
 }

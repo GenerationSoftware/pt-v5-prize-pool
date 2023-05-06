@@ -85,7 +85,7 @@ library TierCalculationLib {
         SD59x18 _tierOdds,
         SD59x18 _tierPrizeCount,
         uint256 _winningRandomNumber
-    ) internal view returns (bool) {
+    ) internal pure returns (bool) {
         if (_vaultTwabTotalSupply == 0) {
             return false;
         }

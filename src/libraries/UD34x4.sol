@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
+pragma solidity 0.8.17;
+
 import { UD60x18, uMAX_UD60x18 } from "prb-math/UD60x18.sol";
 
 type UD34x4 is uint128;
