@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.17;
 
-import "forge-std/console2.sol";
-
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
@@ -159,8 +157,8 @@ library DrawAccumulatorLib {
             - b = "body". if there are *two* observations between s and e we calculate how much was disbursed. body is (last obs disbursed - first obs disbursed)
 
         total = head + body + tail
-        
-        
+
+
         lastObservationOccurringAtOrBeforeEnd
         firstObservationOccurringAtOrAfterStart
 
@@ -318,7 +316,7 @@ library DrawAccumulatorLib {
     /// @return beforeOrAtIndex The index of the observation occurring at or before the target draw id
     /// @return beforeOrAtDrawId The draw id of the observation occurring at or before the target draw id
     /// @return afterOrAtIndex The index of the observation occurring at or after the target draw id
-    /// @return afterOrAtDrawId The draw id of the observation occurring at or after the target draw id 
+    /// @return afterOrAtDrawId The draw id of the observation occurring at or after the target draw id
     function binarySearch(
         uint32[MAX_CARDINALITY] storage _drawRingBuffer,
         uint32 _oldestIndex,

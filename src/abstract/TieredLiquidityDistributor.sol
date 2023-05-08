@@ -6,8 +6,9 @@ import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, toUD60x18, fromUD60x18, intoSD59x18 } from "prb-math/UD60x18.sol";
 import { UD2x18, intoUD60x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
-import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18, toUD34x4 } from "src/libraries/UD34x4.sol";
-import { TierCalculationLib } from "src/libraries/TierCalculationLib.sol";
+
+import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18, toUD34x4 } from "../libraries/UD34x4.sol";
+import { TierCalculationLib } from "../libraries/TierCalculationLib.sol";
 
 /// @notice Struct that tracks tier liquidity information
 struct Tier {
@@ -20,7 +21,7 @@ struct Tier {
 /// @param numTiers The invalid number of tiers
 error NumberOfTiersLessThanMinimum(uint8 numTiers);
 
-/// @notice Emitted when there is insufficient liquidity to consume. 
+/// @notice Emitted when there is insufficient liquidity to consume.
 /// @param requestedLiquidity The requested amount of liquidity
 error InsufficientLiquidity(uint112 requestedLiquidity);
 
@@ -338,9 +339,9 @@ contract TieredLiquidityDistributor {
     /// @notice Estimates the number of prizes that will be awarded
     /// @return The estimated prize count
     function estimatedPrizeCount() external view returns (uint32) {
-        return _estimatedPrizeCount(numberOfTiers);         
+        return _estimatedPrizeCount(numberOfTiers);
     }
-    
+
     /// @notice Estimates the number of prizes that will be awarded given a number of tiers.
     /// @param numTiers The number of tiers
     /// @return The estimated prize count for the given number of tiers

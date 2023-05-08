@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.17;
 
-import "forge-std/console2.sol";
-
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18, ceil } from "prb-math/SD59x18.sol";
 import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
 

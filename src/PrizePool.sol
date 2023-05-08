@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import "forge-std/console2.sol";
-
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
@@ -163,8 +161,8 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         return DrawAccumulatorLib.getDisbursedBetween(vaultAccumulator[_vault], _startDrawIdInclusive, _endDrawIdInclusive, smoothing.intoSD59x18());
     }
 
-    /// @notice Returns the 
-    /// @return The number of draws 
+    /// @notice Returns the
+    /// @return The number of draws
     function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint32) {
         return uint32(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws));
     }
