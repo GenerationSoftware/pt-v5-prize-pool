@@ -10,7 +10,7 @@ contract TierCalculationLibWrapper {
 
     function canaryPrizeCount(
         uint256 _numberOfTiers, uint256 _canaryShares, uint256 _reserveShares, uint256 _tierShares
-    ) external view returns (UD60x18) {
+    ) external pure returns (UD60x18) {
         UD60x18 result = TierCalculationLib.canaryPrizeCount(_numberOfTiers, _canaryShares, _reserveShares, _tierShares);
         return result;
     }

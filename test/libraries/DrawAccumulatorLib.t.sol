@@ -81,7 +81,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testGetTotalRemaining_invalidDraw() public {
         add(4);
-        vm.expectRevert("invalid draw");
+        vm.expectRevert("invalid search draw");
         wrapper.getTotalRemaining(2, alpha);
     }
 
@@ -185,7 +185,7 @@ contract DrawAccumulatorLibTest is Test {
             4		810 + 1000
             5		729 + 900
         */
-        assertEq(getDisbursedBetween(1, 4), 3709);
+        assertEq(getDisbursedBetween(1, 4), 3710);
     }
 
     function testGetDisbursedBetween_onOneBetweenTwo() public {

@@ -46,12 +46,6 @@ contract TierCalculationLibTest is Test {
         assertEq(TierCalculationLib.calculateWinningZone(1000, sd(1e18), sd(1e18), toSD59x18(5)), 5000);
     }
 
-    function testComputeNextExchangeRateDelta() public {
-        (UD60x18 deltaExchangeRate, uint256 remainder) = TierCalculationLib.computeNextExchangeRateDelta(900, 7);
-        assertEq(UD60x18.unwrap(deltaExchangeRate), 7777777777777777);
-        assertEq(remainder, 1);
-    }
-
     function testEstimatedClaimCount() public {
         // 2: 4.002739726
         // 3: 16.2121093

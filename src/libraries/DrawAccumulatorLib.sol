@@ -45,25 +45,27 @@ library DrawAccumulatorLib {
     /// @param _alpha The alpha value to use for the exponential weighted average.
     /// @return True if a new observation was created, false otherwise.
     function add(Accumulator storage accumulator, uint256 _amount, uint32 _drawId, SD59x18 _alpha) internal returns (bool) {
+        require(_drawId > 0, "invalid draw");
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-        uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
+        uint32 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
 
-        require(_drawId >= newestDrawId, "invalid draw");
+        require(_drawId >= newestDrawId_, "invalid draw");
 
-        Observation memory newestObservation_ = accumulator.observations[newestDrawId];
-        if (_drawId != newestDrawId) {
+        Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
+        if (_drawId != newestDrawId_) {
 
-            uint256 relativeDraw = _drawId - newestDrawId;
+            uint256 relativeDraw = _drawId - newestDrawId_;
 
             uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation_.available);
             uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation_.available);
+            uint256 remainder = newestObservation_.available - (remainingAmount + disbursedAmount);
 
             accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
             accumulator.observations[_drawId] = Observation({
                 available: uint96(_amount + remainingAmount),
-                disbursed: uint168(newestObservation_.disbursed + disbursedAmount)
+                disbursed: uint168(newestObservation_.disbursed + disbursedAmount + remainder)
             });
             uint16 nextIndex = uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY));
             uint16 cardinality = ringBufferInfo.cardinality;
@@ -76,7 +78,7 @@ library DrawAccumulatorLib {
             });
             return true;
         } else {
-            accumulator.observations[newestDrawId] = Observation({
+            accumulator.observations[newestDrawId_] = Observation({
                 available: uint96(newestObservation_.available + _amount),
                 disbursed: newestObservation_.disbursed
             });
@@ -96,17 +98,21 @@ library DrawAccumulatorLib {
             return 0;
         }
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-        uint32 newestDrawId = accumulator.drawRingBuffer[newestIndex];
-        require(_startDrawId >= newestDrawId, "invalid draw");
-        Observation memory newestObservation_ = accumulator.observations[newestDrawId];
-        return integrateInf(_alpha, _startDrawId - newestDrawId, newestObservation_.available);
+        uint32 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
+        require(_startDrawId >= newestDrawId_, "invalid search draw");
+        Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
+        return integrateInf(_alpha, _startDrawId - newestDrawId_, newestObservation_.available);
+    }
+
+    function newestDrawId(Accumulator storage accumulator) internal view returns (uint256) {
+        return accumulator.drawRingBuffer[RingBufferLib.newestIndex(accumulator.ringBufferInfo.nextIndex, MAX_CARDINALITY)];
     }
 
     /// @notice Retrieves the newest observation from the accumulator
     /// @param accumulator The accumulator to retrieve the newest observation from
     /// @return The newest observation
     function newestObservation(Accumulator storage accumulator) internal view returns (Observation memory) {
-        return accumulator.observations[RingBufferLib.newestIndex(accumulator.ringBufferInfo.nextIndex, MAX_CARDINALITY)];
+        return accumulator.observations[newestDrawId(accumulator)];
     }
 
     /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
