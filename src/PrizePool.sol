@@ -438,7 +438,9 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         SD59x18 tierOdds = TierCalculationLib.getTierOdds(_tier, numberOfTiers, grandPrizePeriodDraws);
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, drawDuration);
-        SD59x18 vaultPortion = _getVaultPortion(_vault, lastCompletedDrawId, uint32(drawDuration), smoothing.intoSD59x18());
+        uint32 _startDrawIdIncluding = uint32(drawDuration > lastCompletedDrawId ? 0 : lastCompletedDrawId-drawDuration+1);
+        uint32 _endDrawIdIncluding = lastCompletedDrawId + 1;
+        SD59x18 vaultPortion = _getVaultPortion(_vault, _startDrawIdIncluding, _endDrawIdIncluding, smoothing.intoSD59x18());
         SD59x18 tierPrizeCount;
         if (_tier == numberOfTiers) { // then canary tier
             UD60x18 cpc = _canaryPrizeCountFractional(_tier);
@@ -501,16 +503,14 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /**
     * @notice Calculates the portion of the vault's contribution to the prize pool over a specified duration in draws.
     * @param _vault The address of the vault for which to calculate the portion.
-    * @param drawId_ The draw ID for which to calculate the portion.
-    * @param _durationInDraws The duration of the period over which to calculate the portion, in number of draws.
+    * @param startDrawId The starting draw ID (inclusive) of the draw range to calculate the contribution portion for.
+    * @param endDrawId The ending draw ID (inclusive) of the draw range to calculate the contribution portion for.
     * @param _smoothing The smoothing value to use for calculating the portion.
     * @return The portion of the vault's contribution to the prize pool over the specified duration in draws.
     */
-    function _getVaultPortion(address _vault, uint32 drawId_, uint32 _durationInDraws, SD59x18 _smoothing) internal view returns (SD59x18) {
-        uint32 _startDrawIdIncluding = uint32(_durationInDraws > drawId_ ? 0 : drawId_-_durationInDraws+1);
-        uint32 _endDrawIdExcluding = drawId_ + 1;
-        uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulator[_vault], _startDrawIdIncluding, _endDrawIdExcluding, _smoothing);
-        uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdIncluding, _endDrawIdExcluding, _smoothing);
+    function _getVaultPortion(address _vault, uint32 startDrawId, uint32 endDrawId, SD59x18 _smoothing) internal view returns (SD59x18) {
+        uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulator[_vault], startDrawId, endDrawId, _smoothing);
+        uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, startDrawId, endDrawId, _smoothing);
         if (totalContributed != 0) {
             return sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
         } else {

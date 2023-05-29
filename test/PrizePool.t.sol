@@ -158,20 +158,55 @@ contract PrizePoolTest is Test {
         assertEq(claimPrize(msg.sender, 0), 4.090909090909090318e18, "prize money for draw 2");
     }
 
-    function testGetVaultPortionWhenEmpty() public {
-        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 1)), 0);
+    function testGetVaultPortion_WhenEmpty() public {
+        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 0)), 0);
     }
 
-    function testGetVaultPortionWhenOne() public {
-        contribute(100e18);
-        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 1, 2)), 1e18);
+    function testGetVaultPortion_WhenOne() public {
+        contribute(100e18); // available draw 1
+        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 1, 1)), 1e18);
     }
 
-    function testGetVaultPortionWhenTwo() public {
+    function testGetVaultPortion_WhenTwo() public {
+        contribute(100e18); // available draw 1
+        contribute(100e18, address(sender1)); // available draw 1
+
+        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 1, 1)), 0.5e18);
+    }
+
+    function testGetVaultPortion_WhenTwo_AccrossTwoDraws() public {
         contribute(100e18);
         contribute(100e18, address(sender1));
 
         assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 1, 2)), 0.5e18);
+    }
+
+    function testGetVaultPortion_BeforeContribution() public {
+        contribute(100e18); // available on draw 1
+
+        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 0)), 0);
+    }
+    
+    function testGetVaultPortion_BeforeContributionOnDraw3() public {
+        completeAndStartNextDraw(winningRandomNumber); // draw 1
+        completeAndStartNextDraw(winningRandomNumber); // draw 2
+        assertEq(prizePool.getLastCompletedDrawId(), 2);
+        contribute(100e18); // available on draw 3
+
+        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 2, 2)), 0);
+    }
+
+    function testGetVaultPortion_BeforeAndAtContribution() public {
+        contribute(100e18); // available draw 1
+
+        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 1)), 1e18);
+    }
+
+    function testGetVaultPortion_BeforeAndAfterContribution() public {
+        completeAndStartNextDraw(winningRandomNumber); // draw 1
+        contribute(100e18); // available draw 2
+
+        assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 2)), 1e18);
     }
 
     function testGetNextDrawId() public {
