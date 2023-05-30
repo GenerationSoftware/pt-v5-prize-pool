@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
-import { UD60x18, toUD60x18 } from "prb-math/UD60x18.sol";
+import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
 
 import { TieredLiquidityDistributorFuzzHarness } from "./helpers/TieredLiquidityDistributorFuzzHarness.sol";
 
@@ -57,7 +57,7 @@ contract TieredLiquidityDistributorInvariants is Test {
     function expectedLiquidityDeltaRange(uint8 numberOfTiers) internal pure returns(uint256) {
         require(numberOfTiers >= 2, "DeltaRange/number of tiers too low");
         UD60x18 slope = toUD60x18(10).div(toUD60x18(13));
-        return 8 + UD60x18.unwrap(slope.mul(toUD60x18(numberOfTiers - 2)).ceil()) / 1e18;
+        return 8 + fromUD60x18(slope.mul(toUD60x18(numberOfTiers - 2)).ceil());
     }
 
     // Tests for the helper function
