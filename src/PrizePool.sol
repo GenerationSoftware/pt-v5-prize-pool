@@ -193,7 +193,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /// @notice The total amount of prize tokens that have been claimed for all time
     /// @return The total amount of prize tokens that have been claimed for all time
-    function totalClaimedPrizes() external view returns (uint256) {
+    function totalWithdrawn() external view returns (uint256) {
         return _totalWithdrawn;
     }
 

@@ -122,11 +122,12 @@ contract PrizePoolTest is Test {
     }
 
     function testAccountedBalance_withdrawnReserve() public {
-        contribute(100);
+        contribute(100e18);
         completeAndStartNextDraw(1);
-        assertGe(prizePool.reserve(), 0);
+        assertEq(prizePool.reserve(), 0.454545454545454546e18);
         prizePool.withdrawReserve(address(this), uint104(prizePool.reserve()));
         assertEq(prizePool.accountedBalance(), prizeToken.balanceOf(address(prizePool)));
+        assertEq(prizePool.reserve(), 0);
     }
 
     function testAccountedBalance_noClaims() public {
@@ -527,13 +528,13 @@ contract PrizePoolTest is Test {
     }
 
     function testTotalClaimedPrizes() public {
-        assertEq(prizePool.totalClaimedPrizes(), 0);
+        assertEq(prizePool.totalWithdrawn(), 0);
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
         uint256 prize = 4.545454545454545454e18;
         assertEq(claimPrize(msg.sender, 0), prize, "prize size");
-        assertEq(prizePool.totalClaimedPrizes(), prize, "total claimed prize");
+        assertEq(prizePool.totalWithdrawn(), prize, "total claimed prize");
     }
 
     function testLastCompletedDrawStartedAt() public {
