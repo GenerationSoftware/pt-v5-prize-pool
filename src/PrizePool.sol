@@ -273,7 +273,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     function completeAndStartNextDraw(uint256 winningRandomNumber_) external onlyManager returns (uint32) {
         // check winning random number
         require(winningRandomNumber_ != 0, "num invalid");
-        uint64 nextDrawStartsAt_ = _nextDrawStartsAt();
         require(block.timestamp >= _nextDrawEndsAt(), "not elapsed");
 
         uint8 numTiers = numberOfTiers;
@@ -281,6 +280,8 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         if (lastCompletedDrawId != 0) {
             nextNumberOfTiers = _computeNextNumberOfTiers(numTiers);
         }
+
+        uint64 nextDrawStartsAt_ = _nextDrawStartsAt();
 
         _nextDraw(nextNumberOfTiers, uint96(_contributionsForDraw(lastCompletedDrawId+1)));
 
@@ -293,6 +294,20 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         return lastCompletedDrawId;
     }
 
+    /// @notice Returns the amount of tokens that will be added to the reserve on the next draw.
+    /// @dev Intended for Draw manager to use after the draw has ended but not yet been completed.
+    /// @return The amount of prize tokens that will be added to the reserve
+    function reserveForNextDraw() external view returns (uint256) {
+        uint8 numTiers = numberOfTiers;
+        uint8 nextNumberOfTiers = numTiers;
+        if (lastCompletedDrawId != 0) {
+            nextNumberOfTiers = _computeNextNumberOfTiers(numTiers);
+        }
+        (, uint104 newReserve, ) = _computeNewDistributions(numTiers, nextNumberOfTiers, uint96(_contributionsForDraw(lastCompletedDrawId+1)));
+        return newReserve;
+    }
+
+    /// @notice Computes the tokens to be disbursed from the accumulator for a given draw.
     function _contributionsForDraw(uint32 _drawId) internal view returns (uint256) {
         return DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _drawId, _drawId, smoothing.intoSD59x18());
     }

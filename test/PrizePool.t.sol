@@ -77,6 +77,27 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.reserve(), 0.454545454545454546e18);
     }
 
+    function testReserveForNextDraw_noDraw() public {
+        contribute(100e18);
+        assertEq(prizePool.reserveForNextDraw(), 0.454545454545454546e18);
+    }
+
+    function testReserveForNextDraw_existingDraw() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        contribute(100e18);
+
+        /*
+            prev canary: 0.454545454545454546e18
+            prev reserve: 0.454545454545454546e18
+            current reserve: 10/220e18 * 9e18 = 0.409090909090909091e18
+
+            0.454545454545454546e18 + 0.454545454545454546e18 + 0.409090909090909091e18 = 1.318181818181818182e18
+        */
+
+        assertEq(prizePool.reserveForNextDraw(), 1.318181818181818182e18);
+    }
+
     function testWithdrawReserve_insuff() public {
         vm.expectRevert("insuff");
         prizePool.withdrawReserve(address(this), 1);
