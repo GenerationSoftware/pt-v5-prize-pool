@@ -114,9 +114,12 @@ library DrawAccumulatorLib {
     }
 
     /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
+    /// This function has an intentional limitation on the value of `_endDrawId` to save gas, but
+    /// prevents historical disbursement queries that end more than one draw before the last
+    /// accumulator observation.
     /// @param _accumulator The accumulator to get the disbursed balance from
     /// @param _startDrawId The start draw id, inclusive
-    /// @param _endDrawId The end draw id, inclusive
+    /// @param _endDrawId The end draw id, inclusive (limitation: cannot be more than one draw before the last observed draw)
     /// @param _alpha The alpha value to use for the exponential weighted average
     /// @return The disbursed balance between the given start and end draw ids, inclusive
     function getDisbursedBetween(
@@ -136,6 +139,11 @@ library DrawAccumulatorLib {
         Pair32 memory indexes = computeIndices(ringBufferInfo);
         Pair32 memory drawIds = readDrawIds(_accumulator, indexes);
 
+        /**
+            This check intentionally limits the `_endDrawId` to be no more than one draw before the
+            latest observation. This allows us to make assumptions on the value of `lastObservationDrawIdOccurringAtOrBeforeEnd` and removes the need to run a additional
+            binary search to find it.
+         */
         require(_endDrawId >= drawIds.second-1, "DAL/curr-invalid");
 
         if (_endDrawId < drawIds.first) {

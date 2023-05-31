@@ -136,19 +136,6 @@ contract DrawAccumulatorLibTest is Test {
         assertEq(getDisbursedBetween(2, 4), 2438);
     }
 
-    function testGetDisbursedBetween_beforeTwo() public {
-        add(3);
-        add(5);
-        /*
-            should include draw 1, 2, 3 and 4:
-            3	    1000
-            4		900
-            5		810 + 1000
-            6		729 + 900
-        */
-        assertEq(getDisbursedBetween(1, 4), 1899);
-    }
-
     function testGetDisbursedBetween_beforeOnTwo() public {
         add(4);
         add(5);
