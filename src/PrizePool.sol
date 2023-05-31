@@ -83,7 +83,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @notice The exponential weighted average of all vault contributions
     DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
-    uint256 internal _totalClaimedPrizes;
+    uint256 internal _totalWithdrawn;
 
     /// @notice The winner random number for the last completed draw
     uint256 internal _winningRandomNumber;
@@ -188,13 +188,13 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @return The balance of tokens that have been accounted for
     function _accountedBalance() internal view returns (uint256) {
         Observation memory obs = DrawAccumulatorLib.newestObservation(totalAccumulator);
-        return (obs.available + obs.disbursed) - _totalClaimedPrizes;
+        return (obs.available + obs.disbursed) - _totalWithdrawn;
     }
 
     /// @notice The total amount of prize tokens that have been claimed for all time
     /// @return The total amount of prize tokens that have been claimed for all time
-    function totalClaimedPrizes() external view returns (uint256) {
-        return _totalClaimedPrizes;
+    function totalWithdrawn() external view returns (uint256) {
+        return _totalWithdrawn;
     }
 
     /// @notice Computes how many tokens have been accounted for
@@ -219,7 +219,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     function withdrawReserve(address _to, uint104 _amount) external onlyManager {
         require(_amount <= _reserve, "insuff");
         _reserve -= _amount;
-        prizeToken.transfer(_to, _amount);
+        _transfer(_to, _amount);
     }
 
     /// @notice Returns whether the next draw has finished
@@ -360,7 +360,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
             revert AlreadyClaimedPrize(_winner, _tier);
         }
         require(_fee <= prizeSize, "fee too large");
-        _totalClaimedPrizes += prizeSize;
         uint96 payout = prizeSize - _fee;
         if (largestTierClaimed < _tier) {
             largestTierClaimed = _tier;
@@ -375,12 +374,17 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         }
         claimRecords[_winner] = ClaimRecord({drawId: tierLiquidity.drawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
         _consumeLiquidity(tierLiquidity, _tier, shares, prizeSize);
-        prizeToken.transfer(_to, payout);
+        _transfer(_to, payout);
         if (_fee > 0) {
             claimerRewards[_feeRecipient] += _fee;
         }
         emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
         return prizeSize;
+    }
+
+    function _transfer(address _to, uint256 _amount) internal {
+        _totalWithdrawn += _amount;
+        prizeToken.transfer(_to, _amount);
     }
 
     /**
@@ -394,7 +398,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
             revert InsufficientRewardsError(_amount, available);
         }
         claimerRewards[msg.sender] -= _amount;
-        prizeToken.transfer(_to, _amount);
+        _transfer(_to, _amount);
     }
 
     /**
@@ -464,7 +468,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /**
     * @notice Returns the time-weighted average balance (TWAB) and the TWAB total supply for the specified user in the given vault over a specified period.
-    * @dev This function calculates the TWAB for a user by calling the getAverageBalanceBetween function of the TWAB controller for a specified period of time.
+    * @dev This function calculates the TWAB for a user by calling the getTwabBetween function of the TWAB controller for a specified period of time.
     * @param _vault The address of the vault for which to get the TWAB.
     * @param _user The address of the user for which to get the TWAB.
     * @param _drawDuration The duration of the period over which to calculate the TWAB, in number of draw periods.
@@ -475,14 +479,14 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         uint32 endTimestamp = uint32(lastCompletedDrawStartedAt_ + drawPeriodSeconds);
         uint32 startTimestamp = uint32(endTimestamp - _drawDuration * drawPeriodSeconds);
 
-        twab = twabController.getAverageBalanceBetween(
+        twab = twabController.getTwabBetween(
             _vault,
             _user,
             startTimestamp,
             endTimestamp
         );
 
-        twabTotalSupply = twabController.getAverageTotalSupplyBetween(
+        twabTotalSupply = twabController.getTotalSupplyTwabBetween(
             _vault,
             startTimestamp,
             endTimestamp

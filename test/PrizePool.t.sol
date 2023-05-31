@@ -39,7 +39,7 @@ contract PrizePoolTest is Test {
         vm.warp(1000 days);
 
         prizeToken = new ERC20Mintable("PoolTogether POOL token", "POOL");
-        twabController = new TwabController(1 days);
+        twabController = new TwabController();
 
         lastCompletedDrawStartedAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
         drawPeriodSeconds = 1 days;
@@ -119,6 +119,15 @@ contract PrizePoolTest is Test {
     function testContributePrizeTokens() public {
         contribute(100);
         assertEq(prizeToken.balanceOf(address(prizePool)), 100);
+    }
+
+    function testAccountedBalance_withdrawnReserve() public {
+        contribute(100e18);
+        completeAndStartNextDraw(1);
+        assertEq(prizePool.reserve(), 0.454545454545454546e18);
+        prizePool.withdrawReserve(address(this), uint104(prizePool.reserve()));
+        assertEq(prizePool.accountedBalance(), prizeToken.balanceOf(address(prizePool)));
+        assertEq(prizePool.reserve(), 0);
     }
 
     function testAccountedBalance_noClaims() public {
@@ -554,13 +563,13 @@ contract PrizePoolTest is Test {
     }
 
     function testTotalClaimedPrizes() public {
-        assertEq(prizePool.totalClaimedPrizes(), 0);
+        assertEq(prizePool.totalWithdrawn(), 0);
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
         uint256 prize = 4.545454545454545454e18;
         assertEq(claimPrize(msg.sender, 0), prize, "prize size");
-        assertEq(prizePool.totalClaimedPrizes(), prize, "total claimed prize");
+        assertEq(prizePool.totalWithdrawn(), prize, "total claimed prize");
     }
 
     function testLastCompletedDrawStartedAt() public {
@@ -632,7 +641,7 @@ contract PrizePoolTest is Test {
     function mockGetAverageBalanceBetween(address _vault, address _user, uint64 _startTime, uint64 _endTime, uint256 _result) internal {
         vm.mockCall(
             address(twabController),
-            abi.encodeWithSelector(TwabController.getAverageBalanceBetween.selector, _vault, _user, _startTime, _endTime),
+            abi.encodeWithSelector(TwabController.getTwabBetween.selector, _vault, _user, _startTime, _endTime),
             abi.encode(_result)
         );
     }
@@ -640,7 +649,7 @@ contract PrizePoolTest is Test {
     function mockGetAverageTotalSupplyBetween(address _vault, uint32 _startTime, uint32 _endTime, uint256 _result) internal {
         vm.mockCall(
             address(twabController),
-            abi.encodeWithSelector(TwabController.getAverageTotalSupplyBetween.selector, _vault, _startTime, _endTime),
+            abi.encodeWithSelector(TwabController.getTotalSupplyTwabBetween.selector, _vault, _startTime, _endTime),
             abi.encode(_result)
         );
     }
