@@ -41,7 +41,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @param winner The address of the winner
     /// @param tier The prize tier that was claimed.
     /// @param payout The amount of prize tokens that were paid out to the winner
-    /// @param to The address that the prize tokens were sent to
     /// @param fee The amount of prize tokens that were paid to the claimer
     /// @param feeRecipient The address that the claim fee was sent to
     event ClaimedPrize(
@@ -50,7 +49,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         address indexed winner,
         uint8 tier,
         uint152 payout,
-        address to,
         uint96 fee,
         address feeRecipient
     );
@@ -340,9 +338,9 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /**
         @dev Claims a prize for a given winner and tier.
-        This function takes in an address _winner, a uint8 _tier, an address _to, a uint96 _fee, and an
+        This function takes in an address _winner, a uint8 _tier, a uint96 _fee, and an
         address _feeRecipient. It checks if _winner is actually the winner of the _tier for the calling vault.
-        If so, it calculates the prize size and transfers it to _to. If not, it reverts with an error message.
+        If so, it calculates the prize size and transfers it to the winner. If not, it reverts with an error message.
         The function then checks the claim record of _winner to see if they have already claimed the prize for the
         current draw. If not, it updates the claim record with the claimed tier and emits a ClaimedPrize event with
         information about the claim.
@@ -351,7 +349,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         means that it can be called from outside the contract.
         @param _winner The address of the winner to claim the prize for.
         @param _tier The tier of the prize to be claimed.
-        @param _to The address that the prize will be transferred to.
         @param _fee The fee associated with claiming the prize.
         @param _feeRecipient The address to receive the fee.
         @return The total prize size of the claimed prize. prize size = payout to winner + fee
@@ -359,7 +356,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     function claimPrize(
         address _winner,
         uint8 _tier,
-        address _to,
         uint96 _fee,
         address _feeRecipient
     ) external returns (uint256) {
@@ -389,11 +385,11 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         }
         claimRecords[_winner] = ClaimRecord({drawId: tierLiquidity.drawId, claimedTiers: uint8(BitLib.flipBit(claimRecord.claimedTiers, _tier))});
         _consumeLiquidity(tierLiquidity, _tier, shares, prizeSize);
-        _transfer(_to, payout);
+        _transfer(_winner, payout);
         if (_fee > 0) {
             claimerRewards[_feeRecipient] += _fee;
         }
-        emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _to, _fee, _feeRecipient);
+        emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(payout), _fee, _feeRecipient);
         return prizeSize;
     }
 
