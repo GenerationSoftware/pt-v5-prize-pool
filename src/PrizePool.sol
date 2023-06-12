@@ -250,11 +250,12 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /// @notice Returns the time at which the next draw end.
     function _nextDrawEndsAt() internal view returns (uint64) {
-        if (lastCompletedDrawId != 0) {
-            return lastCompletedDrawStartedAt_ + 2 * drawPeriodSeconds;
-        } else {
-            return lastCompletedDrawStartedAt_ + drawPeriodSeconds;
+        uint64 nextExpectedEndTime = lastCompletedDrawStartedAt_ + (lastCompletedDrawId == 0 ? 1 : 2) * drawPeriodSeconds;
+        if (block.timestamp > nextExpectedEndTime) {
+            uint32 numMissedDraws = uint32((block.timestamp - nextExpectedEndTime) / drawPeriodSeconds);
+            nextExpectedEndTime += drawPeriodSeconds * numMissedDraws;
         }
+        return nextExpectedEndTime;
     }
 
     function _computeNextNumberOfTiers(uint8 _numTiers) internal view returns (uint8) {

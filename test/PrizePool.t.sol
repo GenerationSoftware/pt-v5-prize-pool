@@ -644,7 +644,23 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt+drawPeriodSeconds);
     }
 
+    function testNextDrawIncludesMissedDraws() public {
+        assertEq(prizePool.getNextDrawId(), 1);
+        vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+        assertEq(prizePool.nextDrawEndsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.getNextDrawId(), 2);
+    }
 
+    function testNextDrawIncludesMissedDraws_middleOfDraw() public {
+        assertEq(prizePool.getNextDrawId(), 1);
+        vm.warp(lastCompletedDrawStartedAt + (drawPeriodSeconds * 5) / 2);
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+        assertEq(prizePool.nextDrawEndsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.getNextDrawId(), 2);
+    }
 
     // function testCalculatePrizeSize() public {
     //     contribute(100e18);
