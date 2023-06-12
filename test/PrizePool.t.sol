@@ -744,8 +744,7 @@ contract PrizePoolTest is Test {
         uint32[][] memory prizeIndices = new uint32[][](1);
         prizeIndices[0] = new uint32[](1);
         prizeIndices[0][0] = prizeIndex;
-        uint result = prizePool.claimPrizes(tier, winners, prizeIndices, fee, feeRecipient);
-        return result;
+        return prizePool.claimPrizes(tier, winners, prizeIndices, fee, feeRecipient);
     }
 
     function mockTwab(address _account, uint256 startTime, uint256 endTime) public {
