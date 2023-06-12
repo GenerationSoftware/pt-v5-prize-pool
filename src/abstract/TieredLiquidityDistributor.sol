@@ -208,7 +208,7 @@ contract TieredLiquidityDistributor {
         UD60x18 deltaPrizeTokensPerShare = toUD60x18(_prizeTokenLiquidity).div(toUD60x18(totalShares));
 
         newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
-        
+
         newReserve = uint104(
             fromUD60x18(deltaPrizeTokensPerShare.mul(toUD60x18(reserveShares))) + // reserve portion
             _getTierLiquidityToReclaim(_numberOfTiers, _nextNumberOfTiers, _currentPrizeTokenPerShare) + // reclaimed liquidity from tiers
@@ -263,7 +263,7 @@ contract TieredLiquidityDistributor {
     /// @param _liquidity The amount of liquidity to consume
     /// @return An updated Tier struct after consumption
     function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
-        _consumeLiquidity(_tierStruct, _tier, _computeShares(_tier, numberOfTiers), _liquidity);
+        return _consumeLiquidity(_tierStruct, _tier, _computeShares(_tier, numberOfTiers), _liquidity);
     }
 
     /// @notice Consumes liquidity from the given tier.

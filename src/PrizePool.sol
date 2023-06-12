@@ -96,7 +96,10 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     uint8 public largestTierClaimed;
 
     /// @notice The timestamp at which the last completed draw started
-    uint64 internal lastCompletedDrawStartedAt_;
+    uint64 internal _lastCompletedDrawStartedAt;
+
+    /// @notice The timestamp at which the last completed draw was awarded
+    uint64 internal _lastCompletedDrawAwardedAt;
 
     /**
      * @notice Constructs a new Prize Pool
@@ -104,7 +107,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
      * @param _twabController The Twab Controller retrieve time-weighted average balances from
      * @param _grandPrizePeriodDraws The average number of draws between grand prizes. This determines the statistical frequency of grand prizes.
      * @param _drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
-     * @param nextDrawStartsAt_ The timestamp at which the first draw will start.
+     * @param _firstDrawStartsAt The timestamp at which the first draw will start.
      * @param _numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
      * @param _tierShares The number of shares to allocate to each tier
      * @param _canaryShares The number of shares to allocate to the canary tier.
@@ -117,7 +120,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         TwabController _twabController,
         uint32 _grandPrizePeriodDraws,
         uint32 _drawPeriodSeconds,
-        uint64 nextDrawStartsAt_,
+        uint64 _firstDrawStartsAt,
         uint8 _numberOfTiers,
         uint8 _tierShares,
         uint8 _canaryShares,
@@ -130,7 +133,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         smoothing = _smoothing;
         claimExpansionThreshold = _claimExpansionThreshold;
         drawPeriodSeconds = _drawPeriodSeconds;
-        lastCompletedDrawStartedAt_ = nextDrawStartsAt_;
+        _lastCompletedDrawStartedAt = _firstDrawStartsAt;
 
         require(unwrap(_smoothing) < unwrap(UNIT), "smoothing-lt-1");
     }
@@ -208,14 +211,22 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @notice Returns the start time of the last completed draw. If there was no completed draw, then it will be zero.
     /// @return The start time of the last completed draw
     function lastCompletedDrawStartedAt() external view returns (uint64) {
-        if (lastCompletedDrawId != 0) {
-            return lastCompletedDrawStartedAt_;
-        } else {
-            return 0;
-        }
+        return lastCompletedDrawId != 0 ? _lastCompletedDrawStartedAt : 0;
     }
 
-    /// @notice Allows the Manager to withdraw tokens from the reserve
+    /// @notice Returns the end time of the last completed draw. If there was no completed draw, then it will be zero.
+    /// @return The end time of the last completed draw
+    function lastCompletedDrawEndedAt() external view returns (uint64) {
+        return lastCompletedDrawId != 0 ? _lastCompletedDrawStartedAt + drawPeriodSeconds : 0;
+    }
+
+    /// @notice Returns the time at which the last completed draw was awarded.
+    /// @return The time at which the last completed draw was awarded
+    function lastCompletedDrawAwardedAt() external view returns (uint64) {
+        return lastCompletedDrawId != 0 ? _lastCompletedDrawAwardedAt : 0;
+    }
+
+    // @notice Allows the Manager to withdraw tokens from the reserve
     /// @param _to The address to send the tokens to
     /// @param _amount The amount of tokens to withdraw
     function withdrawReserve(address _to, uint104 _amount) external onlyManager {
@@ -241,8 +252,8 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /// @notice Returns the start time of the draw for the next successful completeAndStartNextDraw
     function _nextDrawStartsAt() internal view returns (uint64) {
-        // If this is the first draw, we treat lastCompletedDrawStartedAt_ as the start of this draw
-        uint64 nextExpectedStartTime = lastCompletedDrawStartedAt_ + (lastCompletedDrawId == 0 ? 0 : 1) * drawPeriodSeconds;
+        // If this is the first draw, we treat _lastCompletedDrawAwardedAt as the start of this draw
+        uint64 nextExpectedStartTime = _lastCompletedDrawAwardedAt + (lastCompletedDrawId == 0 ? 0 : 1) * drawPeriodSeconds;
         uint64 nextExpectedEndTime = nextExpectedStartTime + drawPeriodSeconds;
         if (block.timestamp > nextExpectedEndTime) {
             // Use integer division to get the number of draw periods passed between the expected end time and now
@@ -255,8 +266,8 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /// @notice Returns the time at which the next draw end.
     function _nextDrawEndsAt() internal view returns (uint64) {
-        // If this is the first draw, we treat lastCompletedDrawStartedAt_ as the start of this draw
-        uint64 nextExpectedEndTime = lastCompletedDrawStartedAt_ + (lastCompletedDrawId == 0 ? 1 : 2) * drawPeriodSeconds;
+        // If this is the first draw, we treat _lastCompletedDrawAwardedAt as the start of this draw
+        uint64 nextExpectedEndTime = _lastCompletedDrawAwardedAt + (lastCompletedDrawId == 0 ? 1 : 2) * drawPeriodSeconds;
         if (block.timestamp > nextExpectedEndTime) {
             // Use integer division to get the number of draw periods passed between the expected end time and now
             uint32 numMissedDraws = uint32((block.timestamp - nextExpectedEndTime) / drawPeriodSeconds);
@@ -288,6 +299,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
         uint8 numTiers = numberOfTiers;
         uint8 nextNumberOfTiers = numTiers;
+
         if (lastCompletedDrawId != 0) {
             nextNumberOfTiers = _computeNextNumberOfTiers(numTiers);
         }
@@ -300,7 +312,8 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         claimCount = 0;
         canaryClaimCount = 0;
         largestTierClaimed = 0;
-        lastCompletedDrawStartedAt_ = nextDrawStartsAt_;
+        _lastCompletedDrawStartedAt = nextDrawStartsAt_;
+        _lastCompletedDrawAwardedAt = uint64(block.timestamp);
 
         return lastCompletedDrawId;
     }
@@ -374,12 +387,12 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         address _feeRecipient
     ) external returns (uint256) {
         require(_winners.length == _prizeIndices.length, "length mismatch");
-        
+
         Tier memory tierLiquidity = _getTier(_tier, numberOfTiers);
         if (_feePerPrizeClaim > tierLiquidity.prizeSize) {
             revert FeeTooLarge(_feePerPrizeClaim, tierLiquidity.prizeSize);
         }
-        
+
         uint96 payout = tierLiquidity.prizeSize - _feePerPrizeClaim;
         uint32 prizeClaimCount = _claimPrizes(msg.sender, _tier, _winners, _prizeIndices, payout, _feePerPrizeClaim, _feeRecipient);
 
@@ -392,7 +405,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         if (largestTierClaimed < _tier) {
             largestTierClaimed = _tier;
         }
-        
+
         _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize * prizeClaimCount);
 
         if (_feePerPrizeClaim != 0 && prizeClaimCount != 0) {
@@ -531,7 +544,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     */
     function calculateTierTwabTimestamps(uint8 _tier) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
         uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
-        endTimestamp = lastCompletedDrawStartedAt_ + drawPeriodSeconds;
+        endTimestamp = _lastCompletedDrawStartedAt + drawPeriodSeconds;
         startTimestamp = uint64(endTimestamp - drawDuration * drawPeriodSeconds);
     }
 
@@ -545,7 +558,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     * @return twabTotalSupply The TWAB total supply over the specified period.
     */
     function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal view returns (uint256 twab, uint256 twabTotalSupply) {
-        uint32 endTimestamp = uint32(lastCompletedDrawStartedAt_ + drawPeriodSeconds);
+        uint32 endTimestamp = uint32(_lastCompletedDrawStartedAt + drawPeriodSeconds);
         uint32 startTimestamp = uint32(endTimestamp - _drawDuration * drawPeriodSeconds);
 
         twab = twabController.getTwabBetween(

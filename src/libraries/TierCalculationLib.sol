@@ -78,7 +78,7 @@ library TierCalculationLib {
         SD59x18 _vaultContributionFraction,
         SD59x18 _tierOdds,
         uint32 _tierPrizeCount
-    ) internal view returns (bool) {
+    ) internal pure returns (bool) {
         if (_vaultTwabTotalSupply == 0) {
             return false;
         }
