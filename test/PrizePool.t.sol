@@ -647,7 +647,7 @@ contract PrizePoolTest is Test {
     function testNextDrawIncludesMissedDraws() public {
         assertEq(prizePool.getNextDrawId(), 1);
         vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
-        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
         assertEq(prizePool.nextDrawEndsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
         completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizePool.getNextDrawId(), 2);
@@ -656,8 +656,17 @@ contract PrizePoolTest is Test {
     function testNextDrawIncludesMissedDraws_middleOfDraw() public {
         assertEq(prizePool.getNextDrawId(), 1);
         vm.warp(lastCompletedDrawStartedAt + (drawPeriodSeconds * 5) / 2);
-        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
         assertEq(prizePool.nextDrawEndsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.getNextDrawId(), 2);
+    }
+
+    function testNextDrawIncludesMissedDraws_2Draws() public {
+        assertEq(prizePool.getNextDrawId(), 1);
+        vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds * 3);
+        assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
+        assertEq(prizePool.nextDrawEndsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 3);
         completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizePool.getNextDrawId(), 2);
     }
