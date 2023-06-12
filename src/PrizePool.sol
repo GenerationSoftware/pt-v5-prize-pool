@@ -183,10 +183,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     }
 
     function _calculateTierPrizeCount(uint8 _tier, uint8 _numberOfTiers) internal view returns (uint32) {
-        if (_tier == _numberOfTiers) {
-            return _canaryPrizeCount(_numberOfTiers);
-        }
-        return uint32(TierCalculationLib.prizeCount(_tier));
+        return _tier != _numberOfTiers ? uint32(TierCalculationLib.prizeCount(_tier)) : _canaryPrizeCount(_numberOfTiers);
     }
 
     /// @notice Computes how many tokens have been accounted for
