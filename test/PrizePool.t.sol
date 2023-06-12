@@ -671,6 +671,42 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.getNextDrawId(), 2);
     }
 
+    function testNextDrawIncludesMissedDraws_notFirstDraw() public {
+        completeAndStartNextDraw(winningRandomNumber);
+        uint64 _lastCompletedDrawStartedAt = prizePool.lastCompletedDrawStartedAt();
+        assertEq(prizePool.getNextDrawId(), 2);
+        vm.warp(_lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
+        assertEq(prizePool.nextDrawStartsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds);
+        assertEq(prizePool.nextDrawEndsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.getNextDrawId(), 3);
+    }
+
+    function testNextDrawIncludesMissedDraws_manyDrawsIn_manyMissed() public {
+        completeAndStartNextDraw(winningRandomNumber);
+        completeAndStartNextDraw(winningRandomNumber);
+        completeAndStartNextDraw(winningRandomNumber);
+        completeAndStartNextDraw(winningRandomNumber);
+        uint64 _lastCompletedDrawStartedAt = prizePool.lastCompletedDrawStartedAt();
+        assertEq(prizePool.getNextDrawId(), 5);
+        vm.warp(_lastCompletedDrawStartedAt + drawPeriodSeconds * 5);
+        assertEq(prizePool.nextDrawStartsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds * 4);
+        assertEq(prizePool.nextDrawEndsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds * 5);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.getNextDrawId(), 6);
+    }
+
+    function testNextDrawIncludesMissedDraws_notFirstDraw_middleOfDraw() public {
+        completeAndStartNextDraw(winningRandomNumber);
+        uint64 _lastCompletedDrawStartedAt = prizePool.lastCompletedDrawStartedAt();
+        assertEq(prizePool.getNextDrawId(), 2);
+        vm.warp(_lastCompletedDrawStartedAt + (drawPeriodSeconds * 5) / 2);
+        assertEq(prizePool.nextDrawStartsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds);
+        assertEq(prizePool.nextDrawEndsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
+        completeAndStartNextDraw(winningRandomNumber);
+        assertEq(prizePool.getNextDrawId(), 3);
+    }
+
     // function testCalculatePrizeSize() public {
     //     contribute(100e18);
     //     prizePool.calculatePrizeSize();
