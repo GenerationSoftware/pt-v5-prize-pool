@@ -245,7 +245,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         uint64 nextExpectedStartTime = lastCompletedDrawStartedAt_ + (lastCompletedDrawId == 0 ? 0 : 1) * drawPeriodSeconds;
         uint64 nextExpectedEndTime = nextExpectedStartTime + drawPeriodSeconds;
         if (block.timestamp > nextExpectedEndTime) {
-            // Use integer division to get the number of draw periods passed since the expected end and now
+            // Use integer division to get the number of draw periods passed between the expected end time and now
             uint32 numMissedDraws = uint32((block.timestamp - nextExpectedEndTime) / drawPeriodSeconds);
             // Offset the start time by the total duration of the missed draws
             nextExpectedStartTime += drawPeriodSeconds * numMissedDraws;
@@ -258,7 +258,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         // If this is the first draw, we treat lastCompletedDrawStartedAt_ as the start of this draw
         uint64 nextExpectedEndTime = lastCompletedDrawStartedAt_ + (lastCompletedDrawId == 0 ? 1 : 2) * drawPeriodSeconds;
         if (block.timestamp > nextExpectedEndTime) {
-            // Use integer division to get the number of draw periods passed since the expected end and now
+            // Use integer division to get the number of draw periods passed between the expected end time and now
             uint32 numMissedDraws = uint32((block.timestamp - nextExpectedEndTime) / drawPeriodSeconds);
             // Offset the end time by the total duration of the missed draws
             nextExpectedEndTime += drawPeriodSeconds * numMissedDraws;
