@@ -35,15 +35,15 @@ contract TierCalculationLibTest is Test {
     }
 
     function testCalculateWinningZoneWithTierOdds() public {
-        assertEq(TierCalculationLib.calculateWinningZone(1000, sd(0.333e18), sd(1e18), toSD59x18(1)), 333);
+        assertEq(TierCalculationLib.calculateWinningZone(1000, sd(0.333e18), sd(1e18)), 333);
     }
 
     function testCalculateWinningZoneWithVaultPortion() public {
-        assertEq(TierCalculationLib.calculateWinningZone(1000, sd(1e18), sd(0.444e18), toSD59x18(1)), 444);
+        assertEq(TierCalculationLib.calculateWinningZone(1000, sd(1e18), sd(0.444e18)), 444);
     }
 
     function testCalculateWinningZoneWithPrizeCount() public {
-        assertEq(TierCalculationLib.calculateWinningZone(1000, sd(1e18), sd(1e18), toSD59x18(5)), 5000);
+        assertEq(TierCalculationLib.calculateWinningZone(1000, sd(1e18), sd(1e18)), 1000);
     }
 
     function testEstimatedClaimCount() public {
@@ -95,6 +95,48 @@ contract TierCalculationLibTest is Test {
         assertEq(wrapper.canaryPrizeCount(13, 10, 0, 100).unwrap(), 7223167804580152605671424);
         assertEq(wrapper.canaryPrizeCount(14, 10, 0, 100).unwrap(), 28747343160283687758594048);
         assertEq(wrapper.canaryPrizeCount(15, 10, 0, 100).unwrap(), 114485055406622515774095360);
+    }
+
+    function testIsWinner_WinsAll() external {
+        uint8 tier = 5;
+        uint8 numberOfTiers = 6;
+        vm.assume(tier < numberOfTiers);
+        uint256 grandPrizePeriod = 365;
+        SD59x18 tierOdds = TierCalculationLib.getTierOdds(tier, numberOfTiers, grandPrizePeriod);
+        // console2.log("tierOdds", SD59x18.unwrap(tierOdds));
+        uint32 prizeCount = uint32(TierCalculationLib.prizeCount(tier));
+        SD59x18 vaultContribution = toSD59x18(int256(1));
+        // console2.log("vaultContribution", SD59x18.unwrap(vaultContribution));
+
+        uint wins;
+        for (uint i = 0; i < prizeCount; i++) {
+            if (TierCalculationLib.isWinner(uint256(keccak256(abi.encode(i))), 1000, 1000, vaultContribution, tierOdds, prizeCount)) {
+                wins++;
+            }
+        }
+
+        assertApproxEqAbs(wins, prizeCount, 0);
+    }
+
+    function testIsWinner_HalfLiquidity() external {
+        uint8 tier = 5;
+        uint8 numberOfTiers = 6;
+        vm.assume(tier < numberOfTiers);
+        uint256 grandPrizePeriod = 365;
+        SD59x18 tierOdds = TierCalculationLib.getTierOdds(tier, numberOfTiers, grandPrizePeriod);
+        // console2.log("tierOdds", SD59x18.unwrap(tierOdds));
+        uint32 prizeCount = uint32(TierCalculationLib.prizeCount(tier));
+        SD59x18 vaultContribution = toSD59x18(int256(1));
+        // console2.log("vaultContribution", SD59x18.unwrap(vaultContribution));
+
+        uint wins;
+        for (uint i = 0; i < prizeCount; i++) {
+            if (TierCalculationLib.isWinner(uint256(keccak256(abi.encode(i))), 500, 1000, vaultContribution, tierOdds, prizeCount)) {
+                wins++;
+            }
+        }
+
+        assertApproxEqAbs(wins, prizeCount/2, 0);
     }
 
 }

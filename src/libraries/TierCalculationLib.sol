@@ -65,34 +65,23 @@ library TierCalculationLib {
     }
 
     /// @notice Determines if a user won a prize tier
-    /// @param _user The user to check
-    /// @param _tier The tier to check
+    /// @param _userSpecificRandomNumber The random number to use as entropy
     /// @param _userTwab The user's time weighted average balance
     /// @param _vaultTwabTotalSupply The vault's time weighted average total supply
-    /// @param _vaultPortion The portion of the prize that was contributed by the vault
+    /// @param _vaultContributionFraction The portion of the prize that was contributed by the vault
     /// @param _tierOdds The odds of the tier occurring
-    /// @param _tierPrizeCount The number of prizes for the tier
-    /// @param _winningRandomNumber The winning random number
     /// @return True if the user won the tier, false otherwise
     function isWinner(
-        address _user,
-        uint32 _tier,
-        uint256 _userTwab,
-        uint256 _vaultTwabTotalSupply,
-        SD59x18 _vaultPortion,
+        uint256 _userSpecificRandomNumber,
+        uint128 _userTwab,
+        uint128 _vaultTwabTotalSupply,
+        SD59x18 _vaultContributionFraction,
         SD59x18 _tierOdds,
-        SD59x18 _tierPrizeCount,
-        uint256 _winningRandomNumber
-    ) internal pure returns (bool) {
+        uint32 _tierPrizeCount
+    ) internal view returns (bool) {
         if (_vaultTwabTotalSupply == 0) {
             return false;
         }
-        /*
-            1. We generate a pseudo-random number that will be unique to the user and tier.
-            2. Fit the pseudo-random number within the vault total supply.
-        */
-        uint256 prn = calculatePseudoRandomNumber(_user, _tier, _winningRandomNumber) % _vaultTwabTotalSupply;
-
         /*
             The user-held portion of the total supply is the "winning zone". If the above pseudo-random number falls within the winning zone, the user has won this tier
 
@@ -101,34 +90,41 @@ library TierCalculationLib {
                 - Number of prizes
                 - Portion of prize that was contributed by the vault
         */
+        // first constrain the random number to be within the vault total supply
+        uint256 constrainedRandomNumber = _userSpecificRandomNumber % (_vaultTwabTotalSupply*_tierPrizeCount);
+        uint256 winningZone = calculateWinningZone(_userTwab*uint256(_tierPrizeCount), _vaultContributionFraction, _tierOdds);
 
-        uint256 winningZone = calculateWinningZone(_userTwab, _tierOdds, _vaultPortion, _tierPrizeCount);
-
-        return prn < winningZone;
+        return constrainedRandomNumber < winningZone;
     }
 
     /// @notice Calculates a pseudo-random number that is unique to the user, tier, and winning random number
     /// @param _user The user
     /// @param _tier The tier
+    /// @param _prizeIndex The particular prize index they are checking
     /// @param _winningRandomNumber The winning random number
     /// @return A pseudo-random number
-    function calculatePseudoRandomNumber(address _user, uint32 _tier, uint256 _winningRandomNumber) internal pure returns (uint256) {
-        return uint256(keccak256(abi.encode(_user, _tier, _winningRandomNumber)));
+    function calculatePseudoRandomNumber(
+        address _user,
+        uint32 _tier,
+        uint32 _prizeIndex,
+        uint256 _winningRandomNumber
+    ) internal pure returns (uint256) {
+        return uint256(keccak256(abi.encode(_user, _tier, _prizeIndex, _winningRandomNumber)));
     }
 
     /// @notice Calculates the winning zone for a user. If their pseudo-random number falls within this zone, they win the tier.
     /// @param _userTwab The user's time weighted average balance
-    /// @param _tierOdds The odds of the tier occurring
     /// @param _vaultContributionFraction The portion of the prize that was contributed by the vault
-    /// @param _prizeCount The number of prizes for the tier
+    /// @param _tierOdds The odds of the tier occurring
     /// @return The winning zone for the user.
     function calculateWinningZone(
         uint256 _userTwab,
-        SD59x18 _tierOdds,
         SD59x18 _vaultContributionFraction,
-        SD59x18 _prizeCount
+        SD59x18 _tierOdds
     ) internal pure returns (uint256) {
-        return uint256(fromSD59x18(sd(int256(_userTwab*1e18)).mul(_tierOdds).mul(_vaultContributionFraction).mul(_prizeCount)));
+        return uint256(fromSD59x18(
+            toSD59x18(int256(_userTwab)).mul(_tierOdds).mul(_vaultContributionFraction)
+        ));
     }
 
     /// @notice Computes the estimated number of prizes per draw given the number of tiers and the grand prize period.
