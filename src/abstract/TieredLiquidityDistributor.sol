@@ -260,6 +260,15 @@ contract TieredLiquidityDistributor {
     /// @notice Consumes liquidity from the given tier.
     /// @param _tierStruct The tier to consume liquidity from
     /// @param _tier The tier number
+    /// @param _liquidity The amount of liquidity to consume
+    /// @return An updated Tier struct after consumption
+    function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
+        _consumeLiquidity(_tierStruct, _tier, _computeShares(_tier, numberOfTiers), _liquidity);
+    }
+
+    /// @notice Consumes liquidity from the given tier.
+    /// @param _tierStruct The tier to consume liquidity from
+    /// @param _tier The tier number
     /// @param _shares The number of shares allocated to this tier
     /// @param _liquidity The amount of liquidity to consume
     /// @return An updated Tier struct after consumption

@@ -66,8 +66,15 @@ contract PrizePoolFuzzHarness is CommonBase {
 
     function claimPrizes() public {
         for (uint8 i = 0; i < prizePool.numberOfTiers(); i++) {
-            if (prizePool.isWinner(address(this), address(this), i) && !prizePool.wasClaimed(address(this), i)) {
-                claimed += prizePool.claimPrize(address(this), i, 0, address(0));
+            for (uint32 p = 0; p < prizePool.getTierPrizeCount(i); i++) {
+                if (prizePool.isWinner(address(this), address(this), i, p) && !prizePool.wasClaimed(address(this), i, p)) {
+                    address[] memory winners = new address[](1);
+                    winners[0] = address(this);
+                    uint32[][] memory prizeIndices = new uint32[][](1);
+                    prizeIndices[0] = new uint32[](1);
+                    prizeIndices[0][0] = p;
+                    claimed += prizePool.claimPrizes(i, winners, prizeIndices, 0, address(0));
+                }
             }
         }
     }
