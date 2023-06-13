@@ -57,7 +57,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     );
 
     /// @notice Emitted when a draw is completed.
-    /// @param drawId The ID of the draw that was claimed
+    /// @param drawId The ID of the draw that was completed
     /// @param winningRandomNumber The winning random number for the completed draw
     /// @param numTiers The number of prize tiers in the completed draw
     /// @param nextNumTiers The number of tiers for the next draw
