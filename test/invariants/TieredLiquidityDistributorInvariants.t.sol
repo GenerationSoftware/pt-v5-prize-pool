@@ -57,15 +57,15 @@ contract TieredLiquidityDistributorInvariants is Test {
     function expectedLiquidityDeltaRange(uint8 numberOfTiers) internal pure returns(uint256) {
         require(numberOfTiers >= 2, "DeltaRange/number of tiers too low");
         UD60x18 slope = toUD60x18(10).div(toUD60x18(13));
-        return 8 + fromUD60x18(slope.mul(toUD60x18(numberOfTiers - 2)).ceil());
+        return 10 + fromUD60x18(slope.mul(toUD60x18(numberOfTiers - 2)).ceil());
     }
 
     // Tests for the helper function
     function testDeltaRange_At2() external {
-        assertEq(expectedLiquidityDeltaRange(2), 8);
+        assertEq(expectedLiquidityDeltaRange(2), 10);
     }
 
     function testDeltaRange_At15() external {
-        assertEq(expectedLiquidityDeltaRange(15), 18);
+        assertEq(expectedLiquidityDeltaRange(15), 20);
     }
 }
