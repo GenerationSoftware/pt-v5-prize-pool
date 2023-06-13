@@ -208,7 +208,7 @@ contract TieredLiquidityDistributor {
         UD60x18 deltaPrizeTokensPerShare = toUD60x18(_prizeTokenLiquidity).div(toUD60x18(totalShares));
 
         newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
-        
+
         newReserve = uint104(
             fromUD60x18(deltaPrizeTokensPerShare.mul(toUD60x18(reserveShares))) + // reserve portion
             _getTierLiquidityToReclaim(_numberOfTiers, _nextNumberOfTiers, _currentPrizeTokenPerShare) + // reclaimed liquidity from tiers
@@ -228,6 +228,12 @@ contract TieredLiquidityDistributor {
             tier.prizeSize = uint96(_computePrizeSize(_tier, _numberOfTiers, fromUD34x4toUD60x18(tier.prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare)));
         }
         return tier;
+    }
+
+    /// @notice Computes the total shares in the system. That is `(number of tiers * tier shares) + canary shares + reserve shares`
+    /// @return The total shares
+    function getTotalShares() external view returns (uint256) {
+        return _getTotalShares(numberOfTiers);
     }
 
     /// @notice Computes the total shares in the system given the number of tiers. That is `(number of tiers * tier shares) + canary shares + reserve shares`
@@ -263,7 +269,7 @@ contract TieredLiquidityDistributor {
     /// @param _liquidity The amount of liquidity to consume
     /// @return An updated Tier struct after consumption
     function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
-        _consumeLiquidity(_tierStruct, _tier, _computeShares(_tier, numberOfTiers), _liquidity);
+        return _consumeLiquidity(_tierStruct, _tier, _computeShares(_tier, numberOfTiers), _liquidity);
     }
 
     /// @notice Consumes liquidity from the given tier.
@@ -349,6 +355,14 @@ contract TieredLiquidityDistributor {
         }
         reclaimedLiquidity = reclaimedLiquidity.add(_getRemainingTierLiquidity(canaryShares, fromUD34x4toUD60x18(_tiers[_numberOfTiers].prizeTokenPerShare), _prizeTokenPerShare));
         return fromUD60x18(reclaimedLiquidity);
+    }
+
+    /// @notice Computes the total liquidity available to a tier
+    /// @param _tier The tier to compute the liquidity for
+    /// @return The total liquidity
+    function getRemainingTierLiquidity(uint8 _tier) external view returns (uint256) {
+        uint8 _numTiers = numberOfTiers;
+        return fromUD60x18(_getRemainingTierLiquidity(_computeShares(_tier, _numTiers), fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare)));
     }
 
     /// @notice Computes the remaining tier liquidity

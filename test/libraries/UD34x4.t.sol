@@ -36,7 +36,7 @@ contract UD34x4Test is Test {
         assertEq(result.unwrap(), 100e18);
     }
 
-    function testIntoUD60x18_large() public {
+    function testIntoUD60x18_large() public pure {
         UD34x4 x = UD34x4.wrap(6004291579826925202373984590);
         intoUD60x18(x);
     }
