@@ -230,6 +230,12 @@ contract TieredLiquidityDistributor {
         return tier;
     }
 
+    /// @notice Computes the total shares in the system. That is `(number of tiers * tier shares) + canary shares + reserve shares`
+    /// @return The total shares
+    function getTotalShares() external view returns (uint256) {
+        return _getTotalShares(numberOfTiers);
+    }
+
     /// @notice Computes the total shares in the system given the number of tiers. That is `(number of tiers * tier shares) + canary shares + reserve shares`
     /// @param _numberOfTiers The number of tiers to calculate the total shares for
     /// @return The total shares
@@ -349,6 +355,14 @@ contract TieredLiquidityDistributor {
         }
         reclaimedLiquidity = reclaimedLiquidity.add(_getRemainingTierLiquidity(canaryShares, fromUD34x4toUD60x18(_tiers[_numberOfTiers].prizeTokenPerShare), _prizeTokenPerShare));
         return fromUD60x18(reclaimedLiquidity);
+    }
+
+    /// @notice Computes the total liquidity available to a tier
+    /// @param _tier The tier to compute the liquidity for
+    /// @return The total liquidity
+    function getRemainingTierLiquidity(uint8 _tier) external view returns (uint256) {
+        uint8 _numTiers = numberOfTiers;
+        return fromUD60x18(_getRemainingTierLiquidity(_computeShares(_tier, _numTiers), fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare)));
     }
 
     /// @notice Computes the remaining tier liquidity

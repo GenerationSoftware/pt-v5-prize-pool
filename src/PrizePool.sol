@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, toUD60x18, fromUD60x18, intoSD59x18 } from "prb-math/UD60x18.sol";
@@ -33,6 +34,7 @@ error FeeTooLarge(uint256 fee, uint256 maxFee);
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
 contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
+    using SafeERC20 for IERC20;
 
     /// @notice Emitted when a prize is claimed.
     /// @param drawId The draw ID of the draw that was claimed.
@@ -185,10 +187,6 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         return _deltaBalance;
     }
 
-    function _calculateTierPrizeCount(uint8 _tier, uint8 _numberOfTiers) internal view returns (uint32) {
-        return _tier != _numberOfTiers ? uint32(TierCalculationLib.prizeCount(_tier)) : _canaryPrizeCount(_numberOfTiers);
-    }
-
     /// @notice Computes how many tokens have been accounted for
     /// @return The balance of tokens that have been accounted for
     function _accountedBalance() internal view returns (uint256) {
@@ -252,41 +250,51 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /// @notice Returns the start time of the draw for the next successful completeAndStartNextDraw
     function _nextDrawStartsAt() internal view returns (uint64) {
-        // If this is the first draw, we treat _lastCompletedDrawAwardedAt as the start of this draw
-        uint64 nextExpectedStartTime = _lastCompletedDrawAwardedAt + (lastCompletedDrawId == 0 ? 0 : 1) * drawPeriodSeconds;
-        uint64 nextExpectedEndTime = nextExpectedStartTime + drawPeriodSeconds;
-        if (block.timestamp > nextExpectedEndTime) {
+        // If this is the first draw, we treat _lastCompletedDrawStartedAt as the start of this draw
+        uint64 _nextExpectedStartTime = _lastCompletedDrawStartedAt + (lastCompletedDrawId == 0 ? 0 : 1) * drawPeriodSeconds;
+        uint64 _nextExpectedEndTime = _nextExpectedStartTime + drawPeriodSeconds;
+
+        if (block.timestamp > _nextExpectedEndTime) {
             // Use integer division to get the number of draw periods passed between the expected end time and now
-            uint32 numMissedDraws = uint32((block.timestamp - nextExpectedEndTime) / drawPeriodSeconds);
             // Offset the start time by the total duration of the missed draws
-            nextExpectedStartTime += drawPeriodSeconds * numMissedDraws;
+            // drawPeriodSeconds * numMissedDraws
+            _nextExpectedStartTime += drawPeriodSeconds * (uint32((block.timestamp - _nextExpectedEndTime) / drawPeriodSeconds));
         }
-        return nextExpectedStartTime;
+
+        return _nextExpectedStartTime;
     }
 
     /// @notice Returns the time at which the next draw end.
     function _nextDrawEndsAt() internal view returns (uint64) {
-        // If this is the first draw, we treat _lastCompletedDrawAwardedAt as the start of this draw
-        uint64 nextExpectedEndTime = _lastCompletedDrawAwardedAt + (lastCompletedDrawId == 0 ? 1 : 2) * drawPeriodSeconds;
-        if (block.timestamp > nextExpectedEndTime) {
+        // If this is the first draw, we treat _lastCompletedDrawStartedAt as the start of this draw
+        uint64 _nextExpectedEndTime = _lastCompletedDrawStartedAt + (lastCompletedDrawId == 0 ? 1 : 2) * drawPeriodSeconds;
+
+        if (block.timestamp > _nextExpectedEndTime) {
             // Use integer division to get the number of draw periods passed between the expected end time and now
-            uint32 numMissedDraws = uint32((block.timestamp - nextExpectedEndTime) / drawPeriodSeconds);
             // Offset the end time by the total duration of the missed draws
-            nextExpectedEndTime += drawPeriodSeconds * numMissedDraws;
+            // drawPeriodSeconds * numMissedDraws
+            _nextExpectedEndTime += drawPeriodSeconds * (uint32((block.timestamp - _nextExpectedEndTime) / drawPeriodSeconds));
         }
-        return nextExpectedEndTime;
+
+        return _nextExpectedEndTime;
     }
 
     function _computeNextNumberOfTiers(uint8 _numTiers) internal view returns (uint8) {
-        uint8 nextNumberOfTiers = largestTierClaimed > MINIMUM_NUMBER_OF_TIERS ? largestTierClaimed + 1 : MINIMUM_NUMBER_OF_TIERS;
-        if (nextNumberOfTiers >= _numTiers) { // check to see if we need to expand the number of tiers
-            if (canaryClaimCount >= _canaryClaimExpansionThreshold(claimExpansionThreshold, _numTiers) &&
-                claimCount >= _prizeClaimExpansionThreshold(claimExpansionThreshold, _numTiers)) {
+        UD2x18 _claimExpansionThreshold = claimExpansionThreshold;
+        uint8 _nextNumberOfTiers = largestTierClaimed > MINIMUM_NUMBER_OF_TIERS ? largestTierClaimed + 1 : MINIMUM_NUMBER_OF_TIERS;
+
+        // check to see if we need to expand the number of tiers
+        if (_nextNumberOfTiers >= _numTiers) {
+            if (
+                canaryClaimCount >= fromUD60x18(intoUD60x18(_claimExpansionThreshold).mul(_canaryPrizeCountFractional(_numTiers).floor()))&&
+                claimCount >= fromUD60x18(intoUD60x18(_claimExpansionThreshold).mul(toUD60x18(_estimatedPrizeCount(_numTiers))))
+            ) {
                 // increase the number of tiers to include a new tier
-                nextNumberOfTiers = _numTiers + 1;
+                _nextNumberOfTiers = _numTiers + 1;
             }
         }
-        return nextNumberOfTiers;
+
+        return _nextNumberOfTiers;
     }
 
     /// @notice Allows the Manager to complete the current prize period and starts the next one, updating the number of tiers, the winning random number, and the prize pool reserve
@@ -297,16 +305,16 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         require(winningRandomNumber_ != 0, "num invalid");
         require(block.timestamp >= _nextDrawEndsAt(), "not elapsed");
 
-        uint8 numTiers = numberOfTiers;
-        uint8 nextNumberOfTiers = numTiers;
+        uint8 _numTiers = numberOfTiers;
+        uint8 _nextNumberOfTiers = _numTiers;
 
         if (lastCompletedDrawId != 0) {
-            nextNumberOfTiers = _computeNextNumberOfTiers(numTiers);
+            _nextNumberOfTiers = _computeNextNumberOfTiers(_numTiers);
         }
 
         uint64 nextDrawStartsAt_ = _nextDrawStartsAt();
 
-        _nextDraw(nextNumberOfTiers, uint96(_contributionsForDraw(lastCompletedDrawId+1)));
+        _nextDraw(_nextNumberOfTiers, uint96(_contributionsForDraw(lastCompletedDrawId + 1)));
 
         _winningRandomNumber = winningRandomNumber_;
         claimCount = 0;
@@ -322,30 +330,21 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @dev Intended for Draw manager to use after the draw has ended but not yet been completed.
     /// @return The amount of prize tokens that will be added to the reserve
     function reserveForNextDraw() external view returns (uint256) {
-        uint8 numTiers = numberOfTiers;
-        uint8 nextNumberOfTiers = numTiers;
+        uint8 _numTiers = numberOfTiers;
+        uint8 _nextNumberOfTiers = _numTiers;
+
         if (lastCompletedDrawId != 0) {
-            nextNumberOfTiers = _computeNextNumberOfTiers(numTiers);
+            _nextNumberOfTiers = _computeNextNumberOfTiers(_numTiers);
         }
-        (, uint104 newReserve, ) = _computeNewDistributions(numTiers, nextNumberOfTiers, uint96(_contributionsForDraw(lastCompletedDrawId+1)));
+
+        (, uint104 newReserve, ) = _computeNewDistributions(_numTiers, _nextNumberOfTiers, uint96(_contributionsForDraw(lastCompletedDrawId+1)));
+
         return newReserve;
     }
 
     /// @notice Computes the tokens to be disbursed from the accumulator for a given draw.
     function _contributionsForDraw(uint32 _drawId) internal view returns (uint256) {
         return DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _drawId, _drawId, smoothing.intoSD59x18());
-    }
-
-    /// @notice Computes the number of canary prizes that must be claimed to trigger the threshold
-    /// @return The number of canary prizes
-    function _canaryClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
-        return fromUD60x18(intoUD60x18(_claimExpansionThreshold).mul(_canaryPrizeCountFractional(_numberOfTiers).floor()));
-    }
-
-    /// @notice Computes the number of prizes that must be claimed to trigger the threshold
-    /// @return The number of prizes
-    function _prizeClaimExpansionThreshold(UD2x18 _claimExpansionThreshold, uint8 _numberOfTiers) internal view returns (uint256) {
-        return fromUD60x18(intoUD60x18(_claimExpansionThreshold).mul(toUD60x18(_estimatedPrizeCount(_numberOfTiers))));
     }
 
     /// @notice Calculates the total liquidity available for the current completed draw.
@@ -393,8 +392,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
             revert FeeTooLarge(_feePerPrizeClaim, tierLiquidity.prizeSize);
         }
 
-        uint96 payout = tierLiquidity.prizeSize - _feePerPrizeClaim;
-        uint32 prizeClaimCount = _claimPrizes(msg.sender, _tier, _winners, _prizeIndices, payout, _feePerPrizeClaim, _feeRecipient);
+        uint32 prizeClaimCount = _claimPrizes(msg.sender, _tier, _winners, _prizeIndices, tierLiquidity.prizeSize - _feePerPrizeClaim, _feePerPrizeClaim, _feeRecipient);
 
         if (_tier == numberOfTiers) {
             canaryClaimCount += prizeClaimCount;
@@ -424,12 +422,14 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         uint96 _feePerPrizeClaim,
         address _feeRecipient
     ) internal returns (uint32) {
-        uint32 prizeClaimCount = 0;
-        (SD59x18 vaultPortion, SD59x18 tierOdds, uint32 drawDuration) = _computeVaultTierDetails(_vault, _tier, numberOfTiers, lastCompletedDrawId);
+        uint32 _prizeClaimCount = 0;
+        (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint32 _drawDuration) = _computeVaultTierDetails(_vault, _tier, numberOfTiers, lastCompletedDrawId);
+
         for (uint winnerIndex = 0; winnerIndex < _winners.length; winnerIndex++) {
-            prizeClaimCount += _claimWinnerPrizes(_vault, _tier, _winners[winnerIndex], _prizeIndices[winnerIndex], _payout, _feePerPrizeClaim, _feeRecipient, vaultPortion, tierOdds, drawDuration);
+            _prizeClaimCount += _claimWinnerPrizes(_vault, _tier, _winners[winnerIndex], _prizeIndices[winnerIndex], _payout, _feePerPrizeClaim, _feeRecipient, _vaultPortion, _tierOdds, _drawDuration);
         }
-        return prizeClaimCount;
+
+        return _prizeClaimCount;
     }
 
     function _claimWinnerPrizes(
@@ -440,27 +440,31 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         uint96 _payout,
         uint96 _feePerPrizeClaim,
         address _feeRecipient,
-        SD59x18 vaultPortion,
-        SD59x18 tierOdds,
-        uint32 drawDuration
+        SD59x18 _vaultPortion,
+        SD59x18 _tierOdds,
+        uint32 _drawDuration
     ) internal returns (uint32) {
-        for (uint prizeArrayIndex = 0; prizeArrayIndex < _prizeIndices.length; prizeArrayIndex++) {
-            if (!_isWinner(_vault, _winner, _tier, _prizeIndices[prizeArrayIndex], vaultPortion, tierOdds, drawDuration)) {
-                revert DidNotWin(_winner, _vault, _tier, _prizeIndices[prizeArrayIndex]);
+        for (uint256 _prizeArrayIndex = 0; _prizeArrayIndex < _prizeIndices.length; _prizeArrayIndex++) {
+            if (!_isWinner(_vault, _winner, _tier, _prizeIndices[_prizeArrayIndex], _vaultPortion, _tierOdds, _drawDuration)) {
+                revert DidNotWin(_winner, _vault, _tier, _prizeIndices[_prizeArrayIndex]);
             }
-            if (claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndices[prizeArrayIndex]]) {
+
+            if (claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndices[_prizeArrayIndex]]) {
                 revert AlreadyClaimedPrize(_winner, _tier);
             }
-            claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndices[prizeArrayIndex]] = true;
+
+            claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndices[_prizeArrayIndex]] = true;
             _transfer(_winner, _payout);
+
             emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(_payout), _feePerPrizeClaim, _feeRecipient);
         }
+
         return uint32(_prizeIndices.length);
     }
 
     function _transfer(address _to, uint256 _amount) internal {
         _totalWithdrawn += _amount;
-        prizeToken.transfer(_to, _amount);
+        prizeToken.safeTransfer(_to, _amount);
     }
 
     /**
@@ -469,10 +473,12 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     * @param _amount The amount of claim fees to withdraw
     */
     function withdrawClaimRewards(address _to, uint256 _amount) external {
-        uint256 available = claimerRewards[msg.sender];
-        if (_amount > available) {
-            revert InsufficientRewardsError(_amount, available);
+        uint256 _available = claimerRewards[msg.sender];
+
+        if (_amount > _available) {
+            revert InsufficientRewardsError(_amount, _available);
         }
+
         claimerRewards[msg.sender] -= _amount;
         _transfer(_to, _amount);
     }
@@ -519,8 +525,11 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         SD59x18 _tierOdds,
         uint32 _drawDuration
     ) internal view returns (bool) {
-        uint32 tierPrizeCount = _calculateTierPrizeCount(_tier, numberOfTiers);
+        uint8 _numberOfTiers = numberOfTiers;
+        uint32 tierPrizeCount = _tier != _numberOfTiers ? uint32(TierCalculationLib.prizeCount(_tier)) : _canaryPrizeCount(_numberOfTiers);
+
         require(_prizeIndex < tierPrizeCount, "invalid prize index");
+
         uint256 userSpecificRandomNumber = TierCalculationLib.calculatePseudoRandomNumber(_user, _tier, _prizeIndex, _winningRandomNumber);
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, _drawDuration);
 
@@ -530,11 +539,15 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     function _computeVaultTierDetails(address _vault, uint8 _tier, uint8 _numberOfTiers, uint32 _lastCompletedDrawId) internal view returns (SD59x18 vaultPortion, SD59x18 tierOdds, uint32 drawDuration) {
         require(_lastCompletedDrawId > 0, "no draw");
         require(_tier <= _numberOfTiers, "invalid tier");
+
         tierOdds = TierCalculationLib.getTierOdds(_tier, _numberOfTiers, grandPrizePeriodDraws);
         drawDuration = uint32(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, _numberOfTiers, grandPrizePeriodDraws));
-        uint32 startDrawIdIncluding = uint32(drawDuration > _lastCompletedDrawId ? 0 : _lastCompletedDrawId-drawDuration+1);
-        uint32 endDrawIdIncluding = _lastCompletedDrawId + 1;
-        vaultPortion = _getVaultPortion(_vault, startDrawIdIncluding, endDrawIdIncluding, smoothing.intoSD59x18());
+        vaultPortion = _getVaultPortion(
+            _vault,
+            uint32(drawDuration > _lastCompletedDrawId ? 0 : _lastCompletedDrawId - drawDuration + 1),
+            _lastCompletedDrawId + 1,
+            smoothing.intoSD59x18()
+        );
     }
 
     /***
@@ -543,9 +556,10 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     * @return The start and end timestamps of the TWAB.
     */
     function calculateTierTwabTimestamps(uint8 _tier) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
-        uint256 drawDuration = TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws);
         endTimestamp = _lastCompletedDrawStartedAt + drawPeriodSeconds;
-        startTimestamp = uint64(endTimestamp - drawDuration * drawPeriodSeconds);
+
+        // endTimestamp - (drawDuration * drawPeriodSeconds)
+        startTimestamp = uint64(endTimestamp - TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws) * drawPeriodSeconds);
     }
 
     /**
@@ -558,20 +572,20 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     * @return twabTotalSupply The TWAB total supply over the specified period.
     */
     function _getVaultUserBalanceAndTotalSupplyTwab(address _vault, address _user, uint256 _drawDuration) internal view returns (uint256 twab, uint256 twabTotalSupply) {
-        uint32 endTimestamp = uint32(_lastCompletedDrawStartedAt + drawPeriodSeconds);
-        uint32 startTimestamp = uint32(endTimestamp - _drawDuration * drawPeriodSeconds);
+        uint32 _endTimestamp = uint32(_lastCompletedDrawStartedAt + drawPeriodSeconds);
+        uint32 _startTimestamp = uint32(_endTimestamp - _drawDuration * drawPeriodSeconds);
 
         twab = twabController.getTwabBetween(
             _vault,
             _user,
-            startTimestamp,
-            endTimestamp
+            _startTimestamp,
+            _endTimestamp
         );
 
         twabTotalSupply = twabController.getTotalSupplyTwabBetween(
             _vault,
-            startTimestamp,
-            endTimestamp
+            _startTimestamp,
+            _endTimestamp
         );
     }
 
@@ -589,16 +603,19 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /**
     * @notice Calculates the portion of the vault's contribution to the prize pool over a specified duration in draws.
     * @param _vault The address of the vault for which to calculate the portion.
-    * @param startDrawId The starting draw ID (inclusive) of the draw range to calculate the contribution portion for.
-    * @param endDrawId The ending draw ID (inclusive) of the draw range to calculate the contribution portion for.
+    * @param _startDrawId The starting draw ID (inclusive) of the draw range to calculate the contribution portion for.
+    * @param _endDrawId The ending draw ID (inclusive) of the draw range to calculate the contribution portion for.
     * @param _smoothing The smoothing value to use for calculating the portion.
     * @return The portion of the vault's contribution to the prize pool over the specified duration in draws.
     */
-    function _getVaultPortion(address _vault, uint32 startDrawId, uint32 endDrawId, SD59x18 _smoothing) internal view returns (SD59x18) {
-        uint256 vaultContributed = DrawAccumulatorLib.getDisbursedBetween(vaultAccumulator[_vault], startDrawId, endDrawId, _smoothing);
-        uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, startDrawId, endDrawId, _smoothing);
+    function _getVaultPortion(address _vault, uint32 _startDrawId, uint32 _endDrawId, SD59x18 _smoothing) internal view returns (SD59x18) {
+        uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawId, _endDrawId, _smoothing);
+
         if (totalContributed != 0) {
-            return sd(int256(vaultContributed)).div(sd(int256(totalContributed)));
+            // vaultContributed / totalContributed
+            return sd(int256(
+                DrawAccumulatorLib.getDisbursedBetween(vaultAccumulator[_vault], _startDrawId, _endDrawId, _smoothing)
+            )).div(sd(int256(totalContributed)));
         } else {
             return sd(0);
         }
@@ -613,40 +630,24 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         argument. The function then returns the resulting SD59x18 value representing the portion of the
         vault's contributions.
         @param _vault The address of the vault to calculate the contribution portion for.
-        @param startDrawId The starting draw ID of the draw range to calculate the contribution portion for.
-        @param endDrawId The ending draw ID of the draw range to calculate the contribution portion for.
+        @param _startDrawId The starting draw ID of the draw range to calculate the contribution portion for.
+        @param _endDrawId The ending draw ID of the draw range to calculate the contribution portion for.
         @return The portion of the _vault's contributions in the given draw range as an SD59x18 value.
     */
-    function getVaultPortion(address _vault, uint32 startDrawId, uint32 endDrawId) external view returns (SD59x18) {
-        return _getVaultPortion(_vault, startDrawId, endDrawId, smoothing.intoSD59x18());
+    function getVaultPortion(address _vault, uint32 _startDrawId, uint32 _endDrawId) external view returns (SD59x18) {
+        return _getVaultPortion(_vault, _startDrawId, _endDrawId, smoothing.intoSD59x18());
     }
 
     /// @notice Calculates the prize size for the given tier
     /// @param _tier The tier to calculate the prize size for
     /// @return The prize size
     function calculatePrizeSize(uint8 _tier) external view returns (uint256) {
-        uint8 numTiers = numberOfTiers;
-        if (lastCompletedDrawId == 0 || _tier > numTiers) {
+        uint8 _numTiers = numberOfTiers;
+
+        if (lastCompletedDrawId == 0 || _tier > _numTiers) {
             return 0;
         }
-        Tier memory tierLiquidity = _getTier(_tier, numTiers);
-        return _computePrizeSize(_tier, numTiers, fromUD34x4toUD60x18(tierLiquidity.prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare));
-    }
 
-    /// @notice Computes the total liquidity available to a tier
-    /// @param _tier The tier to compute the liquidity for
-    /// @return The total liquidity
-    function getRemainingTierLiquidity(uint8 _tier) external view returns (uint256) {
-        uint8 numTiers = numberOfTiers;
-        uint8 shares = _computeShares(_tier, numTiers);
-        Tier memory tier = _getTier(_tier, numTiers);
-        return fromUD60x18(_getRemainingTierLiquidity(shares, fromUD34x4toUD60x18(tier.prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare)));
+        return _computePrizeSize(_tier, _numTiers, fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare));
     }
-
-    /// @notice Computes the total shares in the system. That is `(number of tiers * tier shares) + canary shares + reserve shares`
-    /// @return The total shares
-    function getTotalShares() external view returns (uint256) {
-        return _getTotalShares(numberOfTiers);
-    }
-
 }
