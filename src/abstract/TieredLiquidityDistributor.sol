@@ -216,6 +216,13 @@ contract TieredLiquidityDistributor {
         );
     }
 
+    /// @notice Returns the prize size for the given tier
+    /// @param _tier The tier to retrieve
+    /// @return The prize size for the tier
+    function getTierPrizeSize(uint8 _tier) external view returns (uint96) {
+        return _getTier(_tier, numberOfTiers).prizeSize;
+    }
+
     /// @notice Retrieves an up-to-date Tier struct for the given tier
     /// @param _tier The tier to retrieve
     /// @param _numberOfTiers The number of tiers, should match the current. Passed explicitly as an optimization
