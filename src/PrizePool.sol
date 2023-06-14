@@ -684,17 +684,4 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     function getVaultPortion(address _vault, uint32 _startDrawId, uint32 _endDrawId) external view returns (SD59x18) {
         return _getVaultPortion(_vault, _startDrawId, _endDrawId, smoothing.intoSD59x18());
     }
-
-    /// @notice Calculates the prize size for the given tier
-    /// @param _tier The tier to calculate the prize size for
-    /// @return The prize size
-    function calculatePrizeSize(uint8 _tier) external view returns (uint256) {
-        uint8 _numTiers = numberOfTiers;
-
-        if (lastCompletedDrawId == 0 || _tier > _numTiers) {
-            return 0;
-        }
-
-        return _computePrizeSize(_tier, _numTiers, fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare), fromUD34x4toUD60x18(prizeTokenPerShare));
-    }
 }

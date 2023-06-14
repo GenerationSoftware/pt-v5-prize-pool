@@ -454,47 +454,6 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.getTotalShares(), 220);
     }
 
-    function testCalculatePrizeSize_noDraw() public {
-        assertEq(prizePool.calculatePrizeSize(4), 0);
-    }
-
-    function testCalculatePrizeSize_invalidTier() public {
-        contribute(100e18);
-        completeAndStartNextDraw(winningRandomNumber);
-        assertEq(prizePool.calculatePrizeSize(4), 0);
-    }
-
-    function testCalculatePrizeSize_grandPrize() public {
-        contribute(220e18);
-        completeAndStartNextDraw(winningRandomNumber);
-        assertEq(prizePool.calculatePrizeSize(0), 10e18);
-    }
-
-    function testCalculatePrizeSize_canary() public {
-        contribute(220e18);
-        completeAndStartNextDraw(winningRandomNumber);
-        assertEq(prizePool.getRemainingTierLiquidity(2), 1e18, "canary total liquidity");
-        // canary liquidity = 22 * (10/220.0) = 1
-
-        // assumed expansion liquidity = 22 * (100/320.0) = 6.875
-        // expansion prize size: 6.875 / 16 = 0.433
-
-        assertEq(prizePool.calculatePrizeSize(2), 0.429687500000000001e18, "canary prize size");
-    }
-
-    function testCalculatePrizeSize_secondDraw() public {
-        contribute(100e18);
-        completeAndStartNextDraw(winningRandomNumber);
-        assertEq(prizePool.calculatePrizeSize(0), 4.545454545454545454e18, "first draw first tier");
-        assertEq(prizePool.calculatePrizeSize(1), 1.136363636363636363e18, "first draw second tier");
-        completeAndStartNextDraw(winningRandomNumber);
-        // an additional 9e18 is unlocked, so previous prize carries over
-        // tier 0 = 100/220 * 9e18 + 4.5454545454545454e18 = 8.636363636363637e18
-        // tier 1 = (100/220 * 9e18)/4 + 1.136363636363636350e18 = 2.1590909090909092e18
-        assertEq(prizePool.calculatePrizeSize(0), 8.636363636363635772e18, "second draw first tier");
-        assertEq(prizePool.calculatePrizeSize(1), 2.159090909090908943e18, "second draw second tier");
-    }
-
     function testGetRemainingTierLiquidity_invalidTier() public {
         assertEq(prizePool.getRemainingTierLiquidity(10), 0);
     }
