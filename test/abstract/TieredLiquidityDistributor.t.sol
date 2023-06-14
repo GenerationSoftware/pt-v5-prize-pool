@@ -76,4 +76,13 @@ contract TieredLiquidityDistributorTest is Test {
         vm.expectRevert(abi.encodeWithSelector(InsufficientLiquidity.selector, 120e18));
         distributor.consumeLiquidity(1, 120e18);
     }
+
+    function testGetTierPrizeSize_noDraw() public {
+        assertEq(distributor.getTierPrizeSize(4), 0);
+    }
+
+    function testGetTierPrizeSize_grandPrize() public {
+        distributor.nextDraw(2, 220e18);
+        assertEq(distributor.getTierPrizeSize(0), 100e18);
+    }
 }
