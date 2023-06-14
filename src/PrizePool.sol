@@ -367,7 +367,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         _lastCompletedDrawStartedAt = nextDrawStartsAt_;
         _lastCompletedDrawAwardedAt = uint64(block.timestamp);
 
-        emit DrawCompleted(lastCompletedDrawId, winningRandomNumber_, numTiers, nextNumberOfTiers);
+        emit DrawCompleted(lastCompletedDrawId, winningRandomNumber_, _numTiers, _nextNumberOfTiers);
 
         return lastCompletedDrawId;
     }
@@ -527,7 +527,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
         claimerRewards[msg.sender] -= _amount;
         _transfer(_to, _amount);
-        emit WithdrawClaimRewards(_to, _amount, available);
+        emit WithdrawClaimRewards(_to, _amount, _available);
     }
 
     /**
