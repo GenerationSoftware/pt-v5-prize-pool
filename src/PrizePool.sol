@@ -36,6 +36,8 @@ error FeeTooLarge(uint256 fee, uint256 maxFee);
 contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     using SafeERC20 for IERC20;
 
+    using SafeERC20 for IERC20;
+
     /// @notice Emitted when a prize is claimed.
     /// @param drawId The draw ID of the draw that was claimed.
     /// @param vault The address of the vault that claimed the prize.
@@ -52,6 +54,46 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         uint152 payout,
         uint96 fee,
         address feeRecipient
+    );
+
+    /// @notice Emitted when a draw is completed.
+    /// @param drawId The ID of the draw that was completed
+    /// @param winningRandomNumber The winning random number for the completed draw
+    /// @param numTiers The number of prize tiers in the completed draw
+    /// @param nextNumTiers The number of tiers for the next draw
+    event DrawCompleted(
+        uint32 indexed drawId,
+        uint256 winningRandomNumber,
+        uint8 numTiers,
+        uint8 nextNumTiers
+    );
+
+    /// @notice Emitted when any amount of the reserve is withdrawn.
+    /// @param to The address the assets are transferred to
+    /// @param amount The amount of assets transferred
+    event WithdrawReserve(
+        address indexed to,
+        uint256 amount
+    );
+
+    /// @notice Emitted when a vault contributes prize tokens to the pool.
+    /// @param vault The address of the vault that is contributing tokens
+    /// @param drawId The ID of the first draw that the tokens will be applied to
+    /// @param amount The amount of tokens contributed
+    event ContributePrizeTokens(
+        address indexed vault,
+        uint32 indexed drawId,
+        uint256 amount
+    );
+
+    /// @notice Emitted when an address withdraws their claim rewards
+    /// @param to The address the rewards are sent to
+    /// @param amount The amount withdrawn
+    /// @param available The total amount that was available to withdraw before the transfer
+    event WithdrawClaimRewards(
+        address indexed to,
+        uint256 amount,
+        uint256 available
     );
 
     /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault
@@ -184,6 +226,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         require(_deltaBalance >=  _amount, "PP/deltaBalance-gte-amount");
         DrawAccumulatorLib.add(vaultAccumulator[_prizeVault], _amount, lastCompletedDrawId + 1, smoothing.intoSD59x18());
         DrawAccumulatorLib.add(totalAccumulator, _amount, lastCompletedDrawId + 1, smoothing.intoSD59x18());
+        emit ContributePrizeTokens(_prizeVault, lastCompletedDrawId + 1, _amount);
         return _deltaBalance;
     }
 
@@ -231,6 +274,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         require(_amount <= _reserve, "insuff");
         _reserve -= _amount;
         _transfer(_to, _amount);
+        emit WithdrawReserve(_to, _amount);
     }
 
     /// @notice Returns whether the next draw has finished
@@ -322,6 +366,8 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         largestTierClaimed = 0;
         _lastCompletedDrawStartedAt = nextDrawStartsAt_;
         _lastCompletedDrawAwardedAt = uint64(block.timestamp);
+
+        emit DrawCompleted(lastCompletedDrawId, winningRandomNumber_, _numTiers, _nextNumberOfTiers);
 
         return lastCompletedDrawId;
     }
@@ -481,6 +527,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
         claimerRewards[msg.sender] -= _amount;
         _transfer(_to, _amount);
+        emit WithdrawClaimRewards(_to, _amount, _available);
     }
 
     /**

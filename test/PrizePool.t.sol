@@ -36,6 +36,50 @@ contract PrizePoolTest is Test {
     uint256 winningRandomNumber = 123456;
     uint256 startTimestamp = 1000 days;
 
+    /**********************************************************************************
+     * Events copied from PrizePool.sol
+     **********************************************************************************/
+    /// @notice Emitted when a draw is completed.
+    /// @param drawId The ID of the draw that was claimed
+    /// @param winningRandomNumber The winning random number for the completed draw
+    /// @param numTiers The number of prize tiers in the completed draw
+    /// @param nextNumTiers The number of tiers for the next draw
+    event DrawCompleted(
+        uint32 indexed drawId,
+        uint256 winningRandomNumber,
+        uint8 numTiers,
+        uint8 nextNumTiers
+    );
+
+    /// @notice Emitted when any amount of the reserve is withdrawn.
+    /// @param to The address the assets are transferred to
+    /// @param amount The amount of assets transferred
+    event WithdrawReserve(
+        address indexed to,
+        uint256 amount
+    );
+
+    /// @notice Emitted when a vault contributes prize tokens to the pool.
+    /// @param vault The address of the vault that is contributing tokens
+    /// @param drawId The ID of the first draw that the tokens will be applied to
+    /// @param amount The amount of tokens contributed
+    event ContributePrizeTokens(
+        address indexed vault,
+        uint32 indexed drawId,
+        uint256 amount
+    );
+
+    /// @notice Emitted when an address withdraws their claim rewards
+    /// @param to The address the rewards are sent to
+    /// @param amount The amount withdrawn
+    /// @param available The total amount that was available to withdraw before the transfer
+    event WithdrawClaimRewards(
+        address indexed to,
+        uint256 amount,
+        uint256 available
+    );
+    /**********************************************************************************/
+
     function setUp() public {
         vm.warp(startTimestamp);
 
@@ -109,6 +153,8 @@ contract PrizePoolTest is Test {
         contribute(220e18);
         completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizeToken.balanceOf(address(this)), 0);
+        vm.expectEmit();
+        emit WithdrawReserve(address(this), 1e18);
         prizePool.withdrawReserve(address(this), 1e18);
         assertEq(prizeToken.balanceOf(address(this)), 1e18);
     }
@@ -142,6 +188,13 @@ contract PrizePoolTest is Test {
     function testContributePrizeTokens() public {
         contribute(100);
         assertEq(prizeToken.balanceOf(address(prizePool)), 100);
+    }
+
+    function testContributePrizeTokens_emitsEvent() public {
+        prizeToken.mint(address(prizePool), 100);
+        vm.expectEmit();
+        emit ContributePrizeTokens(address(this), 1, 100);
+        prizePool.contributePrizeTokens(address(this), 100);
     }
 
     function testAccountedBalance_withdrawnReserve() public {
@@ -342,6 +395,9 @@ contract PrizePoolTest is Test {
         mockTwab(address(this), 0);
         claimPrize(address(this), 0, 0);
 
+        vm.expectEmit();
+        emit DrawCompleted(2, 4567, 4, 2);
+
         completeAndStartNextDraw(4567);
         // reclaimed tier 2, 3, and canary.  22e18 in total.
         // draw 2 has 37.8.  Reserve is 10/220.0 * 37.8e18 = 1.718181818181818e18
@@ -371,6 +427,9 @@ contract PrizePoolTest is Test {
         mockTwab(sender6, 2);
         claimPrize(sender6, 2, 0);
 
+        vm.expectEmit();
+        emit DrawCompleted(2, 245, 2, 3);
+
         completeAndStartNextDraw(245);
         assertEq(prizePool.numberOfTiers(), 3);
     }
@@ -383,6 +442,12 @@ contract PrizePoolTest is Test {
 
         mockTwab(sender5, 1);
         assertTrue(claimPrize(sender5, 1, 0) > 0, "has prize");
+    }
+
+    function testCompleteAndStartNextDraw_emitsEvent() public {
+        vm.expectEmit();
+        emit DrawCompleted(1, 12345, 2, 2);
+        completeAndStartNextDraw(12345);
     }
 
     function testGetTotalShares() public {
@@ -629,7 +694,7 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.lastCompletedDrawAwardedAt(), targetTimestamp);
     }
 
-    function testhasNextDrawFinished() public {
+    function testHasNextDrawFinished() public {
         assertEq(prizePool.hasNextDrawFinished(), false);
         vm.warp(prizePool.nextDrawEndsAt() - 1);
         assertEq(prizePool.hasNextDrawFinished(), false);
@@ -637,7 +702,7 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.hasNextDrawFinished(), true);
     }
 
-    function testwithdrawClaimRewards_sufficient() public {
+    function testWithdrawClaimRewards_sufficient() public {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
@@ -646,9 +711,26 @@ contract PrizePoolTest is Test {
         assertEq(prizeToken.balanceOf(address(this)), 1e18);
     }
 
-    function testwithdrawClaimRewards_insufficient() public {
+    function testWithdrawClaimRewards_insufficient() public {
         vm.expectRevert(abi.encodeWithSelector(InsufficientRewardsError.selector, 1e18, 0));
         prizePool.withdrawClaimRewards(address(this), 1e18);
+    }
+
+    function testWithdrawClaimRewards_emitsEvent() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, 0);
+
+        address[] memory winners = new address[](1);
+        winners[0] = msg.sender;
+        uint32[][] memory prizeIndices = new uint32[][](1);
+        prizeIndices[0] = new uint32[](1);
+        prizeIndices[0][0] = 0;
+        prizePool.claimPrizes(0, winners, prizeIndices, 1e18, address(this));
+
+        vm.expectEmit();
+        emit WithdrawClaimRewards(address(this), 5e17, 1e18);
+        prizePool.withdrawClaimRewards(address(this), 5e17);
     }
 
     function testNextDrawStartsAt_zeroDraw() public {
