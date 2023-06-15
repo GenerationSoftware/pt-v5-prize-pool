@@ -24,7 +24,7 @@ error AlreadyClaimedPrize(address winner, uint8 tier);
 /// @notice Emitted when someone tries to withdraw too many rewards
 error InsufficientRewardsError(uint256 requested, uint256 available);
 
-/// @notice Emitted when an address did not the specified prize on a vault
+/// @notice Emitted when an address did not win the specified prize on a vault
 error DidNotWin(address winner, address vault, uint8 tier, uint32 prize);
 
 /// @notice Emitted when a proposed fee larger than the max
