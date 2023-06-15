@@ -329,18 +329,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
 
     /// @notice Returns the start time of the draw for the next successful completeAndStartNextDraw
     function _nextDrawStartsAt() internal view returns (uint64) {
-        // If this is the first draw, we treat _lastCompletedDrawStartedAt as the start of this draw
-        uint64 _nextExpectedStartTime = _lastCompletedDrawStartedAt + (lastCompletedDrawId == 0 ? 0 : 1) * drawPeriodSeconds;
-        uint64 _nextExpectedEndTime = _nextExpectedStartTime + drawPeriodSeconds;
-
-        if (block.timestamp > _nextExpectedEndTime) {
-            // Use integer division to get the number of draw periods passed between the expected end time and now
-            // Offset the start time by the total duration of the missed draws
-            // drawPeriodSeconds * numMissedDraws
-            _nextExpectedStartTime += drawPeriodSeconds * (uint32((block.timestamp - _nextExpectedEndTime) / drawPeriodSeconds));
-        }
-
-        return _nextExpectedStartTime;
+        return _nextDrawEndsAt() - drawPeriodSeconds;
     }
 
     /// @notice Returns the time at which the next draw end.
