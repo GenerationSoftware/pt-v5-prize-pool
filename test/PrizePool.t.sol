@@ -108,6 +108,23 @@ contract PrizePoolTest is Test {
         vault = address(this);
     }
 
+    function testConstructor_SmoothingOutOfBounds() public {
+        vm.expectRevert(abi.encodeWithSelector(SmoothingOutOfBounds.selector, 1000000000000000000));
+        new PrizePool(
+            prizeToken,
+            twabController,
+            uint32(365),
+            drawPeriodSeconds,
+            lastCompletedDrawStartedAt,
+            uint8(2),
+            100,
+            10,
+            10,
+            ud2x18(0.9e18),
+            sd1x18(1.0e18) // smoothing
+        );
+    }
+
     function testReserve_noRemainder() public {
         contribute(220e18);
         completeAndStartNextDraw(winningRandomNumber);
@@ -194,6 +211,11 @@ contract PrizePoolTest is Test {
         prizeToken.mint(address(prizePool), 100);
         vm.expectEmit();
         emit ContributePrizeTokens(address(this), 1, 100);
+        prizePool.contributePrizeTokens(address(this), 100);
+    }
+
+    function testContributePrizeTokens_emitsContributionNotFound() public {
+        vm.expectRevert(abi.encodeWithSelector(ContributionNotFound.selector, 100, 0));
         prizePool.contributePrizeTokens(address(this), 100);
     }
 
@@ -515,6 +537,14 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.isWinner(address(this), msg.sender, 0, 0), true);
     }
 
+    function testIsWinner_emitsInvalidPrizeIndex() public {
+        contribute(100e18);
+        completeAndStartNextDraw(winningRandomNumber);
+        mockTwab(msg.sender, 1);
+        vm.expectRevert(abi.encodeWithSelector(InvalidPrizeIndex.selector, 4, 4, 1));
+        prizePool.isWinner(address(this), msg.sender, 1, 4);
+    }
+
     function testWasClaimed_not() public {
         assertEq(prizePool.wasClaimed(msg.sender, 0, 0), false);
     }
@@ -690,6 +720,13 @@ contract PrizePoolTest is Test {
         vm.expectEmit();
         emit WithdrawClaimRewards(address(this), 5e17, 1e18);
         prizePool.withdrawClaimRewards(address(this), 5e17);
+    }
+
+    function testClaimPrizes_winnerPrizeMismatch() public {
+        vm.expectRevert(abi.encodeWithSelector(WinnerPrizeMismatch.selector, 2, 3));
+        address[] memory winners = new address[](2);
+        uint32[][] memory prizeIndices = new uint32[][](3);
+        prizePool.claimPrizes(0, winners, prizeIndices, 0, address(this));
     }
 
     function testNextDrawStartsAt_zeroDraw() public {

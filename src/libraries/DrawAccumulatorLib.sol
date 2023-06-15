@@ -5,8 +5,8 @@ pragma solidity 0.8.17;
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
-/// @notice Emitted when a draw ID is invalid in the current context
-error InvalidDrawId(uint32 drawId);
+/// @notice Emitted when an add is attempted on draw zero
+error AddToDrawZero();
 
 /// @notice Emitted when an action can't be done on a draw because it's closed
 error DrawClosed(uint32 drawId, uint32 newestDrawId);
@@ -56,7 +56,7 @@ library DrawAccumulatorLib {
     /// @return True if a new observation was created, false otherwise.
     function add(Accumulator storage accumulator, uint256 _amount, uint32 _drawId, SD59x18 _alpha) internal returns (bool) {
         if (_drawId == 0) {
-            revert InvalidDrawId(_drawId);
+            revert AddToDrawZero();
         }
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 

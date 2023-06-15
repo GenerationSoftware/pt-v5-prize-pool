@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { DrawAccumulatorLib, InvalidDrawId, DrawClosed, InvalidDrawRange, InvalidDisbursedEndDrawId } from "src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, AddToDrawZero, DrawClosed, InvalidDrawRange, InvalidDisbursedEndDrawId } from "src/libraries/DrawAccumulatorLib.sol";
 import { DrawAccumulatorLibWrapper } from "test/wrappers/DrawAccumulatorLibWrapper.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 
@@ -31,7 +31,12 @@ contract DrawAccumulatorLibTest is Test {
         wrapper = new DrawAccumulatorLibWrapper();
     }
 
-    function testAddInvalidDraw() public {
+    function testAdd_emitsAddToDrawZero() public {
+        vm.expectRevert(abi.encodeWithSelector(AddToDrawZero.selector));
+        DrawAccumulatorLib.add(accumulator, 100, 0, alpha);
+    }
+
+    function testAdd_emitsDrawCLosed() public {
         add(4);
         vm.expectRevert(abi.encodeWithSelector(DrawClosed.selector, 3, 4));
         add(3);
