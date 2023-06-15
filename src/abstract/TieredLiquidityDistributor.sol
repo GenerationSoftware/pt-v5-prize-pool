@@ -330,12 +330,10 @@ contract TieredLiquidityDistributor {
         uint256 prizeSize;
         if (_prizeTokenPerShare.gt(_tierPrizeTokenPerShare)) {
             UD60x18 delta = _prizeTokenPerShare.sub(_tierPrizeTokenPerShare);
-            if (delta.unwrap() > 0) {
-                if (_tier == _numberOfTiers) {
-                    prizeSize = fromUD60x18(delta.mul(toUD60x18(canaryShares)).div(_canaryPrizeCountFractional(_numberOfTiers)));
-                } else {
-                    prizeSize = fromUD60x18(delta.mul(toUD60x18(tierShares)).div(toUD60x18(TierCalculationLib.prizeCount(_tier))));
-                }
+            if (_tier == _numberOfTiers) {
+                prizeSize = fromUD60x18(delta.mul(toUD60x18(canaryShares)).div(_canaryPrizeCountFractional(_numberOfTiers)));
+            } else {
+                prizeSize = fromUD60x18(delta.mul(toUD60x18(tierShares)).div(toUD60x18(TierCalculationLib.prizeCount(_tier))));
             }
         }
         return prizeSize;
