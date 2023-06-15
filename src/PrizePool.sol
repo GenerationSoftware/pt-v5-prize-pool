@@ -27,7 +27,7 @@ error InsufficientRewardsError(uint256 requested, uint256 available);
 /// @notice Emitted when an address did not win the specified prize on a vault
 error DidNotWin(address winner, address vault, uint8 tier, uint32 prize);
 
-/// @notice Emitted when a proposed fee larger than the max
+/// @notice Emitted when the proposed fee is larger than the max allowed fee
 error FeeTooLarge(uint256 fee, uint256 maxFee);
 
 /// @notice Emitted when the initialized smoothing number is not less than one
