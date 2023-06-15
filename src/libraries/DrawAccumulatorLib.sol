@@ -5,7 +5,7 @@ pragma solidity 0.8.17;
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
-/// @notice Emitted when an add is attempted on draw zero
+/// @notice Emitted when adding balance for draw zero
 error AddToDrawZero();
 
 /// @notice Emitted when an action can't be done on a draw because it's closed
