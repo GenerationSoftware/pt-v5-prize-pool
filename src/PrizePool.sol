@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, toUD60x18, fromUD60x18, intoSD59x18 } from "prb-math/UD60x18.sol";
 import { UD2x18, intoUD60x18 } from "prb-math/UD2x18.sol";
@@ -62,7 +61,7 @@ error InvalidTier(uint8 tier, uint8 numberOfTiers);
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
-contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
+contract PrizePool is Manageable, TieredLiquidityDistributor {
     using SafeERC20 for IERC20;
 
     using SafeERC20 for IERC20;
