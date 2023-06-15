@@ -12,7 +12,7 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingOutOfBounds, ContributionNotFound, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, WinnerPrizeMismatch, InvalidPrizeIndex, NoCompletedDraw, InvalidTier } from "../src/PrizePool.sol";
+import { PrizePool, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, WinnerPrizeMismatch, InvalidPrizeIndex, NoCompletedDraw, InvalidTier } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -108,8 +108,8 @@ contract PrizePoolTest is Test {
         vault = address(this);
     }
 
-    function testConstructor_SmoothingOutOfBounds() public {
-        vm.expectRevert(abi.encodeWithSelector(SmoothingOutOfBounds.selector, 1000000000000000000));
+    function testConstructor_SmoothingGTEOne() public {
+        vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
         new PrizePool(
             prizeToken,
             twabController,
@@ -214,8 +214,8 @@ contract PrizePoolTest is Test {
         prizePool.contributePrizeTokens(address(this), 100);
     }
 
-    function testContributePrizeTokens_emitsContributionNotFound() public {
-        vm.expectRevert(abi.encodeWithSelector(ContributionNotFound.selector, 100, 0));
+    function testContributePrizeTokens_emitsContributionGTDeltaBalance() public {
+        vm.expectRevert(abi.encodeWithSelector(ContributionGTDeltaBalance.selector, 100, 0));
         prizePool.contributePrizeTokens(address(this), 100);
     }
 

@@ -31,10 +31,10 @@ error DidNotWin(address winner, address vault, uint8 tier, uint32 prize);
 error FeeTooLarge(uint256 fee, uint256 maxFee);
 
 /// @notice Emitted when the initialized smoothing number is not less than one
-error SmoothingOutOfBounds(int64 smoothing);
+error SmoothingGTEOne(int64 smoothing);
 
 /// @notice Emitted when the contributed amount is more than the available, un-accounted balance
-error ContributionNotFound(uint256 amount, uint256 available);
+error ContributionGTDeltaBalance(uint256 amount, uint256 available);
 
 /// @notice Emitted when the withdraw amount is greater than the available reserve
 error InsufficientReserve(uint104 amount, uint104 reserve);
@@ -209,7 +209,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         _lastCompletedDrawStartedAt = _firstDrawStartsAt;
 
         if(unwrap(_smoothing) >= unwrap(UNIT)) {
-            revert SmoothingOutOfBounds(unwrap(smoothing));
+            revert SmoothingGTEOne(unwrap(_smoothing));
         }
     }
 
@@ -255,7 +255,7 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     function contributePrizeTokens(address _prizeVault, uint256 _amount) external returns(uint256) {
         uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - _accountedBalance();
         if(_deltaBalance < _amount) {
-            revert ContributionNotFound(_amount, _deltaBalance);
+            revert ContributionGTDeltaBalance(_amount, _deltaBalance);
         }
         DrawAccumulatorLib.add(vaultAccumulator[_prizeVault], _amount, lastCompletedDrawId + 1, smoothing.intoSD59x18());
         DrawAccumulatorLib.add(totalAccumulator, _amount, lastCompletedDrawId + 1, smoothing.intoSD59x18());
