@@ -12,7 +12,7 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge } from "../src/PrizePool.sol";
+import { PrizePool, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingOutOfBounds, ContributionNotFound, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, WinnerPrizeMismatch, InvalidPrizeIndex, NoCompletedDraw, InvalidTier } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -145,7 +145,7 @@ contract PrizePoolTest is Test {
     }
 
     function testWithdrawReserve_insuff() public {
-        vm.expectRevert("insuff");
+        vm.expectRevert(abi.encodeWithSelector(InsufficientReserve.selector, 1, 0));
         prizePool.withdrawReserve(address(this), 1);
     }
 
@@ -301,14 +301,14 @@ contract PrizePoolTest is Test {
 
     function testCompleteAndStartNextDraw_notElapsed_atStart() public {
         vm.warp(lastCompletedDrawStartedAt);
-        vm.expectRevert("not elapsed");
+        vm.expectRevert(abi.encodeWithSelector(DrawNotFinished.selector, lastCompletedDrawStartedAt + drawPeriodSeconds));
         prizePool.completeAndStartNextDraw(winningRandomNumber);
     }
 
     function testCompleteAndStartNextDraw_notElapsed_subsequent() public {
         vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds);
         prizePool.completeAndStartNextDraw(winningRandomNumber);
-        vm.expectRevert("not elapsed");
+        vm.expectRevert(abi.encodeWithSelector(DrawNotFinished.selector, lastCompletedDrawStartedAt + drawPeriodSeconds * 2));
         prizePool.completeAndStartNextDraw(winningRandomNumber);
     }
 
@@ -316,18 +316,18 @@ contract PrizePoolTest is Test {
         vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds);
         prizePool.completeAndStartNextDraw(winningRandomNumber);
         vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds + drawPeriodSeconds / 2);
-        vm.expectRevert("not elapsed");
+        vm.expectRevert(abi.encodeWithSelector(DrawNotFinished.selector, lastCompletedDrawStartedAt + drawPeriodSeconds * 2));
         prizePool.completeAndStartNextDraw(winningRandomNumber);
     }
 
     function testCompleteAndStartNextDraw_notElapsed_partway() public {
         vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds / 2);
-        vm.expectRevert("not elapsed");
+        vm.expectRevert(abi.encodeWithSelector(DrawNotFinished.selector, lastCompletedDrawStartedAt + drawPeriodSeconds));
         prizePool.completeAndStartNextDraw(winningRandomNumber);
     }
 
     function testCompleteAndStartNextDraw_invalidNumber() public {
-        vm.expectRevert("num invalid");
+        vm.expectRevert(abi.encodeWithSelector(RandomNumberIsZero.selector));
         prizePool.completeAndStartNextDraw(0);
     }
     function testCompleteAndStartNextDraw_noLiquidity() public {
@@ -491,13 +491,13 @@ contract PrizePoolTest is Test {
     }
 
     function testIsWinner_noDraw() public {
-        vm.expectRevert("no draw");
+        vm.expectRevert(abi.encodeWithSelector(NoCompletedDraw.selector));
         prizePool.isWinner(address(this), msg.sender, 10, 0);
     }
 
     function testIsWinner_invalidTier() public {
         completeAndStartNextDraw(winningRandomNumber);
-        vm.expectRevert("invalid tier");
+        vm.expectRevert(abi.encodeWithSelector(InvalidTier.selector, 10, 2));
         prizePool.isWinner(address(this), msg.sender, 10, 0);
     }
 

@@ -5,6 +5,18 @@ pragma solidity 0.8.17;
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
+/// @notice Emitted when a draw ID is invalid in the current context
+error InvalidDrawId(uint32 drawId);
+
+/// @notice Emitted when an action can't be done on a draw because it's closed
+error DrawClosed(uint32 drawId, uint32 newestDrawId);
+
+/// @notice Emitted when a draw range is not strictly increasing
+error InvalidDrawRange(uint32 startDrawId, uint32 endDrawId);
+
+/// @notice Emitted when the end draw ID for a disbursed range is invalid (too old)
+error InvalidDisbursedEndDrawId(uint32 endDrawId);
+
 struct Observation {
     // track the total amount available as of this Observation
     uint96 available;
@@ -43,13 +55,17 @@ library DrawAccumulatorLib {
     /// @param _alpha The alpha value to use for the exponential weighted average.
     /// @return True if a new observation was created, false otherwise.
     function add(Accumulator storage accumulator, uint256 _amount, uint32 _drawId, SD59x18 _alpha) internal returns (bool) {
-        require(_drawId > 0, "invalid draw");
+        if (_drawId == 0) {
+            revert InvalidDrawId(_drawId);
+        }
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
         uint32 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
 
-        require(_drawId >= newestDrawId_, "invalid draw");
+        if (_drawId < newestDrawId_) {
+            revert DrawClosed(_drawId, newestDrawId_);
+        }
 
         Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
         if (_drawId != newestDrawId_) {
@@ -97,7 +113,9 @@ library DrawAccumulatorLib {
         }
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
         uint32 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
-        require(_startDrawId >= newestDrawId_, "invalid search draw");
+        if (_startDrawId < newestDrawId_) {
+            revert DrawClosed(_startDrawId, newestDrawId_);
+        }
         Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
         return integrateInf(_alpha, _startDrawId - newestDrawId_, newestObservation_.available);
     }
@@ -128,7 +146,9 @@ library DrawAccumulatorLib {
         uint32 _endDrawId,
         SD59x18 _alpha
     ) internal view returns (uint256) {
-        require(_startDrawId <= _endDrawId, "invalid draw range");
+        if (_startDrawId > _endDrawId) {
+            revert InvalidDrawRange(_startDrawId, _endDrawId);
+        }
 
         RingBufferInfo memory ringBufferInfo = _accumulator.ringBufferInfo;
 
@@ -144,7 +164,9 @@ library DrawAccumulatorLib {
             latest observation. This allows us to make assumptions on the value of `lastObservationDrawIdOccurringAtOrBeforeEnd` and removes the need to run a additional
             binary search to find it.
          */
-        require(_endDrawId >= drawIds.second-1, "DAL/curr-invalid");
+        if (_endDrawId < drawIds.second - 1) {
+            revert InvalidDisbursedEndDrawId(_endDrawId);
+        }
 
         if (_endDrawId < drawIds.first) {
             return 0;

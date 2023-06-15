@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { DrawAccumulatorLib } from "src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, InvalidDrawId, DrawClosed, InvalidDrawRange, InvalidDisbursedEndDrawId } from "src/libraries/DrawAccumulatorLib.sol";
 import { DrawAccumulatorLibWrapper } from "test/wrappers/DrawAccumulatorLibWrapper.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 
@@ -33,7 +33,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testAddInvalidDraw() public {
         add(4);
-        vm.expectRevert("invalid draw");
+        vm.expectRevert(abi.encodeWithSelector(DrawClosed.selector, 3, 4));
         add(3);
     }
 
@@ -81,7 +81,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testGetTotalRemaining_invalidDraw() public {
         add(4);
-        vm.expectRevert("invalid search draw");
+        vm.expectRevert(abi.encodeWithSelector(DrawClosed.selector, 2, 4));
         wrapper.getTotalRemaining(2, alpha);
     }
 
@@ -90,13 +90,13 @@ contract DrawAccumulatorLibTest is Test {
     }
 
     function testGetDisbursedBetween_invalidRange() public {
-        vm.expectRevert("invalid draw range");
+        vm.expectRevert(abi.encodeWithSelector(InvalidDrawRange.selector, 2, 1));
         getDisbursedBetween(2, 1);
     }
 
     function testGetDisbursedBetween_invalidEnd() public {
         add(3);
-        vm.expectRevert("DAL/curr-invalid");
+        vm.expectRevert(abi.encodeWithSelector(InvalidDisbursedEndDrawId.selector, 1));
         getDisbursedBetween(1, 1);
     }
 

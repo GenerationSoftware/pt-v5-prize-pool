@@ -24,9 +24,38 @@ error AlreadyClaimedPrize(address winner, uint8 tier);
 /// @notice Emitted when someone tries to withdraw too many rewards
 error InsufficientRewardsError(uint256 requested, uint256 available);
 
+/// @notice Emitted when an address did not the specified prize on a vault
 error DidNotWin(address winner, address vault, uint8 tier, uint32 prize);
 
+/// @notice Emitted when a proposed fee larger than the max
 error FeeTooLarge(uint256 fee, uint256 maxFee);
+
+/// @notice Emitted when the initialized smoothing number is not less than one
+error SmoothingOutOfBounds(int64 smoothing);
+
+/// @notice Emitted when the contributed amount is more than the available, un-accounted balance
+error ContributionNotFound(uint256 amount, uint256 available);
+
+/// @notice Emitted when the withdraw amount is greater than the available reserve
+error InsufficientReserve(uint104 amount, uint104 reserve);
+
+/// @notice Emitted when the winning random number is zero
+error RandomNumberIsZero();
+
+/// @notice Emitted when the draw cannot be completed since it has not finished
+error DrawNotFinished(uint64 drawEndsAt);
+
+/// @notice Emitted when the number of winners and number of prize lists do not match while claiming prizes
+error WinnerPrizeMismatch(uint128 numWinners, uint128 numPrizeLists);
+
+/// @notice Emitted when prize index is greater or equal to the max prize count for the tier
+error InvalidPrizeIndex(uint32 prizeIndex, uint32 prizeCount, uint8 tier);
+
+/// @notice Emitted when there are no completed draws when a computation requires a completed draw
+error NoCompletedDraw();
+
+/// @notice Emitted when a tier does not exist
+error InvalidTier(uint8 tier, uint8 numberOfTiers);
 
 /**
  * @title PoolTogether V5 Prize Pool
@@ -179,7 +208,9 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         drawPeriodSeconds = _drawPeriodSeconds;
         _lastCompletedDrawStartedAt = _firstDrawStartsAt;
 
-        require(unwrap(_smoothing) < unwrap(UNIT), "smoothing-lt-1");
+        if(unwrap(_smoothing) >= unwrap(UNIT)) {
+            revert SmoothingOutOfBounds(unwrap(smoothing));
+        }
     }
 
     /// @notice Returns the winning random number for the last completed draw
@@ -223,7 +254,9 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @return The amount of available prize tokens prior to the contribution.
     function contributePrizeTokens(address _prizeVault, uint256 _amount) external returns(uint256) {
         uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - _accountedBalance();
-        require(_deltaBalance >=  _amount, "PP/deltaBalance-gte-amount");
+        if(_deltaBalance < _amount) {
+            revert ContributionNotFound(_amount, _deltaBalance);
+        }
         DrawAccumulatorLib.add(vaultAccumulator[_prizeVault], _amount, lastCompletedDrawId + 1, smoothing.intoSD59x18());
         DrawAccumulatorLib.add(totalAccumulator, _amount, lastCompletedDrawId + 1, smoothing.intoSD59x18());
         emit ContributePrizeTokens(_prizeVault, lastCompletedDrawId + 1, _amount);
@@ -271,7 +304,9 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @param _to The address to send the tokens to
     /// @param _amount The amount of tokens to withdraw
     function withdrawReserve(address _to, uint104 _amount) external onlyManager {
-        require(_amount <= _reserve, "insuff");
+        if(_amount > _reserve) {
+            revert InsufficientReserve(_amount, _reserve);
+        }
         _reserve -= _amount;
         _transfer(_to, _amount);
         emit WithdrawReserve(_to, _amount);
@@ -346,8 +381,12 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     /// @return The ID of the completed draw
     function completeAndStartNextDraw(uint256 winningRandomNumber_) external onlyManager returns (uint32) {
         // check winning random number
-        require(winningRandomNumber_ != 0, "num invalid");
-        require(block.timestamp >= _nextDrawEndsAt(), "not elapsed");
+        if (winningRandomNumber_ == 0) {
+            revert RandomNumberIsZero();
+        }
+        if (block.timestamp < _nextDrawEndsAt()) {
+            revert DrawNotFinished(_nextDrawEndsAt());
+        }
 
         uint8 _numTiers = numberOfTiers;
         uint8 _nextNumberOfTiers = _numTiers;
@@ -431,7 +470,9 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         uint96 _feePerPrizeClaim,
         address _feeRecipient
     ) external returns (uint256) {
-        require(_winners.length == _prizeIndices.length, "length mismatch");
+        if (_winners.length != _prizeIndices.length) {
+            revert WinnerPrizeMismatch(uint128(_winners.length), uint128(_prizeIndices.length));
+        }
 
         Tier memory tierLiquidity = _getTier(_tier, numberOfTiers);
         if (_feePerPrizeClaim > tierLiquidity.prizeSize) {
@@ -575,7 +616,9 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
         uint8 _numberOfTiers = numberOfTiers;
         uint32 tierPrizeCount = _tier != _numberOfTiers ? uint32(TierCalculationLib.prizeCount(_tier)) : _canaryPrizeCount(_numberOfTiers);
 
-        require(_prizeIndex < tierPrizeCount, "invalid prize index");
+        if (_prizeIndex >= tierPrizeCount) {
+            revert InvalidPrizeIndex(_prizeIndex, tierPrizeCount, _tier);
+        }
 
         uint256 userSpecificRandomNumber = TierCalculationLib.calculatePseudoRandomNumber(_user, _tier, _prizeIndex, _winningRandomNumber);
         (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = _getVaultUserBalanceAndTotalSupplyTwab(_vault, _user, _drawDuration);
@@ -584,8 +627,12 @@ contract PrizePool is Manageable, Multicall, TieredLiquidityDistributor {
     }
 
     function _computeVaultTierDetails(address _vault, uint8 _tier, uint8 _numberOfTiers, uint32 _lastCompletedDrawId) internal view returns (SD59x18 vaultPortion, SD59x18 tierOdds, uint32 drawDuration) {
-        require(_lastCompletedDrawId > 0, "no draw");
-        require(_tier <= _numberOfTiers, "invalid tier");
+        if (_lastCompletedDrawId == 0) {
+            revert NoCompletedDraw();
+        }
+        if (_tier > _numberOfTiers) {
+            revert InvalidTier(_tier, _numberOfTiers);
+        }
 
         tierOdds = TierCalculationLib.getTierOdds(_tier, _numberOfTiers, grandPrizePeriodDraws);
         drawDuration = uint32(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, _numberOfTiers, grandPrizePeriodDraws));
