@@ -33,7 +33,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testAdd_emitsAddToDrawZero() public {
         vm.expectRevert(abi.encodeWithSelector(AddToDrawZero.selector));
-        DrawAccumulatorLib.add(accumulator, 100, 0, alpha);
+        add(0);
     }
 
     function testAdd_emitsDrawCLosed() public {
