@@ -24,6 +24,9 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
     }
 
     function remainingTierLiquidity(uint8 _tier) external view returns (uint112) {
-        return _remainingTierLiquidity(_tier);
+        uint8 shares = _computeShares(_tier, numberOfTiers);
+        Tier memory tier = _getTier(_tier, numberOfTiers);
+        return _remainingTierLiquidity(tier, shares);
     }
+
 }

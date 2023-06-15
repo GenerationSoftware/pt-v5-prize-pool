@@ -304,15 +304,6 @@ contract TieredLiquidityDistributor {
         return _tierStruct;
     }
 
-    /// @notice Computes the remaining liquidity for the given tier
-    /// @param _tier The tier to calculate for
-    /// @return The remaining liquidity
-    function _remainingTierLiquidity(uint8 _tier) internal view returns (uint112) {
-        uint8 shares = _computeShares(_tier, numberOfTiers);
-        Tier memory tier = _getTier(_tier, numberOfTiers);
-        return _remainingTierLiquidity(tier, shares);
-    }
-
     /// @notice Computes the total liquidity available to a tier
     /// @param _tier The tier to compute the liquidity for
     /// @return The total liquidity
