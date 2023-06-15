@@ -250,18 +250,6 @@ contract TieredLiquidityDistributor {
         return uint256(_numberOfTiers) * uint256(tierShares) + uint256(canaryShares) + uint256(reserveShares);
     }
 
-    /// @notice Consume liquidity from the given tier. Will pull from the tier, then pull from the reserve.
-    /// @param _tier The tier to consume liquidity from
-    /// @param _liquidity The amount of liquidity to consume
-    /// @return The Tier struct after consumption
-    function _consumeLiquidity(uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
-        uint8 numTiers = numberOfTiers;
-        uint8 shares = _computeShares(_tier, numTiers);
-        Tier memory tier = _getTier(_tier, numberOfTiers);
-        tier = _consumeLiquidity(tier, _tier, shares, _liquidity);
-        return tier;
-    }
-
     /// @notice Computes the number of shares for the given tier. If the tier is the canary tier, then the canary shares are returned.  Normal tier shares otherwise.
     /// @param _tier The tier to request share for
     /// @param _numTiers The number of tiers. Passed explicitly as an optimization
@@ -276,16 +264,7 @@ contract TieredLiquidityDistributor {
     /// @param _liquidity The amount of liquidity to consume
     /// @return An updated Tier struct after consumption
     function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
-        return _consumeLiquidity(_tierStruct, _tier, _computeShares(_tier, numberOfTiers), _liquidity);
-    }
-
-    /// @notice Consumes liquidity from the given tier.
-    /// @param _tierStruct The tier to consume liquidity from
-    /// @param _tier The tier number
-    /// @param _shares The number of shares allocated to this tier
-    /// @param _liquidity The amount of liquidity to consume
-    /// @return An updated Tier struct after consumption
-    function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint8 _shares, uint104 _liquidity) internal returns (Tier memory) {
+        uint8 _shares = _computeShares(_tier, numberOfTiers);
         uint104 remainingLiquidity = uint104(_remainingTierLiquidity(_tierStruct, _shares));
         if (_liquidity > remainingLiquidity) {
             uint104 excess = _liquidity - remainingLiquidity;
