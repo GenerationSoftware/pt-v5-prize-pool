@@ -117,7 +117,7 @@ contract PrizePoolTest is Test {
             uint32(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
-            uint8(2),
+            uint8(3),
             100,
             10,
             10,
@@ -538,7 +538,7 @@ contract PrizePoolTest is Test {
 
     function testIsWinner_invalidTier() public {
         completeAndStartNextDraw(winningRandomNumber);
-        vm.expectRevert(abi.encodeWithSelector(InvalidTier.selector, 10, 2));
+        vm.expectRevert(abi.encodeWithSelector(InvalidTier.selector, 10, 3));
         prizePool.isWinner(address(this), msg.sender, 10, 0);
     }
 
