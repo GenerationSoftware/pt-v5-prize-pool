@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
+import "forge-std/console2.sol";
+
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
@@ -14,6 +16,9 @@ import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.
 import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 import { BitLib } from "./libraries/BitLib.sol";
+
+/// @notice Emitted when someone tries to set the draw manager
+error DrawManagerAlreadySet();
 
 /// @notice Emitted when someone tries to claim a prize that was already claimed
 /// @param winner The winner of the prize
@@ -178,6 +183,12 @@ contract PrizePool is TieredLiquidityDistributor {
         uint256 available
     );
 
+    /// @notice Emitted when the drawManager is set
+    /// @param drawManager The draw manager
+    event DrawManagerSet(
+        address indexed drawManager
+    );
+
     /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault
     mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulator;
 
@@ -198,7 +209,7 @@ contract PrizePool is TieredLiquidityDistributor {
     TwabController public immutable twabController;
 
     /// @notice The draw manager address
-    address public immutable drawManager;
+    address public drawManager;
 
     /// @notice The number of seconds between draws
     uint32 public immutable drawPeriodSeconds;
@@ -240,11 +251,13 @@ contract PrizePool is TieredLiquidityDistributor {
         }
         prizeToken = params.prizeToken;
         twabController = params.twabController;
-        drawManager = params.drawManager;
         smoothing = params.smoothing;
         claimExpansionThreshold = params.claimExpansionThreshold;
         drawPeriodSeconds = params.drawPeriodSeconds;
         _lastCompletedDrawStartedAt = params.firstDrawStartsAt;
+
+        drawManager = params.drawManager;
+        emit DrawManagerSet(params.drawManager);
     }
 
     /// @notice Modifier that throws if sender is not the draw manager
@@ -253,6 +266,18 @@ contract PrizePool is TieredLiquidityDistributor {
             revert CallerNotDrawManager(msg.sender, drawManager);
         }
         _;
+    }
+
+    /// @notice Allows a caller to set the DrawManager if not already set
+    /// @dev Notice that this can be front-run: make sure to verify the drawManager after construction
+    /// @param _drawManager The draw manager
+    function setDrawManager(address _drawManager) external {
+        if (drawManager != address(0)) {
+            revert DrawManagerAlreadySet();
+        }
+        drawManager = _drawManager;
+
+        emit DrawManagerSet(_drawManager);
     }
 
     /// @notice Returns the winning random number for the last completed draw
