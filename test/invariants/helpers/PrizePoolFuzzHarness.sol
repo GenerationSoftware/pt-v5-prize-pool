@@ -24,7 +24,7 @@ contract PrizePoolFuzzHarness is CommonBase {
         uint32 grandPrizePeriodDraws = 10;
         uint32 drawPeriodSeconds = 1 hours;
         uint64 nextDrawStartsAt = uint64(block.timestamp);
-        uint8 numberOfTiers = 2;
+        uint8 numberOfTiers = 3;
         uint8 tierShares = 100;
         uint8 canaryShares = 10;
         uint8 reserveShares = 10;

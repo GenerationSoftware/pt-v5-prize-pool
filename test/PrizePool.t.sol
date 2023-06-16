@@ -96,7 +96,7 @@ contract PrizePoolTest is Test {
             uint32(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
-            uint8(2), // minimum number of tiers
+            uint8(3), // minimum number of tiers
             100,
             10,
             10,
@@ -140,12 +140,12 @@ contract PrizePoolTest is Test {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         // reserve + remainder
-        assertEq(prizePool.reserve(), 0.454545454545454546e18);
+        assertEq(prizePool.reserve(), 0.45454545454545466e18);
     }
 
     function testReserveForNextDraw_noDraw() public {
         contribute(100e18);
-        assertEq(prizePool.reserveForNextDraw(), 0.454545454545454546e18);
+        assertEq(prizePool.reserveForNextDraw(), 0.45454545454545466e18);
     }
 
     function testReserveForNextDraw_existingDraw() public {
@@ -161,7 +161,7 @@ contract PrizePoolTest is Test {
             0.454545454545454546e18 + 0.454545454545454546e18 + 0.409090909090909091e18 = 1.318181818181818182e18
         */
 
-        assertEq(prizePool.reserveForNextDraw(), 1.318181818181818182e18);
+        assertEq(prizePool.reserveForNextDraw(), 1.318181818181818310e18);
     }
 
     function testWithdrawReserve_notManager() public {
@@ -190,7 +190,7 @@ contract PrizePoolTest is Test {
     }
 
     function testCanaryPrizeCount_param() public {
-        assertEq(prizePool.canaryPrizeCount(3), 8);
+        assertEq(prizePool.canaryPrizeCount(4), 8);
     }
 
     function testGetTotalContributedBetween() public {
@@ -231,7 +231,7 @@ contract PrizePoolTest is Test {
     function testAccountedBalance_withdrawnReserve() public {
         contribute(100e18);
         completeAndStartNextDraw(1);
-        assertEq(prizePool.reserve(), 0.454545454545454546e18);
+        assertEq(prizePool.reserve(), 0.45454545454545466e18);
         prizePool.withdrawReserve(address(this), uint104(prizePool.reserve()));
         assertEq(prizePool.accountedBalance(), prizeToken.balanceOf(address(prizePool)));
         assertEq(prizePool.reserve(), 0);
@@ -247,7 +247,7 @@ contract PrizePoolTest is Test {
         completeAndStartNextDraw(1);
         mockTwab(msg.sender, 0);
         claimPrize(msg.sender, 0, 0);
-        assertEq(prizePool.accountedBalance(), 95.454545454545454546e18);
+        assertEq(prizePool.accountedBalance(), 95.4545454545454546e18);
     }
 
     function testAccountedBalance_oneClaim_andMoreContrib() public {
@@ -256,7 +256,7 @@ contract PrizePoolTest is Test {
         mockTwab(msg.sender, 0);
         claimPrize(msg.sender, 0, 0);
         contribute(10e18);
-        assertEq(prizePool.accountedBalance(), 105.454545454545454546e18);
+        assertEq(prizePool.accountedBalance(), 105.4545454545454546e18);
     }
 
     function testAccountedBalance_twoClaims() public {
@@ -268,7 +268,7 @@ contract PrizePoolTest is Test {
         completeAndStartNextDraw(1);
 
         // 9e18*100/220 = 4.0909090909090909e18
-        assertEq(prizePool.accountedBalance(), 95.454545454545454546e18, "accounted balance");
+        assertEq(prizePool.accountedBalance(), 95.4545454545454546e18, "accounted balance");
 
         mockTwab(msg.sender, 0);
         claimPrize(msg.sender, 0, 0);
@@ -384,7 +384,7 @@ contract PrizePoolTest is Test {
         // but because of alpha only 10% is released on this draw
         completeAndStartNextDraw(winningRandomNumber);
         assertEq(fromUD34x4(prizePool.prizeTokenPerShare()), 0.045454545454545454e18, "prize token per share");
-        assertEq(prizePool.reserve(), 0.454545454545454546e18, "reserve"); // remainder of the complex fraction
+        assertEq(prizePool.reserve(), 0.45454545454545466e18, "reserve"); // remainder of the complex fraction
         assertEq(prizePool.getTotalContributionsForCompletedDraw(), 10e18); // ensure not a single wei is lost!
     }
 
@@ -398,6 +398,8 @@ contract PrizePoolTest is Test {
     }
 
     function testCompleteAndStartNextDraw_shrinkTiers() public {
+        uint8 startingTiers = 5;
+
         // reset prize pool at higher tiers
         ConstructorParams memory params = ConstructorParams(
             prizeToken,
@@ -406,7 +408,7 @@ contract PrizePoolTest is Test {
             uint32(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
-            uint8(4), // higher number of tiers
+            startingTiers, // higher number of tiers
             100,
             10,
             10,
@@ -426,23 +428,24 @@ contract PrizePoolTest is Test {
         // reserve liquidity: 1e18
 
         // tiers should not change upon first draw
-        assertEq(prizePool.numberOfTiers(), 4);
-        assertEq(prizePool.reserve(), 1e18);
+        assertEq(prizePool.numberOfTiers(), startingTiers, "starting tiers");
+        assertEq(prizePool.reserve(), 1e18, "reserve after first draw");
 
         // now claim only grand prize
         mockTwab(address(this), 0);
         claimPrize(address(this), 0, 0);
 
         vm.expectEmit();
-        emit DrawCompleted(2, 4567, 4, 2);
+        // shrink to minimum
+        emit DrawCompleted(2, 4567, startingTiers, 3);
 
         completeAndStartNextDraw(4567);
         // reclaimed tier 2, 3, and canary.  22e18 in total.
         // draw 2 has 37.8.  Reserve is 10/220.0 * 37.8e18 = 1.718181818181818e18
         // 22e18 + 1.718181818181818e18 = 23.718181818181818e18
         // shrink by 2
-        assertEq(prizePool.numberOfTiers(), 2);
-        assertEq(prizePool.reserve(), 23.718181818181817934e18, "size of reserve");
+        assertEq(prizePool.numberOfTiers(), 3, "number of tiers");
+        assertEq(prizePool.reserve(), 23.71818181818181801e18, "size of reserve");
     }
 
     function testCompleteAndStartNextDraw_expandingTiers() public {
@@ -466,10 +469,10 @@ contract PrizePoolTest is Test {
         claimPrize(sender6, 2, 0);
 
         vm.expectEmit();
-        emit DrawCompleted(2, 245, 2, 3);
+        emit DrawCompleted(2, 245, 3, 4);
 
         completeAndStartNextDraw(245);
-        assertEq(prizePool.numberOfTiers(), 3);
+        assertEq(prizePool.numberOfTiers(), 4);
     }
 
     function testCompleteAndStartNextDraw_multipleDraws() public {
@@ -484,7 +487,7 @@ contract PrizePoolTest is Test {
 
     function testCompleteAndStartNextDraw_emitsEvent() public {
         vm.expectEmit();
-        emit DrawCompleted(1, 12345, 2, 2);
+        emit DrawCompleted(1, 12345, 3, 3);
         completeAndStartNextDraw(12345);
     }
 
@@ -496,30 +499,30 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.getRemainingTierLiquidity(10), 0);
     }
 
-    function testGetRemainingTierLiquidityy_grandPrize() public {
+    function testGetRemainingTierLiquidity_grandPrize() public {
         contribute(1e18);
         completeAndStartNextDraw(winningRandomNumber);
         // 2 tiers at 100 shares each, and 10 for canary and 10 for reserve
         // = 100 / 220 = 10 / 22 = 0.45454545454545453
         // then take only 10% due to alpha = 0.9
-        assertEq(prizePool.getRemainingTierLiquidity(0), 0.045454545454545454e18);
+        assertEq(prizePool.getRemainingTierLiquidity(0), 0.0454545454545454e18);
     }
 
-    function testGetRemainingTierLiquidityy_afterClaim() public {
+    function testGetRemainingTierLiquidity_afterClaim() public {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
-        uint256 liquidity = 4.545454545454545454e18;
+        uint256 liquidity = 4.5454545454545454e18;
         assertEq(prizePool.getRemainingTierLiquidity(1), liquidity, "second tier");
 
         mockTwab(sender1, 1);
-        uint256 prize = 1.136363636363636363e18;
+        uint256 prize = 1.13636363636363635e18;
         assertEq(claimPrize(sender1, 1, 0), prize, "second tier prize 1");
 
         // reduce by prize
         assertEq(prizePool.getRemainingTierLiquidity(1), liquidity - prize, "second tier liquidity post claim 1");
     }
 
-    function testGetRemainingTierLiquidityidity_canary() public {
+    function testGetRemainingTierLiquidity_canary() public {
         contribute(220e18);
         completeAndStartNextDraw(winningRandomNumber);
         assertEq(prizePool.getRemainingTierLiquidity(0), 10e18);
@@ -589,7 +592,7 @@ contract PrizePoolTest is Test {
         mockTwab(msg.sender, 0);
         claimPrize(msg.sender, 0, 0);
         // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
-        assertEq(prizeToken.balanceOf(msg.sender), 4.545454545454545454e18);
+        assertEq(prizeToken.balanceOf(msg.sender), 4.5454545454545454e18);
         assertEq(prizePool.claimCount(), 1);
     }
 
@@ -600,7 +603,7 @@ contract PrizePoolTest is Test {
         // total prize size is returned
         claimPrize(msg.sender, 0, 0, 1e18, address(this));
         // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
-        assertEq(prizeToken.balanceOf(msg.sender), 3.545454545454545454e18, "user balance after claim");
+        assertEq(prizeToken.balanceOf(msg.sender), 3.5454545454545454e18, "user balance after claim");
         assertEq(prizePool.claimCount(), 1);
         assertEq(prizePool.balanceOfClaimRewards(address(this)), 1e18);
     }
@@ -616,7 +619,7 @@ contract PrizePoolTest is Test {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
-        vm.expectRevert(abi.encodeWithSelector(FeeTooLarge.selector, 10e18, 4.545454545454545454e18));
+        vm.expectRevert(abi.encodeWithSelector(FeeTooLarge.selector, 10e18, 4.5454545454545454e18));
         claimPrize(msg.sender, 0, 0, 10e18, address(0));
     }
 
@@ -624,7 +627,7 @@ contract PrizePoolTest is Test {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
-        assertEq(claimPrize(msg.sender, 0, 0), 4.545454545454545454e18, "prize size");
+        assertEq(claimPrize(msg.sender, 0, 0), 4.5454545454545454e18, "prize size");
         // second claim is zero
         vm.expectRevert(abi.encodeWithSelector(AlreadyClaimedPrize.selector, msg.sender, 0));
         claimPrize(msg.sender, 0, 0);
@@ -634,10 +637,10 @@ contract PrizePoolTest is Test {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 1);
-        assertEq(claimPrize(msg.sender, 1, 0), 1.136363636363636363e18, "first claim");
+        assertEq(claimPrize(msg.sender, 1, 0), 1.13636363636363635e18, "first claim");
         // second claim is same
         mockTwab(sender2, 1);
-        assertEq(claimPrize(sender2, 1, 0), 1.136363636363636363e18, "second claim");
+        assertEq(claimPrize(sender2, 1, 0), 1.13636363636363635e18, "second claim");
     }
 
     function testClaimCanaryPrize() public {
@@ -663,7 +666,7 @@ contract PrizePoolTest is Test {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
-        uint256 prize = 4.545454545454545454e18;
+        uint256 prize = 4.5454545454545454e18;
         assertEq(claimPrize(msg.sender, 0, 0), prize, "prize size");
         assertEq(prizePool.totalWithdrawn(), prize, "total claimed prize");
     }
@@ -861,43 +864,44 @@ contract PrizePoolTest is Test {
 
     function testEstimatedPrizeCount() public {
         // assumes grand prize is 365
+        assertEq(prizePool.estimatedPrizeCount(0), 0);
         assertEq(prizePool.estimatedPrizeCount(1), 0);
-        assertEq(prizePool.estimatedPrizeCount(17), 0);
-        assertEq(prizePool.estimatedPrizeCount(2), 4);
-        assertEq(prizePool.estimatedPrizeCount(3), 16);
-        assertEq(prizePool.estimatedPrizeCount(4), 66);
-        assertEq(prizePool.estimatedPrizeCount(5), 270);
-        assertEq(prizePool.estimatedPrizeCount(6), 1108);
-        assertEq(prizePool.estimatedPrizeCount(7), 4517);
-        assertEq(prizePool.estimatedPrizeCount(8), 18358);
-        assertEq(prizePool.estimatedPrizeCount(9), 74435);
-        assertEq(prizePool.estimatedPrizeCount(10), 301239);
-        assertEq(prizePool.estimatedPrizeCount(11), 1217266);
-        assertEq(prizePool.estimatedPrizeCount(12), 4912619);
-        assertEq(prizePool.estimatedPrizeCount(13), 19805536);
-        assertEq(prizePool.estimatedPrizeCount(14), 79777187);
-        assertEq(prizePool.estimatedPrizeCount(15), 321105952);
-        assertEq(prizePool.estimatedPrizeCount(16), 1291645048);
+        assertEq(prizePool.estimatedPrizeCount(2), 0);
+        assertEq(prizePool.estimatedPrizeCount(3), 4);
+        assertEq(prizePool.estimatedPrizeCount(4), 16);
+        assertEq(prizePool.estimatedPrizeCount(5), 66);
+        assertEq(prizePool.estimatedPrizeCount(6), 270);
+        assertEq(prizePool.estimatedPrizeCount(7), 1108);
+        assertEq(prizePool.estimatedPrizeCount(8), 4517);
+        assertEq(prizePool.estimatedPrizeCount(9), 18358);
+        assertEq(prizePool.estimatedPrizeCount(10), 74435);
+        assertEq(prizePool.estimatedPrizeCount(11), 301239);
+        assertEq(prizePool.estimatedPrizeCount(12), 1217266);
+        assertEq(prizePool.estimatedPrizeCount(13), 4912619);
+        assertEq(prizePool.estimatedPrizeCount(14), 19805536);
+        assertEq(prizePool.estimatedPrizeCount(15), 79777187);
+        assertEq(prizePool.estimatedPrizeCount(16), 0);
     }
 
     function testcanaryPrizeCountFractional() public {
         // assuming 10 reserve, 10 canary, and 100 per tier
+        assertEq(prizePool.canaryPrizeCountFractional(0).unwrap(), 0);
         assertEq(prizePool.canaryPrizeCountFractional(1).unwrap(), 0);
-        assertEq(prizePool.canaryPrizeCountFractional(17).unwrap(), 0);
-        assertEq(prizePool.canaryPrizeCountFractional(2).unwrap(), 2327272727272727264);
-        assertEq(prizePool.canaryPrizeCountFractional(3).unwrap(), 8400000000000000000);
-        assertEq(prizePool.canaryPrizeCountFractional(4).unwrap(), 31695238095238095104);
-        assertEq(prizePool.canaryPrizeCountFractional(5).unwrap(), 122092307692307691520);
-        assertEq(prizePool.canaryPrizeCountFractional(6).unwrap(), 475664516129032257536);
-        assertEq(prizePool.canaryPrizeCountFractional(7).unwrap(), 1865955555555555540992);
-        assertEq(prizePool.canaryPrizeCountFractional(8).unwrap(), 7352819512195121938432);
-        assertEq(prizePool.canaryPrizeCountFractional(9).unwrap(), 29063791304347825995776);
-        assertEq(prizePool.canaryPrizeCountFractional(10).unwrap(), 115137756862745097011200);
-        assertEq(prizePool.canaryPrizeCountFractional(11).unwrap(), 456879542857142854746112);
-        assertEq(prizePool.canaryPrizeCountFractional(12).unwrap(), 1815239763934426215481344);
-        assertEq(prizePool.canaryPrizeCountFractional(13).unwrap(), 7219286884848484797644800);
-        assertEq(prizePool.canaryPrizeCountFractional(14).unwrap(), 28733936135211267454402560);
-        assertEq(prizePool.canaryPrizeCountFractional(15).unwrap(), 114438273347368420374478848);
+        assertEq(prizePool.canaryPrizeCountFractional(2).unwrap(), 0);
+        assertEq(prizePool.canaryPrizeCountFractional(3).unwrap(), 2327272727272727264);
+        assertEq(prizePool.canaryPrizeCountFractional(4).unwrap(), 8400000000000000000);
+        assertEq(prizePool.canaryPrizeCountFractional(5).unwrap(), 31695238095238095104);
+        assertEq(prizePool.canaryPrizeCountFractional(6).unwrap(), 122092307692307691520);
+        assertEq(prizePool.canaryPrizeCountFractional(7).unwrap(), 475664516129032257536);
+        assertEq(prizePool.canaryPrizeCountFractional(8).unwrap(), 1865955555555555540992);
+        assertEq(prizePool.canaryPrizeCountFractional(9).unwrap(), 7352819512195121938432);
+        assertEq(prizePool.canaryPrizeCountFractional(10).unwrap(), 29063791304347825995776);
+        assertEq(prizePool.canaryPrizeCountFractional(11).unwrap(), 115137756862745097011200);
+        assertEq(prizePool.canaryPrizeCountFractional(12).unwrap(), 456879542857142854746112);
+        assertEq(prizePool.canaryPrizeCountFractional(13).unwrap(), 1815239763934426215481344);
+        assertEq(prizePool.canaryPrizeCountFractional(14).unwrap(), 7219286884848484797644800);
+        assertEq(prizePool.canaryPrizeCountFractional(15).unwrap(), 28733936135211267454402560);
+        assertEq(prizePool.canaryPrizeCountFractional(16).unwrap(), 0);
     }
 
     function contribute(uint256 amountContributed) public {

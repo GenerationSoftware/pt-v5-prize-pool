@@ -3,19 +3,26 @@ pragma solidity 0.8.17;
 
 import "forge-std/console2.sol";
 
-import { TieredLiquidityDistributor, Tier } from "src/abstract/TieredLiquidityDistributor.sol";
+import {
+    TieredLiquidityDistributor,
+    Tier,
+    fromUD60x18,
+    toUD60x18,
+    fromUD34x4toUD60x18
+} from "src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
 
     uint256 public totalAdded;
     uint256 public totalConsumed;
 
-    constructor () TieredLiquidityDistributor(10, 2, 100, 10, 10) {}
+    constructor () TieredLiquidityDistributor(10, 3, 100, 10, 10) {}
 
     function nextDraw(uint8 _nextNumTiers, uint96 liquidity) external {
         uint8 nextNumTiers = _nextNumTiers / 16; // map to [0, 15]
-        nextNumTiers = nextNumTiers < 2 ? 2 : nextNumTiers; // ensure min tiers
+        nextNumTiers = nextNumTiers < 3 ? 3 : nextNumTiers; // ensure min tiers
         totalAdded += liquidity;
+        // console2.log("nextDraw", nextNumTiers, liquidity);
         _nextDraw(nextNumTiers, liquidity);
     }
 
@@ -25,12 +32,9 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
 
     function accountedLiquidity() external view returns (uint256) {
         uint256 availableLiquidity;
-        for (uint8 i = 0; i <= numberOfTiers; i++) {
+        for (uint8 i = 0; i < numberOfTiers; i++) {
             Tier memory tier = _getTier(i, numberOfTiers);
-            uint256 tierLiquidity = _remainingTierLiquidity(tier, _computeShares(i, numberOfTiers));
-            // console2.log("tier ", i);
-            // console2.log("tier liquidity", tierLiquidity);
-            availableLiquidity += tierLiquidity;
+            availableLiquidity += _remainingTierLiquidity(tier, _computeShares(i, numberOfTiers));
         }
         // console2.log("reserve ", _reserve);
         availableLiquidity += _reserve;
@@ -40,20 +44,15 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
 
     function consumeLiquidity(uint8 _tier) external {
         uint8 tier = _tier % numberOfTiers;
-        tier = tier < 2 ? 2 : tier;
 
         Tier memory tier_ = _getTier(tier, numberOfTiers);
         uint8 shares = _computeShares(tier, numberOfTiers);
         uint112 liq = _remainingTierLiquidity(tier_, shares);
 
-        // console2.log("tier ", tier);
-        // console2.log("remaining ", liq);
-
+        // half the time consume only half
         if (_tier > 128) {
             liq += _reserve / 2;
         }
-
-        // console2.log("liq ", liq);
 
         totalConsumed += liq;
         tier_ = _consumeLiquidity(tier_, tier, uint104(liq));
