@@ -8,13 +8,18 @@ import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18
 /// @notice Emitted when adding balance for draw zero
 error AddToDrawZero();
 
-/// @notice Emitted when an action can't be done on a draw because it's closed
+/// @notice Emitted when an action can't be done on a closed draw
+/// @param drawId The ID of the closed draw
+/// @param newestDrawId The newest draw ID
 error DrawClosed(uint32 drawId, uint32 newestDrawId);
 
 /// @notice Emitted when a draw range is not strictly increasing
+/// @param startDrawId The start draw ID of the range
+/// @param endDrawId The end draw ID of the range
 error InvalidDrawRange(uint32 startDrawId, uint32 endDrawId);
 
 /// @notice Emitted when the end draw ID for a disbursed range is invalid (too old)
+/// @param endDrawId The end draw ID for the range
 error InvalidDisbursedEndDrawId(uint32 endDrawId);
 
 struct Observation {

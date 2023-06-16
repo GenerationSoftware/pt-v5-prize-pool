@@ -16,45 +16,70 @@ import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 import { BitLib } from "./libraries/BitLib.sol";
 
 /// @notice Emitted when someone tries to claim a prize that was already claimed
+/// @param winner The winner of the prize
+/// @param tier The prize tier
 error AlreadyClaimedPrize(address winner, uint8 tier);
 
 /// @notice Emitted when someone tries to withdraw too many rewards
+/// @param requested The requested reward amount to withdraw
+/// @param available The total reward amount available for the caller to withdraw
 error InsufficientRewardsError(uint256 requested, uint256 available);
 
 /// @notice Emitted when an address did not win the specified prize on a vault
-error DidNotWin(address winner, address vault, uint8 tier, uint32 prize);
+/// @param _address The address checked for the prize
+/// @param vault The vault address
+/// @param tier The prize tier
+/// @param prizeIndex The prize index
+error DidNotWin(address _address, address vault, uint8 tier, uint32 prizeIndex);
 
-/// @notice Emitted when the proposed fee is larger than the max allowed fee
+/// @notice Emitted when the fee being claimed is larger than the max allowed fee
+/// @param fee The fee being claimed
+/// @param maxFee The max fee that can be claimed
 error FeeTooLarge(uint256 fee, uint256 maxFee);
 
 /// @notice Emitted when the initialized smoothing number is not less than one
+/// @param smoothing The unwrapped smoothing value that exceeds the limit
 error SmoothingGTEOne(int64 smoothing);
 
 /// @notice Emitted when the contributed amount is more than the available, un-accounted balance
+/// @param amount The contribution amount that is being claimed
+/// @param available The available un-accounted balance that can be claimed as a contribution
 error ContributionGTDeltaBalance(uint256 amount, uint256 available);
 
 /// @notice Emitted when the withdraw amount is greater than the available reserve
+/// @param amount The amount being withdrawn
+/// @param reserve The total reserve available for withdrawal
 error InsufficientReserve(uint104 amount, uint104 reserve);
 
 /// @notice Emitted when the winning random number is zero
 error RandomNumberIsZero();
 
 /// @notice Emitted when the draw cannot be completed since it has not finished
+/// @param drawEndsAt The timestamp in seconds at which the draw ends
 error DrawNotFinished(uint64 drawEndsAt);
 
 /// @notice Emitted when the number of winners and number of prize lists do not match while claiming prizes
+/// @param numWinners The number of winner addresses provided
+/// @param numPrizeLists The number of prize lists provided
 error WinnerPrizeMismatch(uint128 numWinners, uint128 numPrizeLists);
 
 /// @notice Emitted when prize index is greater or equal to the max prize count for the tier
-error InvalidPrizeIndex(uint32 prizeIndex, uint32 prizeCount, uint8 tier);
+/// @param invalidPrizeIndex The invalid prize index
+/// @param prizeCount The prize count for the tier
+/// @param tier The tier number 
+error InvalidPrizeIndex(uint32 invalidPrizeIndex, uint32 prizeCount, uint8 tier);
 
 /// @notice Emitted when there are no completed draws when a computation requires a completed draw
 error NoCompletedDraw();
 
 /// @notice Emitted when a tier does not exist
+/// @param tier The tier number that does not exist
+/// @param numberOfTiers The current number of tiers
 error InvalidTier(uint8 tier, uint8 numberOfTiers);
 
 /// @notice Emitted when the caller is not the draw manager
+/// @param caller The caller address
+/// @param drawManager The drawManager address
 error CallerNotDrawManager(address caller, address drawManager);
 
 /**
