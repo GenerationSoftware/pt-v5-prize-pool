@@ -54,8 +54,8 @@ error NoCompletedDraw();
 /// @notice Emitted when a tier does not exist
 error InvalidTier(uint8 tier, uint8 numberOfTiers);
 
-/// @notice Emitted when the sender is not the draw manager
-error SenderIsNotDrawManager(address sender, address drawManager);
+/// @notice Emitted when the caller is not the draw manager
+error CallerNotDrawManager(address caller, address drawManager);
 
 /**
  * @notice Constructor Parameters
@@ -227,7 +227,7 @@ contract PrizePool is TieredLiquidityDistributor {
     /// @notice Modifier that throws if sender is not the draw manager
     modifier onlyDrawManager() {
         if(msg.sender != drawManager) {
-            revert SenderIsNotDrawManager(msg.sender, drawManager);
+            revert CallerNotDrawManager(msg.sender, drawManager);
         }
         _;
     }

@@ -12,7 +12,7 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, WinnerPrizeMismatch, InvalidPrizeIndex, NoCompletedDraw, InvalidTier, SenderIsNotDrawManager } from "../src/PrizePool.sol";
+import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, WinnerPrizeMismatch, InvalidPrizeIndex, NoCompletedDraw, InvalidTier, CallerNotDrawManager } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -166,7 +166,7 @@ contract PrizePoolTest is Test {
 
     function testWithdrawReserve_notManager() public {
         vm.prank(address(0));
-        vm.expectRevert(abi.encodeWithSelector(SenderIsNotDrawManager.selector, address(0), address(this)));
+        vm.expectRevert(abi.encodeWithSelector(CallerNotDrawManager.selector, address(0), address(this)));
         prizePool.withdrawReserve(address(0), 1);
     }
 
@@ -332,7 +332,7 @@ contract PrizePoolTest is Test {
 
     function testCompleteAndStartNextDraw_notManager() public {
         vm.prank(address(0));
-        vm.expectRevert(abi.encodeWithSelector(SenderIsNotDrawManager.selector, address(0), address(this)));
+        vm.expectRevert(abi.encodeWithSelector(CallerNotDrawManager.selector, address(0), address(this)));
         prizePool.completeAndStartNextDraw(winningRandomNumber);
     }
 
