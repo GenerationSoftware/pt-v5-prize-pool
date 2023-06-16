@@ -7,8 +7,6 @@ import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, toUD60x18, fromUD60x18, intoSD59x18 } from "prb-math/UD60x18.sol";
 import { UD2x18, intoUD60x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
-import { Manageable } from "owner-manager-contracts/Manageable.sol";
-import { Ownable } from "owner-manager-contracts/Ownable.sol";
 import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18, toUD34x4 } from "./libraries/UD34x4.sol";
 
 import { TwabController } from "v5-twab-controller/TwabController.sol";
@@ -56,12 +54,44 @@ error NoCompletedDraw();
 /// @notice Emitted when a tier does not exist
 error InvalidTier(uint8 tier, uint8 numberOfTiers);
 
+/// @notice Emitted when the sender is not the draw manager
+error SenderIsNotDrawManager(address sender, address drawManager);
+
+/**
+ * @notice Constructor Parameters
+ * @param prizeToken The token to use for prizes
+ * @param twabController The Twab Controller retrieve time-weighted average balances from
+ * @param grandPrizePeriodDraws The average number of draws between grand prizes. This determines the statistical frequency of grand prizes.
+ * @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
+ * @param firstDrawStartsAt The timestamp at which the first draw will start.
+ * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
+ * @param tierShares The number of shares to allocate to each tier
+ * @param canaryShares The number of shares to allocate to the canary tier.
+ * @param reserveShares The number of shares to allocate to the reserve.
+ * @param claimExpansionThreshold The percentage of prizes that must be claimed to bump the number of tiers. This threshold is used for both standard prizes and canary prizes.
+ * @param smoothing The amount of smoothing to apply to vault contributions. Must be less than 1. A value of 0 is no smoothing, while greater values smooth until approaching infinity
+ */
+struct ConstructorParams {
+    IERC20 prizeToken;
+    TwabController twabController;
+    address _drawManager;
+    uint32 grandPrizePeriodDraws;
+    uint32 drawPeriodSeconds;
+    uint64 firstDrawStartsAt;
+    uint8 numberOfTiers;
+    uint8 tierShares;
+    uint8 canaryShares;
+    uint8 reserveShares;
+    UD2x18 claimExpansionThreshold;
+    SD1x18 smoothing;
+}
+
 /**
  * @title PoolTogether V5 Prize Pool
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
-contract PrizePool is Manageable, TieredLiquidityDistributor {
+contract PrizePool is TieredLiquidityDistributor {
     using SafeERC20 for IERC20;
 
     using SafeERC20 for IERC20;
@@ -143,6 +173,9 @@ contract PrizePool is Manageable, TieredLiquidityDistributor {
     /// @notice The Twab Controller to use to retrieve historic balances.
     TwabController public immutable twabController;
 
+    /// @notice The draw manager address
+    address public immutable drawManager;
+
     /// @notice The number of seconds between draws
     uint32 public immutable drawPeriodSeconds;
 
@@ -173,43 +206,29 @@ contract PrizePool is Manageable, TieredLiquidityDistributor {
     /// @notice The timestamp at which the last completed draw was awarded
     uint64 internal _lastCompletedDrawAwardedAt;
 
-    /**
-     * @notice Constructs a new Prize Pool
-     * @param _prizeToken The token to use for prizes
-     * @param _twabController The Twab Controller retrieve time-weighted average balances from
-     * @param _grandPrizePeriodDraws The average number of draws between grand prizes. This determines the statistical frequency of grand prizes.
-     * @param _drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
-     * @param _firstDrawStartsAt The timestamp at which the first draw will start.
-     * @param _numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
-     * @param _tierShares The number of shares to allocate to each tier
-     * @param _canaryShares The number of shares to allocate to the canary tier.
-     * @param _reserveShares The number of shares to allocate to the reserve.
-     * @param _claimExpansionThreshold The percentage of prizes that must be claimed to bump the number of tiers. This threshold is used for both standard prizes and canary prizes.
-     * @param _smoothing The amount of smoothing to apply to vault contributions. Must be less than 1. A value of 0 is no smoothing, while greater values smooth until approaching infinity
-     */
+    /// @notice Constructs a new Prize Pool
+    /// @param params A struct of constructor parameters
     constructor (
-        IERC20 _prizeToken,
-        TwabController _twabController,
-        uint32 _grandPrizePeriodDraws,
-        uint32 _drawPeriodSeconds,
-        uint64 _firstDrawStartsAt,
-        uint8 _numberOfTiers,
-        uint8 _tierShares,
-        uint8 _canaryShares,
-        uint8 _reserveShares,
-        UD2x18 _claimExpansionThreshold,
-        SD1x18 _smoothing
-    ) Ownable(msg.sender) TieredLiquidityDistributor(_grandPrizePeriodDraws, _numberOfTiers, _tierShares, _canaryShares, _reserveShares) {
-        prizeToken = _prizeToken;
-        twabController = _twabController;
-        smoothing = _smoothing;
-        claimExpansionThreshold = _claimExpansionThreshold;
-        drawPeriodSeconds = _drawPeriodSeconds;
-        _lastCompletedDrawStartedAt = _firstDrawStartsAt;
-
-        if(unwrap(_smoothing) >= unwrap(UNIT)) {
-            revert SmoothingGTEOne(unwrap(_smoothing));
+        ConstructorParams memory params
+    ) TieredLiquidityDistributor(params.grandPrizePeriodDraws, params.numberOfTiers, params.tierShares, params.canaryShares, params.reserveShares) {
+        if(unwrap(params.smoothing) >= unwrap(UNIT)) {
+            revert SmoothingGTEOne(unwrap(params.smoothing));
         }
+        prizeToken = params.prizeToken;
+        twabController = params.twabController;
+        drawManager = params._drawManager;
+        smoothing = params.smoothing;
+        claimExpansionThreshold = params.claimExpansionThreshold;
+        drawPeriodSeconds = params.drawPeriodSeconds;
+        _lastCompletedDrawStartedAt = params.firstDrawStartsAt;
+    }
+
+    /// @notice Modifier that throws if sender is not the draw manager
+    modifier onlyDrawManager() {
+        if(msg.sender != drawManager) {
+            revert SenderIsNotDrawManager(msg.sender, drawManager);
+        }
+        _;
     }
 
     /// @notice Returns the winning random number for the last completed draw
@@ -302,7 +321,7 @@ contract PrizePool is Manageable, TieredLiquidityDistributor {
     // @notice Allows the Manager to withdraw tokens from the reserve
     /// @param _to The address to send the tokens to
     /// @param _amount The amount of tokens to withdraw
-    function withdrawReserve(address _to, uint104 _amount) external onlyManager {
+    function withdrawReserve(address _to, uint104 _amount) external onlyDrawManager {
         if(_amount > _reserve) {
             revert InsufficientReserve(_amount, _reserve);
         }
@@ -367,7 +386,7 @@ contract PrizePool is Manageable, TieredLiquidityDistributor {
     /// @notice Allows the Manager to complete the current prize period and starts the next one, updating the number of tiers, the winning random number, and the prize pool reserve
     /// @param winningRandomNumber_ The winning random number for the current draw
     /// @return The ID of the completed draw
-    function completeAndStartNextDraw(uint256 winningRandomNumber_) external onlyManager returns (uint32) {
+    function completeAndStartNextDraw(uint256 winningRandomNumber_) external onlyDrawManager returns (uint32) {
         // check winning random number
         if (winningRandomNumber_ == 0) {
             revert RandomNumberIsZero();

@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/console2.sol";
 
-import { PrizePool } from "src/PrizePool.sol";
+import { PrizePool, ConstructorParams } from "src/PrizePool.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
@@ -20,6 +20,7 @@ contract PrizePoolFuzzHarness is CommonBase {
     uint public claimed;
 
     constructor() {
+        address drawManager = address(this);
         uint32 grandPrizePeriodDraws = 10;
         uint32 drawPeriodSeconds = 1 hours;
         uint64 nextDrawStartsAt = uint64(block.timestamp);
@@ -35,9 +36,10 @@ contract PrizePoolFuzzHarness is CommonBase {
         // arbitrary mint
         twabController.mint(address(this), 100e18);
 
-        prizePool = new PrizePool(
+        ConstructorParams memory params = ConstructorParams(
             token,
             twabController,
+            drawManager,
             grandPrizePeriodDraws,
             drawPeriodSeconds,
             nextDrawStartsAt,
@@ -48,8 +50,7 @@ contract PrizePoolFuzzHarness is CommonBase {
             claimExpansionThreshold,
             smoothing
         );
-
-        prizePool.setManager(address(this));
+        prizePool = new PrizePool(params);
     }
 
     function contributePrizeTokens(uint64 _amount) public {
