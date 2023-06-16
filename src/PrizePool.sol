@@ -120,8 +120,6 @@ struct ConstructorParams {
 contract PrizePool is TieredLiquidityDistributor {
     using SafeERC20 for IERC20;
 
-    using SafeERC20 for IERC20;
-
     /// @notice Emitted when a prize is claimed.
     /// @param drawId The draw ID of the draw that was claimed.
     /// @param vault The address of the vault that claimed the prize.
@@ -287,12 +285,6 @@ contract PrizePool is TieredLiquidityDistributor {
         return uint32(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws));
     }
 
-    /// @notice Returns the estimated number of prizes for the given tier
-    /// @return The estimated number of prizes
-    function getTierPrizeCount(uint8 _tier) external pure returns (uint256) {
-        return TierCalculationLib.prizeCount(_tier);
-    }
-
     /// @notice Contributes prize tokens on behalf of the given vault. The tokens should have already been transferred to the prize pool.
     /// The prize pool balance will be checked to ensure there is at least the given amount to deposit.
     /// @return The amount of available prize tokens prior to the contribution.
@@ -393,7 +385,9 @@ contract PrizePool is TieredLiquidityDistributor {
 
     function _computeNextNumberOfTiers(uint8 _numTiers) internal view returns (uint8) {
         UD2x18 _claimExpansionThreshold = claimExpansionThreshold;
-        uint8 _nextNumberOfTiers = largestTierClaimed > MINIMUM_NUMBER_OF_TIERS ? largestTierClaimed + 1 : MINIMUM_NUMBER_OF_TIERS;
+
+        uint8 _nextNumberOfTiers = largestTierClaimed + 2; // canary tier, then length
+        _nextNumberOfTiers = _nextNumberOfTiers > MINIMUM_NUMBER_OF_TIERS ? _nextNumberOfTiers : MINIMUM_NUMBER_OF_TIERS;
 
         // check to see if we need to expand the number of tiers
         if (_nextNumberOfTiers >= _numTiers) {
@@ -405,6 +399,7 @@ contract PrizePool is TieredLiquidityDistributor {
                 _nextNumberOfTiers = _numTiers + 1;
             }
         }
+
 
         return _nextNumberOfTiers;
     }
@@ -514,7 +509,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
         uint32 prizeClaimCount = _claimPrizes(msg.sender, _tier, _winners, _prizeIndices, tierLiquidity.prizeSize - _feePerPrizeClaim, _feePerPrizeClaim, _feeRecipient);
 
-        if (_tier == numberOfTiers) {
+        if (_isCanaryTier(_tier, numberOfTiers)) {
             canaryClaimCount += prizeClaimCount;
         } else {
             claimCount += prizeClaimCount;
@@ -647,7 +642,7 @@ contract PrizePool is TieredLiquidityDistributor {
         uint32 _drawDuration
     ) internal view returns (bool) {
         uint8 _numberOfTiers = numberOfTiers;
-        uint32 tierPrizeCount = _tier != _numberOfTiers ? uint32(TierCalculationLib.prizeCount(_tier)) : _canaryPrizeCount(_numberOfTiers);
+        uint32 tierPrizeCount = _getTierPrizeCount(_tier, _numberOfTiers);
 
         if (_prizeIndex >= tierPrizeCount) {
             revert InvalidPrizeIndex(_prizeIndex, tierPrizeCount, _tier);
