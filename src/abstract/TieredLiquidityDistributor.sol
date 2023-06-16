@@ -325,8 +325,7 @@ contract TieredLiquidityDistributor {
     /// @param _shares The number of shares that the tier has
     /// @return The prize size
     function _computePrizeSize(UD60x18 _tierPrizeTokenPerShare, UD60x18 _prizeTokenPerShare, UD60x18 _fractionalPrizeCount, uint8 _shares) internal pure returns (uint256) {
-        UD60x18 delta = _prizeTokenPerShare.sub(_tierPrizeTokenPerShare);
-        return fromUD60x18(delta.mul(toUD60x18(_shares)).div(_fractionalPrizeCount));
+        return fromUD60x18(_prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(toUD60x18(_shares)).div(_fractionalPrizeCount));
     }
 
     /// @notice Reclaims liquidity from tiers, starting at the highest tier
