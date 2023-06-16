@@ -250,18 +250,6 @@ contract TieredLiquidityDistributor {
         return uint256(_numberOfTiers) * uint256(tierShares) + uint256(canaryShares) + uint256(reserveShares);
     }
 
-    /// @notice Consume liquidity from the given tier. Will pull from the tier, then pull from the reserve.
-    /// @param _tier The tier to consume liquidity from
-    /// @param _liquidity The amount of liquidity to consume
-    /// @return The Tier struct after consumption
-    function _consumeLiquidity(uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
-        uint8 numTiers = numberOfTiers;
-        uint8 shares = _computeShares(_tier, numTiers);
-        Tier memory tier = _getTier(_tier, numberOfTiers);
-        tier = _consumeLiquidity(tier, _tier, shares, _liquidity);
-        return tier;
-    }
-
     /// @notice Computes the number of shares for the given tier. If the tier is the canary tier, then the canary shares are returned.  Normal tier shares otherwise.
     /// @param _tier The tier to request share for
     /// @param _numTiers The number of tiers. Passed explicitly as an optimization
@@ -276,16 +264,7 @@ contract TieredLiquidityDistributor {
     /// @param _liquidity The amount of liquidity to consume
     /// @return An updated Tier struct after consumption
     function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint104 _liquidity) internal returns (Tier memory) {
-        return _consumeLiquidity(_tierStruct, _tier, _computeShares(_tier, numberOfTiers), _liquidity);
-    }
-
-    /// @notice Consumes liquidity from the given tier.
-    /// @param _tierStruct The tier to consume liquidity from
-    /// @param _tier The tier number
-    /// @param _shares The number of shares allocated to this tier
-    /// @param _liquidity The amount of liquidity to consume
-    /// @return An updated Tier struct after consumption
-    function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint8 _shares, uint104 _liquidity) internal returns (Tier memory) {
+        uint8 _shares = _computeShares(_tier, numberOfTiers);
         uint104 remainingLiquidity = uint104(_remainingTierLiquidity(_tierStruct, _shares));
         if (_liquidity > remainingLiquidity) {
             uint104 excess = _liquidity - remainingLiquidity;
@@ -302,15 +281,6 @@ contract TieredLiquidityDistributor {
         }
         _tiers[_tier] = _tierStruct;
         return _tierStruct;
-    }
-
-    /// @notice Computes the remaining liquidity for the given tier
-    /// @param _tier The tier to calculate for
-    /// @return The remaining liquidity
-    function _remainingTierLiquidity(uint8 _tier) internal view returns (uint112) {
-        uint8 shares = _computeShares(_tier, numberOfTiers);
-        Tier memory tier = _getTier(_tier, numberOfTiers);
-        return _remainingTierLiquidity(tier, shares);
     }
 
     /// @notice Computes the total liquidity available to a tier
@@ -338,16 +308,24 @@ contract TieredLiquidityDistributor {
         assert(_tier <= _numberOfTiers);
         uint256 prizeSize;
         if (_prizeTokenPerShare.gt(_tierPrizeTokenPerShare)) {
-            UD60x18 delta = _prizeTokenPerShare.sub(_tierPrizeTokenPerShare);
-            if (delta.unwrap() > 0) {
-                if (_tier == _numberOfTiers) {
-                    prizeSize = fromUD60x18(delta.mul(toUD60x18(canaryShares)).div(_canaryPrizeCountFractional(_numberOfTiers)));
-                } else {
-                    prizeSize = fromUD60x18(delta.mul(toUD60x18(tierShares)).div(toUD60x18(TierCalculationLib.prizeCount(_tier))));
-                }
+            if (_tier == _numberOfTiers) {
+                prizeSize = _computePrizeSize(_tierPrizeTokenPerShare, _prizeTokenPerShare, _canaryPrizeCountFractional(_numberOfTiers), canaryShares);
+            } else {
+                prizeSize = _computePrizeSize(_tierPrizeTokenPerShare, _prizeTokenPerShare, toUD60x18(TierCalculationLib.prizeCount(_tier)), tierShares);
             }
+            
         }
         return prizeSize;
+    }
+
+    /// @notice Computes the prize size with the given parameters
+    /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
+    /// @param _prizeTokenPerShare The global prizeTokenPerShare
+    /// @param _fractionalPrizeCount The prize count as UD60x18
+    /// @param _shares The number of shares that the tier has
+    /// @return The prize size
+    function _computePrizeSize(UD60x18 _tierPrizeTokenPerShare, UD60x18 _prizeTokenPerShare, UD60x18 _fractionalPrizeCount, uint8 _shares) internal pure returns (uint256) {
+        return fromUD60x18(_prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(toUD60x18(_shares)).div(_fractionalPrizeCount));
     }
 
     /// @notice Reclaims liquidity from tiers, starting at the highest tier

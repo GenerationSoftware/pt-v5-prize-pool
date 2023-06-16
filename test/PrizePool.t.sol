@@ -12,7 +12,7 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, WinnerPrizeMismatch, InvalidPrizeIndex, NoCompletedDraw, InvalidTier } from "../src/PrizePool.sol";
+import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, WinnerPrizeMismatch, InvalidPrizeIndex, NoCompletedDraw, InvalidTier, CallerNotDrawManager } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -89,9 +89,10 @@ contract PrizePoolTest is Test {
         lastCompletedDrawStartedAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
         drawPeriodSeconds = 1 days;
 
-        prizePool = new PrizePool(
+        ConstructorParams memory params = ConstructorParams(
             prizeToken,
             twabController,
+            address(this),
             uint32(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
@@ -103,16 +104,16 @@ contract PrizePoolTest is Test {
             sd1x18(0.9e18) // alpha
         );
 
-        prizePool.setManager(address(this));
+        prizePool = new PrizePool(params);
 
         vault = address(this);
     }
 
     function testConstructor_SmoothingGTEOne() public {
-        vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
-        new PrizePool(
+        ConstructorParams memory params = ConstructorParams(
             prizeToken,
             twabController,
+            address(this),
             uint32(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
@@ -123,6 +124,8 @@ contract PrizePoolTest is Test {
             ud2x18(0.9e18),
             sd1x18(1.0e18) // smoothing
         );
+        vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
+        new PrizePool(params);
     }
 
     function testReserve_noRemainder() public {
@@ -159,6 +162,12 @@ contract PrizePoolTest is Test {
         */
 
         assertEq(prizePool.reserveForNextDraw(), 1.318181818181818182e18);
+    }
+
+    function testWithdrawReserve_notManager() public {
+        vm.prank(address(0));
+        vm.expectRevert(abi.encodeWithSelector(CallerNotDrawManager.selector, address(0), address(this)));
+        prizePool.withdrawReserve(address(0), 1);
     }
 
     function testWithdrawReserve_insuff() public {
@@ -321,6 +330,12 @@ contract PrizePoolTest is Test {
         assertEq(nextDrawId, 1);
     }
 
+    function testCompleteAndStartNextDraw_notManager() public {
+        vm.prank(address(0));
+        vm.expectRevert(abi.encodeWithSelector(CallerNotDrawManager.selector, address(0), address(this)));
+        prizePool.completeAndStartNextDraw(winningRandomNumber);
+    }
+
     function testCompleteAndStartNextDraw_notElapsed_atStart() public {
         vm.warp(lastCompletedDrawStartedAt);
         vm.expectRevert(abi.encodeWithSelector(DrawNotFinished.selector, lastCompletedDrawStartedAt + drawPeriodSeconds));
@@ -384,9 +399,10 @@ contract PrizePoolTest is Test {
 
     function testCompleteAndStartNextDraw_shrinkTiers() public {
         // reset prize pool at higher tiers
-        prizePool = new PrizePool(
+        ConstructorParams memory params = ConstructorParams(
             prizeToken,
             twabController,
+            address(this),
             uint32(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
@@ -397,7 +413,7 @@ contract PrizePoolTest is Test {
             ud2x18(0.9e18), // claim threshold of 90%
             sd1x18(0.9e18) // alpha
         );
-        prizePool.setManager(address(this));
+        prizePool = new PrizePool(params);
 
         contribute(420e18);
         completeAndStartNextDraw(1234);

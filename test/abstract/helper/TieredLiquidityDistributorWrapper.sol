@@ -20,10 +20,14 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
     }
 
     function consumeLiquidity(uint8 _tier, uint104 _liquidity) external returns (Tier memory) {
-        return _consumeLiquidity(_tier, _liquidity);
+        Tier memory _tierData = _getTier(_tier, numberOfTiers);
+        return _consumeLiquidity(_tierData, _tier, _liquidity);
     }
 
     function remainingTierLiquidity(uint8 _tier) external view returns (uint112) {
-        return _remainingTierLiquidity(_tier);
+        uint8 shares = _computeShares(_tier, numberOfTiers);
+        Tier memory tier = _getTier(_tier, numberOfTiers);
+        return _remainingTierLiquidity(tier, shares);
     }
+
 }
