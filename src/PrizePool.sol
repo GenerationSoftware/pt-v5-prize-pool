@@ -61,6 +61,7 @@ error SenderIsNotDrawManager(address sender, address drawManager);
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
  * @param twabController The Twab Controller retrieve time-weighted average balances from
+ * @param drawManager The address of the draw manager for the prize pool
  * @param grandPrizePeriodDraws The average number of draws between grand prizes. This determines the statistical frequency of grand prizes.
  * @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
  * @param firstDrawStartsAt The timestamp at which the first draw will start.
@@ -74,7 +75,7 @@ error SenderIsNotDrawManager(address sender, address drawManager);
 struct ConstructorParams {
     IERC20 prizeToken;
     TwabController twabController;
-    address _drawManager;
+    address drawManager;
     uint32 grandPrizePeriodDraws;
     uint32 drawPeriodSeconds;
     uint64 firstDrawStartsAt;
@@ -216,7 +217,7 @@ contract PrizePool is TieredLiquidityDistributor {
         }
         prizeToken = params.prizeToken;
         twabController = params.twabController;
-        drawManager = params._drawManager;
+        drawManager = params.drawManager;
         smoothing = params.smoothing;
         claimExpansionThreshold = params.claimExpansionThreshold;
         drawPeriodSeconds = params.drawPeriodSeconds;
