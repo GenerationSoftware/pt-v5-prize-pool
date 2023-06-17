@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import "forge-std/console2.sol";
-
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
@@ -257,7 +255,9 @@ contract PrizePool is TieredLiquidityDistributor {
         _lastCompletedDrawStartedAt = params.firstDrawStartsAt;
 
         drawManager = params.drawManager;
-        emit DrawManagerSet(params.drawManager);
+        if (params.drawManager != address(0)) {
+            emit DrawManagerSet(params.drawManager);
+        }
     }
 
     /// @notice Modifier that throws if sender is not the draw manager
