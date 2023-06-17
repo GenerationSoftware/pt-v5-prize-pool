@@ -3,5 +3,7 @@ src = 'src'
 out = 'out'
 libs = ['lib']
 gas_reports_ignore = ["ERC20Mintable", "TwabController"]
+gas_limit = "18446744073709551615" # u64::MAX
+block_gas_limit = "18446744073709551615" # u64::MAX
 fs_permissions = [{ access = "read-write", path = "./data"}]
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
