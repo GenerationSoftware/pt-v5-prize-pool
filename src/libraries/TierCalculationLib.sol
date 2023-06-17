@@ -76,8 +76,7 @@ library TierCalculationLib {
         uint128 _userTwab,
         uint128 _vaultTwabTotalSupply,
         SD59x18 _vaultContributionFraction,
-        SD59x18 _tierOdds,
-        uint32 _tierPrizeCount
+        SD59x18 _tierOdds
     ) internal pure returns (bool) {
         if (_vaultTwabTotalSupply == 0) {
             return false;
@@ -91,8 +90,8 @@ library TierCalculationLib {
                 - Portion of prize that was contributed by the vault
         */
         // first constrain the random number to be within the vault total supply
-        uint256 constrainedRandomNumber = _userSpecificRandomNumber % (_vaultTwabTotalSupply*_tierPrizeCount);
-        uint256 winningZone = calculateWinningZone(_userTwab*uint256(_tierPrizeCount), _vaultContributionFraction, _tierOdds);
+        uint256 constrainedRandomNumber = _userSpecificRandomNumber % (_vaultTwabTotalSupply);
+        uint256 winningZone = calculateWinningZone(_userTwab, _vaultContributionFraction, _tierOdds);
 
         return constrainedRandomNumber < winningZone;
     }

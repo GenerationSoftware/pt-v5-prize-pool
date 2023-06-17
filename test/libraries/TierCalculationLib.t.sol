@@ -110,7 +110,7 @@ contract TierCalculationLibTest is Test {
 
         uint wins;
         for (uint i = 0; i < prizeCount; i++) {
-            if (TierCalculationLib.isWinner(uint256(keccak256(abi.encode(i))), 1000, 1000, vaultContribution, tierOdds, prizeCount)) {
+            if (TierCalculationLib.isWinner(uint256(keccak256(abi.encode(i))), 1000, 1000, vaultContribution, tierOdds)) {
                 wins++;
             }
         }
@@ -131,12 +131,12 @@ contract TierCalculationLibTest is Test {
 
         uint wins;
         for (uint i = 0; i < prizeCount; i++) {
-            if (TierCalculationLib.isWinner(uint256(keccak256(abi.encode(i))), 500, 1000, vaultContribution, tierOdds, prizeCount)) {
+            if (TierCalculationLib.isWinner(uint256(keccak256(abi.encode(i))), 500, 1000, vaultContribution, tierOdds)) {
                 wins++;
             }
         }
 
-        assertApproxEqAbs(wins, prizeCount/2, 0);
+        assertApproxEqAbs(wins, prizeCount/2, 20);
     }
 
 }
