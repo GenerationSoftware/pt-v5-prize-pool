@@ -12,7 +12,25 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, WinnerPrizeMismatch, InvalidPrizeIndex, NoCompletedDraw, InvalidTier, CallerNotDrawManager } from "../src/PrizePool.sol";
+import {
+    PrizePool,
+    ConstructorParams,
+    InsufficientRewardsError,
+    AlreadyClaimedPrize,
+    DidNotWin,
+    FeeTooLarge,
+    SmoothingGTEOne,
+    ContributionGTDeltaBalance,
+    InsufficientReserve,
+    RandomNumberIsZero,
+    DrawNotFinished,
+    WinnerPrizeMismatch,
+    InvalidPrizeIndex,
+    NoCompletedDraw,
+    InvalidTier,
+    DrawManagerAlreadySet,
+    CallerNotDrawManager
+} from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -78,7 +96,17 @@ contract PrizePoolTest is Test {
         uint256 amount,
         uint256 available
     );
+
+
+    /// @notice Emitted when the drawManager is set
+    /// @param drawManager The draw manager
+    event DrawManagerSet(
+        address indexed drawManager
+    );
+
     /**********************************************************************************/
+
+    ConstructorParams params;
 
     function setUp() public {
         vm.warp(startTimestamp);
@@ -89,10 +117,12 @@ contract PrizePoolTest is Test {
         lastCompletedDrawStartedAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
         drawPeriodSeconds = 1 days;
 
-        ConstructorParams memory params = ConstructorParams(
+        address drawManager = address(this);
+
+        params = ConstructorParams(
             prizeToken,
             twabController,
-            address(this),
+            drawManager,
             uint32(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
@@ -104,26 +134,15 @@ contract PrizePoolTest is Test {
             sd1x18(0.9e18) // alpha
         );
 
+        vm.expectEmit();
+        emit DrawManagerSet(drawManager);
         prizePool = new PrizePool(params);
 
         vault = address(this);
     }
 
     function testConstructor_SmoothingGTEOne() public {
-        ConstructorParams memory params = ConstructorParams(
-            prizeToken,
-            twabController,
-            address(this),
-            uint32(365),
-            drawPeriodSeconds,
-            lastCompletedDrawStartedAt,
-            uint8(3),
-            100,
-            10,
-            10,
-            ud2x18(0.9e18),
-            sd1x18(1.0e18) // smoothing
-        );
+        params.smoothing = sd1x18(1.0e18); // smoothing
         vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
         new PrizePool(params);
     }
@@ -401,7 +420,7 @@ contract PrizePoolTest is Test {
         uint8 startingTiers = 5;
 
         // reset prize pool at higher tiers
-        ConstructorParams memory params = ConstructorParams(
+        ConstructorParams memory prizePoolParams = ConstructorParams(
             prizeToken,
             twabController,
             address(this),
@@ -415,7 +434,7 @@ contract PrizePoolTest is Test {
             ud2x18(0.9e18), // claim threshold of 90%
             sd1x18(0.9e18) // alpha
         );
-        prizePool = new PrizePool(params);
+        prizePool = new PrizePool(prizePoolParams);
 
         contribute(420e18);
         completeAndStartNextDraw(1234);
@@ -529,6 +548,20 @@ contract PrizePoolTest is Test {
         assertEq(prizePool.getRemainingTierLiquidity(1), 10e18);
         // canary tier
         assertEq(prizePool.getRemainingTierLiquidity(2), 1e18);
+    }
+
+    function testSetDrawManager() public {
+        params.drawManager = address(0);
+        prizePool = new PrizePool(params);
+        vm.expectEmit();
+        emit DrawManagerSet(address(this));
+        prizePool.setDrawManager(address(this));
+        assertEq(prizePool.drawManager(), address(this));
+    }
+
+    function testSetDrawManager_alreadySet() public {
+        vm.expectRevert(abi.encodeWithSelector(DrawManagerAlreadySet.selector));
+        prizePool.setDrawManager(address(this));
     }
 
     function testIsWinner_noDraw() public {
