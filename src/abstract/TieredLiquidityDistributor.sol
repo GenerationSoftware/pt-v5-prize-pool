@@ -23,7 +23,7 @@ error NumberOfTiersLessThanMinimum(uint8 numTiers);
 
 /// @notice Emitted when there is insufficient liquidity to consume.
 /// @param requestedLiquidity The requested amount of liquidity
-error InsufficientLiquidity(uint112 requestedLiquidity);
+error InsufficientLiquidity(uint104 requestedLiquidity);
 
 /// @title Tiered Liquidity Distributor
 /// @author PoolTogether Inc.
@@ -82,7 +82,7 @@ contract TieredLiquidityDistributor {
     uint8 public numberOfTiers;
 
     /// @notice The draw id of the last completed draw
-    uint16 internal lastCompletedDrawId;
+    uint32 internal lastCompletedDrawId;
 
     /// @notice The amount of available reserve
     uint104 internal _reserve;
@@ -151,7 +151,7 @@ contract TieredLiquidityDistributor {
 
         uint8 numTiers = numberOfTiers;
         UD60x18 _prizeTokenPerShare = fromUD34x4toUD60x18(prizeTokenPerShare);
-        (uint16 completedDrawId, uint104 newReserve, UD60x18 newPrizeTokenPerShare) = _computeNewDistributions(numTiers, _nextNumberOfTiers, _prizeTokenPerShare, _prizeTokenLiquidity);
+        (uint32 completedDrawId, uint104 newReserve, UD60x18 newPrizeTokenPerShare) = _computeNewDistributions(numTiers, _nextNumberOfTiers, _prizeTokenPerShare, _prizeTokenLiquidity);
 
         // need to redistribute to the canary tier and any new tiers (if expanding)
         uint8 start;
@@ -186,7 +186,7 @@ contract TieredLiquidityDistributor {
     /// @return completedDrawId The drawId that this is for
     /// @return newReserve The amount of liquidity that will be added to the reserve
     /// @return newPrizeTokenPerShare The new prize token per share
-    function _computeNewDistributions(uint8 _numberOfTiers, uint8 _nextNumberOfTiers, uint _prizeTokenLiquidity) internal view returns (uint16 completedDrawId, uint104 newReserve, UD60x18 newPrizeTokenPerShare) {
+    function _computeNewDistributions(uint8 _numberOfTiers, uint8 _nextNumberOfTiers, uint256 _prizeTokenLiquidity) internal view returns (uint32 completedDrawId, uint104 newReserve, UD60x18 newPrizeTokenPerShare) {
         return _computeNewDistributions(_numberOfTiers, _nextNumberOfTiers, fromUD34x4toUD60x18(prizeTokenPerShare), _prizeTokenLiquidity);
     }
 
@@ -198,7 +198,7 @@ contract TieredLiquidityDistributor {
     /// @return completedDrawId The drawId that this is for
     /// @return newReserve The amount of liquidity that will be added to the reserve
     /// @return newPrizeTokenPerShare The new prize token per share
-    function _computeNewDistributions(uint8 _numberOfTiers, uint8 _nextNumberOfTiers, UD60x18 _currentPrizeTokenPerShare, uint _prizeTokenLiquidity) internal view returns (uint16 completedDrawId, uint104 newReserve, UD60x18 newPrizeTokenPerShare) {
+    function _computeNewDistributions(uint8 _numberOfTiers, uint8 _nextNumberOfTiers, UD60x18 _currentPrizeTokenPerShare, uint _prizeTokenLiquidity) internal view returns (uint32 completedDrawId, uint104 newReserve, UD60x18 newPrizeTokenPerShare) {
         completedDrawId = lastCompletedDrawId + 1;
         uint256 totalShares = _getTotalShares(_nextNumberOfTiers);
         UD60x18 deltaPrizeTokensPerShare = (toUD60x18(_prizeTokenLiquidity).div(toUD60x18(totalShares))).floor();
@@ -362,7 +362,7 @@ contract TieredLiquidityDistributor {
         }
         for (uint8 i = start; i < end; i++) {
             Tier memory tierLiquidity = _tiers[i];
-            uint256 shares = _computeShares(i, _numberOfTiers);
+            uint8 shares = _computeShares(i, _numberOfTiers);
             UD60x18 liq = _getRemainingTierLiquidity(shares, fromUD34x4toUD60x18(tierLiquidity.prizeTokenPerShare), _prizeTokenPerShare);
             reclaimedLiquidity = reclaimedLiquidity.add(liq);
         }
@@ -392,8 +392,8 @@ contract TieredLiquidityDistributor {
 
     /// @notice Retrieves the id of the next draw to be completed.
     /// @return The next draw id
-    function getNextDrawId() external view returns (uint256) {
-        return uint256(lastCompletedDrawId) + 1;
+    function getNextDrawId() external view returns (uint32) {
+        return uint32(lastCompletedDrawId) + 1;
     }
 
     /// @notice Estimates the number of prizes that will be awarded
