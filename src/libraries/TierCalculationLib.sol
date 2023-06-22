@@ -58,8 +58,8 @@ library TierCalculationLib {
         uint8 _reserveShares,
         uint8 _tierShares
     ) internal pure returns (UD60x18) {
-        uint256 numerator = _canaryShares * ((_numberOfTiers+1) * _tierShares + _canaryShares + _reserveShares);
-        uint256 denominator = _tierShares * ((_numberOfTiers) * _tierShares + _canaryShares + _reserveShares);
+        uint256 numerator = uint256(_canaryShares) * ((_numberOfTiers+1) * uint256(_tierShares) + _canaryShares + _reserveShares);
+        uint256 denominator = uint256(_tierShares) * ((_numberOfTiers) * uint256(_tierShares) + _canaryShares + _reserveShares);
         UD60x18 multiplier = toUD60x18(numerator).div(toUD60x18(denominator));
         return multiplier.mul(toUD60x18(prizeCount(_numberOfTiers)));
     }
