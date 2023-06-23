@@ -11,16 +11,16 @@ error AddToDrawZero();
 /// @notice Emitted when an action can't be done on a closed draw
 /// @param drawId The ID of the closed draw
 /// @param newestDrawId The newest draw ID
-error DrawClosed(uint32 drawId, uint32 newestDrawId);
+error DrawClosed(uint16 drawId, uint16 newestDrawId);
 
 /// @notice Emitted when a draw range is not strictly increasing
 /// @param startDrawId The start draw ID of the range
 /// @param endDrawId The end draw ID of the range
-error InvalidDrawRange(uint32 startDrawId, uint32 endDrawId);
+error InvalidDrawRange(uint16 startDrawId, uint16 endDrawId);
 
 /// @notice Emitted when the end draw ID for a disbursed range is invalid (too old)
 /// @param endDrawId The end draw ID for the range
-error InvalidDisbursedEndDrawId(uint32 endDrawId);
+error InvalidDisbursedEndDrawId(uint16 endDrawId);
 
 struct Observation {
     // track the total amount available as of this Observation
@@ -44,13 +44,13 @@ library DrawAccumulatorLib {
 
     struct Accumulator {
         RingBufferInfo ringBufferInfo;
-        uint32[MAX_CARDINALITY] drawRingBuffer;
+        uint16[MAX_CARDINALITY] drawRingBuffer;
         mapping(uint256 => Observation) observations;
     }
 
     struct Pair32 {
-        uint32 first;
-        uint32 second;
+        uint16 first;
+        uint16 second;
     }
 
     /// @notice Adds balance for the given draw id to the accumulator.
@@ -59,14 +59,14 @@ library DrawAccumulatorLib {
     /// @param _drawId The draw id to which to add balance to. This must be greater than or equal to the previous addition's draw id.
     /// @param _alpha The alpha value to use for the exponential weighted average.
     /// @return True if a new observation was created, false otherwise.
-    function add(Accumulator storage accumulator, uint256 _amount, uint32 _drawId, SD59x18 _alpha) internal returns (bool) {
+    function add(Accumulator storage accumulator, uint256 _amount, uint16 _drawId, SD59x18 _alpha) internal returns (bool) {
         if (_drawId == 0) {
             revert AddToDrawZero();
         }
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-        uint32 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
+        uint16 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
 
         if (_drawId < newestDrawId_) {
             revert DrawClosed(_drawId, newestDrawId_);
@@ -111,13 +111,13 @@ library DrawAccumulatorLib {
     /// @param _startDrawId The draw id to start summing from, inclusive
     /// @param _alpha The alpha value to use for the exponential weighted average
     /// @return The sum of draw balances from start draw to infinity
-    function getTotalRemaining(Accumulator storage accumulator, uint32 _startDrawId, SD59x18 _alpha) internal view returns (uint256) {
+    function getTotalRemaining(Accumulator storage accumulator, uint16 _startDrawId, SD59x18 _alpha) internal view returns (uint256) {
         RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
         if (ringBufferInfo.cardinality == 0) {
             return 0;
         }
         uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-        uint32 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
+        uint16 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
         if (_startDrawId < newestDrawId_) {
             revert DrawClosed(_startDrawId, newestDrawId_);
         }
@@ -147,8 +147,8 @@ library DrawAccumulatorLib {
     /// @return The disbursed balance between the given start and end draw ids, inclusive
     function getDisbursedBetween(
         Accumulator storage _accumulator,
-        uint32 _startDrawId,
-        uint32 _endDrawId,
+        uint16 _startDrawId,
+        uint16 _endDrawId,
         SD59x18 _alpha
     ) internal view returns (uint256) {
         if (_startDrawId > _endDrawId) {
@@ -207,17 +207,17 @@ library DrawAccumulatorLib {
 
          */
 
-        uint32 lastObservationDrawIdOccurringAtOrBeforeEnd;
+        uint16 lastObservationDrawIdOccurringAtOrBeforeEnd;
         if (_endDrawId >= drawIds.second) {
             // then it must be the end
             lastObservationDrawIdOccurringAtOrBeforeEnd = drawIds.second;
         } else {
             // otherwise it must be the previous one
-            lastObservationDrawIdOccurringAtOrBeforeEnd = _accumulator.drawRingBuffer[uint32(RingBufferLib.offset(indexes.second, 1, ringBufferInfo.cardinality))];
+            lastObservationDrawIdOccurringAtOrBeforeEnd = _accumulator.drawRingBuffer[uint16(RingBufferLib.offset(indexes.second, 1, ringBufferInfo.cardinality))];
         }
 
-        uint32 observationDrawIdBeforeOrAtStart;
-        uint32 firstObservationDrawIdOccurringAtOrAfterStart;
+        uint16 observationDrawIdBeforeOrAtStart;
+        uint16 firstObservationDrawIdOccurringAtOrAfterStart;
         // if there is only one observation, or startId is after the oldest record
         if (_startDrawId >= drawIds.second) {
             // then use the last record
@@ -239,8 +239,8 @@ library DrawAccumulatorLib {
             firstObservationDrawIdOccurringAtOrAfterStart > 0 &&
             observationDrawIdBeforeOrAtStart != lastObservationDrawIdOccurringAtOrBeforeEnd) {
             Observation memory beforeOrAtStart = _accumulator.observations[observationDrawIdBeforeOrAtStart];
-            uint32 headStartDrawId = _startDrawId - observationDrawIdBeforeOrAtStart;
-            uint32 headEndDrawId = headStartDrawId + (firstObservationDrawIdOccurringAtOrAfterStart - _startDrawId);
+            uint16 headStartDrawId = _startDrawId - observationDrawIdBeforeOrAtStart;
+            uint16 headEndDrawId = headStartDrawId + (firstObservationDrawIdOccurringAtOrAfterStart - _startDrawId);
             uint amount = integrate(_alpha, headStartDrawId, headEndDrawId, beforeOrAtStart.available);
             total += amount;
         }
@@ -268,13 +268,13 @@ library DrawAccumulatorLib {
     /// @return The total balance of the tail of the range.
     function _computeTail(
         Accumulator storage accumulator,
-        uint32 _startDrawId,
-        uint32 _endDrawId,
-        uint32 _lastObservationDrawIdOccurringAtOrBeforeEnd,
+        uint16 _startDrawId,
+        uint16 _endDrawId,
+        uint16 _lastObservationDrawIdOccurringAtOrBeforeEnd,
         SD59x18 _alpha
     ) internal view returns (uint256) {
         Observation memory lastObservation = accumulator.observations[_lastObservationDrawIdOccurringAtOrBeforeEnd];
-        uint32 tailRangeStartDrawId = (_startDrawId > _lastObservationDrawIdOccurringAtOrBeforeEnd ? _startDrawId : _lastObservationDrawIdOccurringAtOrBeforeEnd) - _lastObservationDrawIdOccurringAtOrBeforeEnd;
+        uint16 tailRangeStartDrawId = (_startDrawId > _lastObservationDrawIdOccurringAtOrBeforeEnd ? _startDrawId : _lastObservationDrawIdOccurringAtOrBeforeEnd) - _lastObservationDrawIdOccurringAtOrBeforeEnd;
         uint256 amount = integrate(_alpha, tailRangeStartDrawId, _endDrawId - _lastObservationDrawIdOccurringAtOrBeforeEnd + 1, lastObservation.available);
         return amount;
     }
@@ -284,8 +284,8 @@ library DrawAccumulatorLib {
     /// @return A pair of indices, where the first is the oldest index and the second is the newest index
     function computeIndices(RingBufferInfo memory ringBufferInfo) internal pure returns (Pair32 memory) {
         return Pair32({
-            first: uint32(RingBufferLib.oldestIndex(ringBufferInfo.nextIndex, ringBufferInfo.cardinality, MAX_CARDINALITY)),
-            second: uint32(RingBufferLib.newestIndex(ringBufferInfo.nextIndex, ringBufferInfo.cardinality))
+            first: uint16(RingBufferLib.oldestIndex(ringBufferInfo.nextIndex, ringBufferInfo.cardinality, MAX_CARDINALITY)),
+            second: uint16(RingBufferLib.newestIndex(ringBufferInfo.nextIndex, ringBufferInfo.cardinality))
         });
     }
 
@@ -295,8 +295,8 @@ library DrawAccumulatorLib {
     /// @return A pair of draw ids, where the first is the draw id of the pair's first index and the second is the draw id of the pair's second index
     function readDrawIds(Accumulator storage accumulator, Pair32 memory indices) internal view returns (Pair32 memory) {
         return Pair32({
-            first: uint32(accumulator.drawRingBuffer[indices.first]),
-            second: uint32(accumulator.drawRingBuffer[indices.second])
+            first: uint16(accumulator.drawRingBuffer[indices.first]),
+            second: uint16(accumulator.drawRingBuffer[indices.second])
         });
     }
 
@@ -353,32 +353,32 @@ library DrawAccumulatorLib {
     /// @return afterOrAtIndex The index of the observation occurring at or after the target draw id
     /// @return afterOrAtDrawId The draw id of the observation occurring at or after the target draw id
     function binarySearch(
-        uint32[MAX_CARDINALITY] storage _drawRingBuffer,
-        uint32 _oldestIndex,
-        uint32 _newestIndex,
-        uint32 _cardinality,
-        uint32 _targetLastCompletedDrawId
+        uint16[MAX_CARDINALITY] storage _drawRingBuffer,
+        uint16 _oldestIndex,
+        uint16 _newestIndex,
+        uint16 _cardinality,
+        uint16 _targetLastCompletedDrawId
     ) internal view returns (
-        uint32 beforeOrAtIndex,
-        uint32 beforeOrAtDrawId,
-        uint32 afterOrAtIndex,
-        uint32 afterOrAtDrawId
+        uint16 beforeOrAtIndex,
+        uint16 beforeOrAtDrawId,
+        uint16 afterOrAtIndex,
+        uint16 afterOrAtDrawId
     ) {
-        uint32 leftSide = _oldestIndex;
-        uint32 rightSide = _newestIndex < leftSide
+        uint16 leftSide = _oldestIndex;
+        uint16 rightSide = _newestIndex < leftSide
             ? leftSide + _cardinality - 1
             : _newestIndex;
-        uint32 currentIndex;
+        uint16 currentIndex;
 
         while (true) {
             // We start our search in the middle of the `leftSide` and `rightSide`.
             // After each iteration, we narrow down the search to the left or the right side while still starting our search in the middle.
             currentIndex = (leftSide + rightSide) / 2;
 
-            beforeOrAtIndex = uint32(RingBufferLib.wrap(currentIndex, _cardinality));
+            beforeOrAtIndex = uint16(RingBufferLib.wrap(currentIndex, _cardinality));
             beforeOrAtDrawId = _drawRingBuffer[beforeOrAtIndex];
 
-            afterOrAtIndex = uint32(RingBufferLib.nextIndex(currentIndex, _cardinality));
+            afterOrAtIndex = uint16(RingBufferLib.nextIndex(currentIndex, _cardinality));
             afterOrAtDrawId = _drawRingBuffer[afterOrAtIndex];
 
             bool targetAtOrAfter = beforeOrAtDrawId <= _targetLastCompletedDrawId;

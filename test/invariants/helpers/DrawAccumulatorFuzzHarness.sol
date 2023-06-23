@@ -13,7 +13,7 @@ contract DrawAccumulatorFuzzHarness {
 
     DrawAccumulatorLib.Accumulator internal accumulator;
 
-    uint32 currentDrawId = 1;
+    uint16 currentDrawId = 1;
 
     function add(uint64 _amount, uint8 _drawInc) public returns (bool) {
         currentDrawId += (_drawInc / 16);

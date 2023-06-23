@@ -15,9 +15,9 @@ library TierCalculationLib {
     /// @param _numberOfTiers The total number of tiers
     /// @param _grandPrizePeriod The number of draws between grand prizes
     /// @return The odds that a tier should occur for a single draw.
-    function getTierOdds(uint8 _tier, uint8 _numberOfTiers, uint32 _grandPrizePeriod) internal pure returns (SD59x18) {
+    function getTierOdds(uint8 _tier, uint8 _numberOfTiers, uint16 _grandPrizePeriod) internal pure returns (SD59x18) {
         SD59x18 _k = sd(1).div(
-            sd(int32(_grandPrizePeriod))
+            sd(int16(_grandPrizePeriod))
         ).ln().div(
             sd((-1 * int8(_numberOfTiers) + 1))
         );
@@ -30,7 +30,7 @@ library TierCalculationLib {
     /// @param _numberOfTiers The total number of tiers
     /// @param _grandPrizePeriod The number of draws between grand prizes
     /// @return The estimated number of draws between the tier occurring
-    function estimatePrizeFrequencyInDraws(uint8 _tier, uint8 _numberOfTiers, uint32 _grandPrizePeriod) internal pure returns (uint256) {
+    function estimatePrizeFrequencyInDraws(uint8 _tier, uint8 _numberOfTiers, uint16 _grandPrizePeriod) internal pure returns (uint256) {
         return uint256(fromSD59x18(
             sd(1e18).div(TierCalculationLib.getTierOdds(_tier, _numberOfTiers, _grandPrizePeriod)).ceil()
         ));
@@ -130,7 +130,7 @@ library TierCalculationLib {
     /// @param _numberOfTiers The number of tiers
     /// @param _grandPrizePeriod The grand prize period
     /// @return The estimated number of prizes per draw
-    function estimatedClaimCount(uint8 _numberOfTiers, uint32 _grandPrizePeriod) internal pure returns (uint32) {
+    function estimatedClaimCount(uint8 _numberOfTiers, uint16 _grandPrizePeriod) internal pure returns (uint32) {
         uint32 count = 0;
         for (uint8 i = 0; i < _numberOfTiers; i++) {
             count += uint32(uint256(unwrap(sd(int256(prizeCount(i))).mul(getTierOdds(i, _numberOfTiers, _grandPrizePeriod)))));

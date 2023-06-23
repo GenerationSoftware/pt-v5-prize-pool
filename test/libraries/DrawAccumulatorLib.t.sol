@@ -235,7 +235,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchTwoWithFirstMatchingTarget() public {
         fillDrawRingBuffer([1, 3, 0, 0, 0]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+        (uint16 beforeOrAtIndex, uint16 beforeOrAtDrawId, uint16 afterOrAtIndex, uint16 afterOrAtDrawId) = wrapper.binarySearch(
             0, 2, 2, 1
         );
         assertEq(beforeOrAtIndex, 0);
@@ -246,7 +246,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchMatchingTarget() public {
         fillDrawRingBuffer([1, 2, 3, 4, 5]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+        (uint16 beforeOrAtIndex, uint16 beforeOrAtDrawId, uint16 afterOrAtIndex, uint16 afterOrAtDrawId) = wrapper.binarySearch(
             0, 4, 5, 3
         );
         assertEq(beforeOrAtIndex, 2);
@@ -257,7 +257,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchFirstMatchingTarget() public {
         fillDrawRingBuffer([1, 2, 3, 4, 5]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+        (uint16 beforeOrAtIndex, uint16 beforeOrAtDrawId, uint16 afterOrAtIndex, uint16 afterOrAtDrawId) = wrapper.binarySearch(
             0, 4, 5, 1
         );
         assertEq(beforeOrAtIndex, 0);
@@ -268,7 +268,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchLastMatchingTarget() public {
         fillDrawRingBuffer([1, 2, 3, 4, 5]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+        (uint16 beforeOrAtIndex, uint16 beforeOrAtDrawId, uint16 afterOrAtIndex, uint16 afterOrAtDrawId) = wrapper.binarySearch(
             0, 4, 5, 5
         );
         assertEq(beforeOrAtIndex, 3);
@@ -279,7 +279,7 @@ contract DrawAccumulatorLibTest is Test {
 
     function testBinarySearchTargetBetween() public {
         fillDrawRingBuffer([2, 4, 5, 6, 7]);
-        (uint32 beforeOrAtIndex, uint32 beforeOrAtDrawId, uint32 afterOrAtIndex, uint32 afterOrAtDrawId) = wrapper.binarySearch(
+        (uint16 beforeOrAtIndex, uint16 beforeOrAtDrawId, uint16 afterOrAtIndex, uint16 afterOrAtDrawId) = wrapper.binarySearch(
             0, 4, 5, 3
         );
         assertEq(beforeOrAtIndex, 0);
@@ -295,11 +295,11 @@ contract DrawAccumulatorLibTest is Test {
         wrapper.setRingBufferInfo(uint16(values.length), uint16(values.length));
     }
 
-    function add(uint32 drawId) internal {
+    function add(uint16 drawId) internal {
         wrapper.add(10000, drawId, alpha);
     }
 
-    function getDisbursedBetween(uint32 _startDrawId, uint32 _endDrawId) internal view returns (uint256) {
+    function getDisbursedBetween(uint16 _startDrawId, uint16 _endDrawId) internal view returns (uint256) {
         return wrapper.getDisbursedBetween(_startDrawId, _endDrawId, alpha);
     }
 

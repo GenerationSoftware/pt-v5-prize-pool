@@ -63,7 +63,7 @@ contract PrizePoolTest is Test {
     /// @param numTiers The number of prize tiers in the completed draw
     /// @param nextNumTiers The number of tiers for the next draw
     event DrawCompleted(
-        uint32 indexed drawId,
+        uint16 indexed drawId,
         uint256 winningRandomNumber,
         uint8 numTiers,
         uint8 nextNumTiers
@@ -83,7 +83,7 @@ contract PrizePoolTest is Test {
     /// @param amount The amount of tokens contributed
     event ContributePrizeTokens(
         address indexed vault,
-        uint32 indexed drawId,
+        uint16 indexed drawId,
         uint256 amount
     );
 
@@ -123,7 +123,7 @@ contract PrizePoolTest is Test {
             prizeToken,
             twabController,
             drawManager,
-            uint32(365),
+            uint16(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
             uint8(3), // minimum number of tiers
@@ -424,7 +424,7 @@ contract PrizePoolTest is Test {
             prizeToken,
             twabController,
             address(this),
-            uint32(365),
+            uint16(365),
             drawPeriodSeconds,
             lastCompletedDrawStartedAt,
             startingTiers, // higher number of tiers
