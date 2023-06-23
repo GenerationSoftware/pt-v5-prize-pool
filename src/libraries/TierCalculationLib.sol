@@ -15,14 +15,14 @@ library TierCalculationLib {
     /// @param _numberOfTiers The total number of tiers
     /// @param _grandPrizePeriod The number of draws between grand prizes
     /// @return The odds that a tier should occur for a single draw.
-    function getTierOdds(uint256 _tier, uint256 _numberOfTiers, uint256 _grandPrizePeriod) internal pure returns (SD59x18) {
+    function getTierOdds(uint8 _tier, uint8 _numberOfTiers, uint16 _grandPrizePeriod) internal pure returns (SD59x18) {
         SD59x18 _k = sd(1).div(
-            sd(int256(uint256(_grandPrizePeriod)))
+            sd(int16(_grandPrizePeriod))
         ).ln().div(
-            sd((-1 * int256(_numberOfTiers) + 1))
+            sd((-1 * int8(_numberOfTiers) + 1))
         );
 
-        return E.pow(_k.mul(sd(int256(_tier) - (int256(_numberOfTiers) - 1))));
+        return E.pow(_k.mul(sd(int8(_tier) - (int8(_numberOfTiers) - 1))));
     }
 
     /// @notice Estimates the number of draws between a tier occurring
@@ -30,7 +30,7 @@ library TierCalculationLib {
     /// @param _numberOfTiers The total number of tiers
     /// @param _grandPrizePeriod The number of draws between grand prizes
     /// @return The estimated number of draws between the tier occurring
-    function estimatePrizeFrequencyInDraws(uint256 _tier, uint256 _numberOfTiers, uint256 _grandPrizePeriod) internal pure returns (uint256) {
+    function estimatePrizeFrequencyInDraws(uint8 _tier, uint8 _numberOfTiers, uint16 _grandPrizePeriod) internal pure returns (uint256) {
         return uint256(fromSD59x18(
             sd(1e18).div(TierCalculationLib.getTierOdds(_tier, _numberOfTiers, _grandPrizePeriod)).ceil()
         ));
@@ -39,7 +39,7 @@ library TierCalculationLib {
     /// @notice Computes the number of prizes for a given tier
     /// @param _tier The tier to compute for
     /// @return The number of prizes
-    function prizeCount(uint256 _tier) internal pure returns (uint256) {
+    function prizeCount(uint8 _tier) internal pure returns (uint256) {
         uint256 _numberOfPrizes = 4 ** _tier;
 
         return _numberOfPrizes;
@@ -53,13 +53,13 @@ library TierCalculationLib {
     /// @param _tierShares The number of shares allocated to prize tiers
     /// @return The number of canary prizes, including fractional prizes.
     function canaryPrizeCount(
-        uint256 _numberOfTiers,
-        uint256 _canaryShares,
-        uint256 _reserveShares,
-        uint256 _tierShares
+        uint8 _numberOfTiers,
+        uint8 _canaryShares,
+        uint8 _reserveShares,
+        uint8 _tierShares
     ) internal pure returns (UD60x18) {
-        uint256 numerator = _canaryShares * ((_numberOfTiers+1) * _tierShares + _canaryShares + _reserveShares);
-        uint256 denominator = _tierShares * ((_numberOfTiers) * _tierShares + _canaryShares + _reserveShares);
+        uint256 numerator = uint256(_canaryShares) * ((_numberOfTiers+1) * uint256(_tierShares) + _canaryShares + _reserveShares);
+        uint256 denominator = uint256(_tierShares) * ((_numberOfTiers) * uint256(_tierShares) + _canaryShares + _reserveShares);
         UD60x18 multiplier = toUD60x18(numerator).div(toUD60x18(denominator));
         return multiplier.mul(toUD60x18(prizeCount(_numberOfTiers)));
     }
@@ -104,7 +104,7 @@ library TierCalculationLib {
     /// @return A pseudo-random number
     function calculatePseudoRandomNumber(
         address _user,
-        uint32 _tier,
+        uint8 _tier,
         uint32 _prizeIndex,
         uint256 _winningRandomNumber
     ) internal pure returns (uint256) {
@@ -130,9 +130,9 @@ library TierCalculationLib {
     /// @param _numberOfTiers The number of tiers
     /// @param _grandPrizePeriod The grand prize period
     /// @return The estimated number of prizes per draw
-    function estimatedClaimCount(uint256 _numberOfTiers, uint256 _grandPrizePeriod) internal pure returns (uint32) {
+    function estimatedClaimCount(uint8 _numberOfTiers, uint16 _grandPrizePeriod) internal pure returns (uint32) {
         uint32 count = 0;
-        for (uint32 i = 0; i < _numberOfTiers; i++) {
+        for (uint8 i = 0; i < _numberOfTiers; i++) {
             count += uint32(uint256(unwrap(sd(int256(prizeCount(i))).mul(getTierOdds(i, _numberOfTiers, _grandPrizePeriod)))));
         }
         return count;

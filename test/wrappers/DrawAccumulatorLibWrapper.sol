@@ -23,12 +23,12 @@ contract DrawAccumulatorLibWrapper {
         accumulator.ringBufferInfo.nextIndex = nextIndex;
     }
 
-    function add(uint256 _amount, uint32 _drawId, SD59x18 _alpha) public returns (bool) {
+    function add(uint256 _amount, uint16 _drawId, SD59x18 _alpha) public returns (bool) {
         bool result = DrawAccumulatorLib.add(accumulator, _amount, _drawId, _alpha);
         return result;
     }
 
-    function getTotalRemaining(uint32 _endDrawId, SD59x18 _alpha) public view returns (uint256) {
+    function getTotalRemaining(uint16 _endDrawId, SD59x18 _alpha) public view returns (uint256) {
         uint256 result = DrawAccumulatorLib.getTotalRemaining(accumulator, _endDrawId, _alpha);
         return result;
     }
@@ -42,8 +42,8 @@ contract DrawAccumulatorLibWrapper {
      * Requires endDrawId to be greater than (the newest draw id - 1)
      */
     function getDisbursedBetween(
-        uint32 _startDrawId,
-        uint32 _endDrawId,
+        uint16 _startDrawId,
+        uint16 _endDrawId,
         SD59x18 _alpha
     ) public view returns (uint256) {
         uint256 result = DrawAccumulatorLib.getDisbursedBetween(accumulator, _startDrawId, _endDrawId, _alpha);
@@ -74,15 +74,15 @@ contract DrawAccumulatorLibWrapper {
     /**
      */
     function binarySearch(
-        uint32 _oldestIndex,
-        uint32 _newestIndex,
-        uint32 _cardinality,
-        uint32 _targetLastCompletedDrawId
+        uint16 _oldestIndex,
+        uint16 _newestIndex,
+        uint16 _cardinality,
+        uint16 _targetLastCompletedDrawId
     ) public view returns (
-        uint32 beforeOrAtIndex,
-        uint32 beforeOrAtDrawId,
-        uint32 afterOrAtIndex,
-        uint32 afterOrAtDrawId
+        uint16 beforeOrAtIndex,
+        uint16 beforeOrAtDrawId,
+        uint16 afterOrAtIndex,
+        uint16 afterOrAtDrawId
     ) {
         (beforeOrAtIndex, beforeOrAtDrawId, afterOrAtIndex, afterOrAtDrawId) = DrawAccumulatorLib.binarySearch(
             accumulator.drawRingBuffer, _oldestIndex, _newestIndex, _cardinality, _targetLastCompletedDrawId

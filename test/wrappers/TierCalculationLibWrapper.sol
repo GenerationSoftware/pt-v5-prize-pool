@@ -9,13 +9,13 @@ import { UD60x18 } from "prb-math/UD60x18.sol";
 contract TierCalculationLibWrapper {
 
     function canaryPrizeCount(
-        uint256 _numberOfTiers, uint256 _canaryShares, uint256 _reserveShares, uint256 _tierShares
+        uint8 _numberOfTiers, uint8 _canaryShares, uint8 _reserveShares, uint8 _tierShares
     ) external pure returns (UD60x18) {
         UD60x18 result = TierCalculationLib.canaryPrizeCount(_numberOfTiers, _canaryShares, _reserveShares, _tierShares);
         return result;
     }
 
-    function estimatedClaimCount(uint256 _numberOfTiers, uint256 _grandPrizePeriod) external pure returns (uint32) {
+    function estimatedClaimCount(uint8 _numberOfTiers, uint16 _grandPrizePeriod) external pure returns (uint32) {
         uint32 result = TierCalculationLib.estimatedClaimCount(_numberOfTiers, _grandPrizePeriod);
         return result;
     }

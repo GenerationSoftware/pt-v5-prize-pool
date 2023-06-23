@@ -104,7 +104,7 @@ struct ConstructorParams {
     IERC20 prizeToken;
     TwabController twabController;
     address drawManager;
-    uint32 grandPrizePeriodDraws;
+    uint16 grandPrizePeriodDraws;
     uint32 drawPeriodSeconds;
     uint64 firstDrawStartsAt;
     uint8 numberOfTiers;
@@ -132,7 +132,7 @@ contract PrizePool is TieredLiquidityDistributor {
     /// @param fee The amount of prize tokens that were paid to the claimer
     /// @param feeRecipient The address that the claim fee was sent to
     event ClaimedPrize(
-        uint32 indexed drawId,
+        uint16 indexed drawId,
         address indexed vault,
         address indexed winner,
         uint8 tier,
@@ -147,7 +147,7 @@ contract PrizePool is TieredLiquidityDistributor {
     /// @param numTiers The number of prize tiers in the completed draw
     /// @param nextNumTiers The number of tiers for the next draw
     event DrawCompleted(
-        uint32 indexed drawId,
+        uint16 indexed drawId,
         uint256 winningRandomNumber,
         uint8 numTiers,
         uint8 nextNumTiers
@@ -167,7 +167,7 @@ contract PrizePool is TieredLiquidityDistributor {
     /// @param amount The amount of tokens contributed
     event ContributePrizeTokens(
         address indexed vault,
-        uint32 indexed drawId,
+        uint16 indexed drawId,
         uint256 amount
     );
 
@@ -192,7 +192,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
     /// @notice Records the claim record for a winner
     /// @dev account => drawId => tier => prizeIndex => claimed
-    mapping(address => mapping(uint32 => mapping(uint8 => mapping(uint32 => bool)))) internal claimedPrizes;
+    mapping(address => mapping(uint16 => mapping(uint8 => mapping(uint32 => bool)))) internal claimedPrizes;
 
     /// @notice Tracks the total fees accrued to each claimer
     mapping(address => uint256) internal claimerRewards;
@@ -294,20 +294,20 @@ contract PrizePool is TieredLiquidityDistributor {
 
     /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive. Note that this is after smoothing is applied.
     /// @return The total prize tokens contributed by all vaults
-    function getTotalContributedBetween(uint32 _startDrawIdInclusive, uint32 _endDrawIdInclusive) external view returns (uint256) {
+    function getTotalContributedBetween(uint16 _startDrawIdInclusive, uint16 _endDrawIdInclusive) external view returns (uint256) {
         return DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawIdInclusive, _endDrawIdInclusive, smoothing.intoSD59x18());
     }
 
     /// @notice Returns the total prize tokens contributed by a particular vault between the given draw ids, inclusive. Note that this is after smoothing is applied.
     /// @return The total prize tokens contributed by the given vault
-    function getContributedBetween(address _vault, uint32 _startDrawIdInclusive, uint32 _endDrawIdInclusive) external view returns (uint256) {
+    function getContributedBetween(address _vault, uint16 _startDrawIdInclusive, uint16 _endDrawIdInclusive) external view returns (uint256) {
         return DrawAccumulatorLib.getDisbursedBetween(vaultAccumulator[_vault], _startDrawIdInclusive, _endDrawIdInclusive, smoothing.intoSD59x18());
     }
 
     /// @notice Returns the
     /// @return The number of draws
-    function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint32) {
-        return uint32(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws));
+    function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint16) {
+        return uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, numberOfTiers, grandPrizePeriodDraws));
     }
 
     /// @notice Contributes prize tokens on behalf of the given vault. The tokens should have already been transferred to the prize pool.
@@ -402,7 +402,7 @@ contract PrizePool is TieredLiquidityDistributor {
             // Use integer division to get the number of draw periods passed between the expected end time and now
             // Offset the end time by the total duration of the missed draws
             // drawPeriodSeconds * numMissedDraws
-            _nextExpectedEndTime += drawPeriodSeconds * (uint32((block.timestamp - _nextExpectedEndTime) / drawPeriodSeconds));
+            _nextExpectedEndTime += drawPeriodSeconds * (uint64((block.timestamp - _nextExpectedEndTime) / drawPeriodSeconds));
         }
 
         return _nextExpectedEndTime;
@@ -432,7 +432,7 @@ contract PrizePool is TieredLiquidityDistributor {
     /// @notice Allows the Manager to complete the current prize period and starts the next one, updating the number of tiers, the winning random number, and the prize pool reserve
     /// @param winningRandomNumber_ The winning random number for the current draw
     /// @return The ID of the completed draw
-    function completeAndStartNextDraw(uint256 winningRandomNumber_) external onlyDrawManager returns (uint32) {
+    function completeAndStartNextDraw(uint256 winningRandomNumber_) external onlyDrawManager returns (uint16) {
         // check winning random number
         if (winningRandomNumber_ == 0) {
             revert RandomNumberIsZero();
@@ -481,7 +481,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     /// @notice Computes the tokens to be disbursed from the accumulator for a given draw.
-    function _contributionsForDraw(uint32 _drawId) internal view returns (uint256) {
+    function _contributionsForDraw(uint16 _drawId) internal view returns (uint256) {
         return DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _drawId, _drawId, smoothing.intoSD59x18());
     }
 
@@ -563,7 +563,7 @@ contract PrizePool is TieredLiquidityDistributor {
         address _feeRecipient
     ) internal returns (uint32) {
         uint32 _prizeClaimCount = 0;
-        (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint32 _drawDuration) = _computeVaultTierDetails(_vault, _tier, numberOfTiers, lastCompletedDrawId);
+        (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint16 _drawDuration) = _computeVaultTierDetails(_vault, _tier, numberOfTiers, lastCompletedDrawId);
 
         for (uint winnerIndex = 0; winnerIndex < _winners.length; winnerIndex++) {
             _prizeClaimCount += _claimWinnerPrizes(_vault, _tier, _winners[winnerIndex], _prizeIndices[winnerIndex], _payout, _feePerPrizeClaim, _feeRecipient, _vaultPortion, _tierOdds, _drawDuration);
@@ -582,7 +582,7 @@ contract PrizePool is TieredLiquidityDistributor {
         address _feeRecipient,
         SD59x18 _vaultPortion,
         SD59x18 _tierOdds,
-        uint32 _drawDuration
+        uint16 _drawDuration
     ) internal returns (uint32) {
         for (uint256 _prizeArrayIndex = 0; _prizeArrayIndex < _prizeIndices.length; _prizeArrayIndex++) {
             if (!_isWinner(_vault, _winner, _tier, _prizeIndices[_prizeArrayIndex], _vaultPortion, _tierOdds, _drawDuration)) {
@@ -646,7 +646,7 @@ contract PrizePool is TieredLiquidityDistributor {
         uint8 _tier,
         uint32 _prizeIndex
     ) external view returns (bool) {
-        (SD59x18 vaultPortion, SD59x18 tierOdds, uint32 drawDuration) = _computeVaultTierDetails(_vault, _tier, numberOfTiers, lastCompletedDrawId);
+        (SD59x18 vaultPortion, SD59x18 tierOdds, uint16 drawDuration) = _computeVaultTierDetails(_vault, _tier, numberOfTiers, lastCompletedDrawId);
         return _isWinner(_vault, _user, _tier, _prizeIndex, vaultPortion, tierOdds, drawDuration);
     }
 
@@ -664,7 +664,7 @@ contract PrizePool is TieredLiquidityDistributor {
         uint32 _prizeIndex,
         SD59x18 _vaultPortion,
         SD59x18 _tierOdds,
-        uint32 _drawDuration
+        uint16 _drawDuration
     ) internal view returns (bool) {
         uint8 _numberOfTiers = numberOfTiers;
         uint32 tierPrizeCount = _getTierPrizeCount(_tier, _numberOfTiers);
@@ -679,7 +679,7 @@ contract PrizePool is TieredLiquidityDistributor {
         return TierCalculationLib.isWinner(userSpecificRandomNumber, uint128(_userTwab), uint128(_vaultTwabTotalSupply), _vaultPortion, _tierOdds);
     }
 
-    function _computeVaultTierDetails(address _vault, uint8 _tier, uint8 _numberOfTiers, uint32 _lastCompletedDrawId) internal view returns (SD59x18 vaultPortion, SD59x18 tierOdds, uint32 drawDuration) {
+    function _computeVaultTierDetails(address _vault, uint8 _tier, uint8 _numberOfTiers, uint16 _lastCompletedDrawId) internal view returns (SD59x18 vaultPortion, SD59x18 tierOdds, uint16 drawDuration) {
         if (_lastCompletedDrawId == 0) {
             revert NoCompletedDraw();
         }
@@ -688,10 +688,10 @@ contract PrizePool is TieredLiquidityDistributor {
         }
 
         tierOdds = TierCalculationLib.getTierOdds(_tier, _numberOfTiers, grandPrizePeriodDraws);
-        drawDuration = uint32(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, _numberOfTiers, grandPrizePeriodDraws));
+        drawDuration = uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, _numberOfTiers, grandPrizePeriodDraws));
         vaultPortion = _getVaultPortion(
             _vault,
-            uint32(drawDuration > _lastCompletedDrawId ? 0 : _lastCompletedDrawId - drawDuration + 1),
+            uint16(drawDuration > _lastCompletedDrawId ? 0 : _lastCompletedDrawId - drawDuration + 1),
             _lastCompletedDrawId + 1,
             smoothing.intoSD59x18()
         );
@@ -755,7 +755,7 @@ contract PrizePool is TieredLiquidityDistributor {
     * @param _smoothing The smoothing value to use for calculating the portion.
     * @return The portion of the vault's contribution to the prize pool over the specified duration in draws.
     */
-    function _getVaultPortion(address _vault, uint32 _startDrawId, uint32 _endDrawId, SD59x18 _smoothing) internal view returns (SD59x18) {
+    function _getVaultPortion(address _vault, uint16 _startDrawId, uint16 _endDrawId, SD59x18 _smoothing) internal view returns (SD59x18) {
         uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(totalAccumulator, _startDrawId, _endDrawId, _smoothing);
 
         if (totalContributed != 0) {
@@ -770,7 +770,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
     /**
         @notice Returns the portion of a vault's contributions in a given draw range.
-        This function takes in an address _vault, a uint32 startDrawId, and a uint32 endDrawId.
+        This function takes in an address _vault, a uint16 startDrawId, and a uint16 endDrawId.
         It calculates the portion of the _vault's contributions in the given draw range by calling the internal
         _getVaultPortion function with the _vault argument, startDrawId as the drawId_ argument,
         endDrawId - startDrawId as the _durationInDraws argument, and smoothing.intoSD59x18() as the _smoothing
@@ -781,7 +781,7 @@ contract PrizePool is TieredLiquidityDistributor {
         @param _endDrawId The ending draw ID of the draw range to calculate the contribution portion for.
         @return The portion of the _vault's contributions in the given draw range as an SD59x18 value.
     */
-    function getVaultPortion(address _vault, uint32 _startDrawId, uint32 _endDrawId) external view returns (SD59x18) {
+    function getVaultPortion(address _vault, uint16 _startDrawId, uint16 _endDrawId) external view returns (SD59x18) {
         return _getVaultPortion(_vault, _startDrawId, _endDrawId, smoothing.intoSD59x18());
     }
 }

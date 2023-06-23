@@ -8,7 +8,7 @@ import { TieredLiquidityDistributor, Tier, fromUD34x4toUD60x18 } from "src/abstr
 contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
 
     constructor (
-        uint32 _grandPrizePeriodDraws,
+        uint16 _grandPrizePeriodDraws,
         uint8 _numberOfTiers,
         uint8 _tierShares,
         uint8 _canaryShares,

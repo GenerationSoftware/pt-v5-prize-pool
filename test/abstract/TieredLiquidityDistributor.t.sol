@@ -11,7 +11,7 @@ contract TieredLiquidityDistributorTest is Test {
 
     TieredLiquidityDistributorWrapper public distributor;
 
-    uint32 grandPrizePeriodDraws;
+    uint16 grandPrizePeriodDraws;
     uint8 numberOfTiers;
     uint8 tierShares;
     uint8 canaryShares;
