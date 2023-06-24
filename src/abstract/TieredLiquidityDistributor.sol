@@ -231,8 +231,20 @@ contract TieredLiquidityDistributor {
         return _getTierPrizeCount(_tier, numberOfTiers);
     }
 
+    /// @notice Returns the number of available prizes for the given tier
+    /// @param _tier The tier to retrieve
+    /// @param _numberOfTiers The number of tiers, should match the current number of tiers
+    /// @return The number of available prizes
     function _getTierPrizeCount(uint8 _tier, uint8 _numberOfTiers) internal view returns (uint32) {
         return _isCanaryTier(_tier, _numberOfTiers) ? _canaryPrizeCount(_numberOfTiers) : uint32(TierCalculationLib.prizeCount(_tier));
+    }
+
+    /// @notice Computes the remaining liquidity for the given tier
+    /// @param _tier The tier to compute the remaining liquidity for
+    /// @return The remaining liquidity
+    function getTierRemainingLiquidity(uint8 _tier) external view returns (uint112) {
+        uint8 numTiers = numberOfTiers;
+        return uint104(_remainingTierLiquidity(_getTier(_tier, numTiers), _computeShares(_tier, numTiers)));
     }
 
     /// @notice Retrieves an up-to-date Tier struct for the given tier
