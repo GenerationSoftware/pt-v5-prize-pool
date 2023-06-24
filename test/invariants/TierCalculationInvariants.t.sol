@@ -23,9 +23,11 @@ contract TierCalculationInvariants is Test {
         //     console2.log("drawPrizes", harness.nextDraw(uint256(keccak256(abi.encode(i)))));
         // }
 
-        uint estimatedPrizeCount = TierCalculationLib.estimatedClaimCount(harness.numberOfTiers(), harness.grandPrizePeriod());
-        uint bounds = 30;
-        console2.log("harness.averagePrizesPerDraw()", harness.averagePrizesPerDraw(), "estimatedPrizeCount", estimatedPrizeCount);
-        assertApproxEqAbs(harness.averagePrizesPerDraw(), estimatedPrizeCount, bounds, "estimated prizes match reality");
+        if (harness.draws() > 0) {
+            uint estimatedPrizeCount = TierCalculationLib.estimatedClaimCount(harness.numberOfTiers(), harness.grandPrizePeriod());
+            uint bounds = 30;
+            console2.log("harness.averagePrizesPerDraw()", harness.averagePrizesPerDraw(), "estimatedPrizeCount", estimatedPrizeCount);
+            assertApproxEqAbs(harness.averagePrizesPerDraw(), estimatedPrizeCount, bounds, "estimated prizes match reality");
+        }
     }
 }
