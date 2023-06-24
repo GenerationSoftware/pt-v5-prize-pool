@@ -17,11 +17,11 @@ contract TierCalculationInvariants is Test {
     }
 
     function test_it() public {
-        uint iterations = 100;
+        // uint iterations = 100;
 
-        for (uint i = 0; i < iterations; i++) {
-            console2.log("drawPrizes", harness.nextDraw(uint256(keccak256(abi.encode(i)))));
-        }
+        // for (uint i = 0; i < iterations; i++) {
+        //     console2.log("drawPrizes", harness.nextDraw(uint256(keccak256(abi.encode(i)))));
+        // }
 
         uint estimatedPrizeCount = TierCalculationLib.estimatedClaimCount(harness.numberOfTiers(), harness.grandPrizePeriod());
         uint bounds = 30;

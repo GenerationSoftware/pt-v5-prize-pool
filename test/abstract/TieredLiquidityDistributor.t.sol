@@ -86,6 +86,11 @@ contract TieredLiquidityDistributorTest is Test {
         assertEq(distributor.getTierPrizeSize(0), 100e18);
     }
 
+    function testGetTierRemainingLiquidity() public {
+        distributor.nextDraw(3, 220e18);
+        assertEq(distributor.getRemainingTierLiquidity(0), 100e18);
+    }
+
     function testReclaimLiquidity_canary_tier() public {
         distributor.nextDraw(4, 320e18);
         // should be 10e18 in the canary tier
