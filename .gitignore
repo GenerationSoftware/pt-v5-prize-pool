@@ -1,5 +1,6 @@
 # Compiler files
 cache/
+coverage/
 out/
 
 # Ignores development broadcast logs
@@ -12,6 +13,7 @@ docs/
 
 # Dotenv file
 .env
+.envrc
 
 # VSCode
 .history
@@ -21,3 +23,6 @@ lcov.info
 
 # Test Output Data
 data/
+
+.DS_Store
+node_modules
