@@ -327,11 +327,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @return The number of draws
   function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint16) {
     return
-      uint16(
-        TierCalculationLib.estimatePrizeFrequencyInDraws(
-          TieredLiquidityDistributor._tierOdds(_tier, numberOfTiers)
-        )
-      );
+      uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)));
   }
 
   /// @notice Contributes prize tokens on behalf of the given vault. The tokens should have already been transferred to the prize pool.
@@ -757,7 +753,7 @@ contract PrizePool is TieredLiquidityDistributor {
       revert InvalidTier(_tier, _numberOfTiers);
     }
 
-    tierOdds = TieredLiquidityDistributor._tierOdds(_tier, numberOfTiers);
+    tierOdds = _tierOdds(_tier, numberOfTiers);
     drawDuration = uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
     vaultPortion = _getVaultPortion(
       _vault,
@@ -780,9 +776,7 @@ contract PrizePool is TieredLiquidityDistributor {
     // endTimestamp - (drawDuration * drawPeriodSeconds)
     startTimestamp = uint64(
       endTimestamp -
-        TierCalculationLib.estimatePrizeFrequencyInDraws(
-          TieredLiquidityDistributor._tierOdds(_tier, numberOfTiers)
-        ) *
+        TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)) *
         drawPeriodSeconds
     );
   }
