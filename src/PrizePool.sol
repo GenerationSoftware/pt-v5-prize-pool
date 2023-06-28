@@ -329,9 +329,7 @@ contract PrizePool is TieredLiquidityDistributor {
     return
       uint16(
         TierCalculationLib.estimatePrizeFrequencyInDraws(
-          _tier,
-          numberOfTiers,
-          grandPrizePeriodDraws
+          TieredLiquidityDistributor._tierOdds(_tier, numberOfTiers)
         )
       );
   }
@@ -759,10 +757,8 @@ contract PrizePool is TieredLiquidityDistributor {
       revert InvalidTier(_tier, _numberOfTiers);
     }
 
-    tierOdds = TierCalculationLib.getTierOdds(_tier, _numberOfTiers, grandPrizePeriodDraws);
-    drawDuration = uint16(
-      TierCalculationLib.estimatePrizeFrequencyInDraws(_tier, _numberOfTiers, grandPrizePeriodDraws)
-    );
+    tierOdds = TieredLiquidityDistributor._tierOdds(_tier, numberOfTiers);
+    drawDuration = uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
     vaultPortion = _getVaultPortion(
       _vault,
       uint16(drawDuration > _lastCompletedDrawId ? 0 : _lastCompletedDrawId - drawDuration + 1),
@@ -785,9 +781,7 @@ contract PrizePool is TieredLiquidityDistributor {
     startTimestamp = uint64(
       endTimestamp -
         TierCalculationLib.estimatePrizeFrequencyInDraws(
-          _tier,
-          numberOfTiers,
-          grandPrizePeriodDraws
+          TieredLiquidityDistributor._tierOdds(_tier, numberOfTiers)
         ) *
         drawPeriodSeconds
     );

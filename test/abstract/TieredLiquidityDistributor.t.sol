@@ -4,8 +4,9 @@ pragma solidity 0.8.17;
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
+import { TierCalculationLib } from "src/libraries/TierCalculationLib.sol";
 import { TieredLiquidityDistributorWrapper } from "test/abstract/helper/TieredLiquidityDistributorWrapper.sol";
-import { UD60x18, NumberOfTiersLessThanMinimum, InsufficientLiquidity, fromUD34x4toUD60x18, toUD60x18, fromUD60x18 } from "src/abstract/TieredLiquidityDistributor.sol";
+import { UD60x18, NumberOfTiersLessThanMinimum, InsufficientLiquidity, fromUD34x4toUD60x18, toUD60x18, fromUD60x18, SD59x18, fromSD59x18 } from "src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorTest is Test {
   TieredLiquidityDistributorWrapper public distributor;
@@ -146,6 +147,30 @@ contract TieredLiquidityDistributorTest is Test {
     summed += distributor.reserve();
 
     assertEq(summed, amount, "summed amount across prize tiers");
+  }
+
+  function testTierOdds_Accuracy() public {
+    SD59x18 odds = distributor.getTierOdds(0, 3);
+    assertEq(SD59x18.unwrap(odds), 100000000000000003);
+    odds = distributor.getTierOdds(3, 7);
+    assertEq(SD59x18.unwrap(odds), 316227766016837938);
+    odds = distributor.getTierOdds(15, 16);
+    assertEq(SD59x18.unwrap(odds), 1000000000000000000);
+  }
+
+  function testTierOdds_AllComputed() public {
+    SD59x18 odds;
+    for (uint8 numTiers = 3; numTiers <= 16; numTiers++) {
+      for (uint8 tier = 0; tier < numTiers; tier++) {
+        odds = distributor.getTierOdds(tier, numTiers);
+        assertGt(SD59x18.unwrap(odds), 0);
+        assertLe(SD59x18.unwrap(odds), 1000000000000000000);
+        assertLe(
+          SD59x18.unwrap(odds),
+          SD59x18.unwrap(TierCalculationLib.getTierOdds(tier, numTiers, grandPrizePeriodDraws))
+        );
+      }
+    }
   }
 
   function testExpansionTierLiquidity_regression() public {

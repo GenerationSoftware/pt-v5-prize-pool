@@ -6,7 +6,7 @@ import "forge-std/console2.sol";
 
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { sd, SD59x18 } from "prb-math/SD59x18.sol";
+import { sd, SD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { UD34x4, fromUD34x4 } from "src/libraries/UD34x4.sol";
 import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
@@ -113,6 +113,15 @@ contract PrizePoolTest is Test {
     params.smoothing = sd1x18(1.0e18); // smoothing
     vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
     new PrizePool(params);
+  }
+
+  function testTierOdds_Accuracy() public {
+    SD59x18 odds = prizePool.getTierOdds(0, 3);
+    assertEq(SD59x18.unwrap(odds), 2739726027397260);
+    odds = prizePool.getTierOdds(3, 7);
+    assertEq(SD59x18.unwrap(odds), 52342392259021369);
+    odds = prizePool.getTierOdds(15, 16);
+    assertEq(SD59x18.unwrap(odds), 1000000000000000000);
   }
 
   function testReserve_noRemainder() public {

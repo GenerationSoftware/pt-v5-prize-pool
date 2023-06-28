@@ -23,10 +23,22 @@ contract TierCalculationLibTest is Test {
   }
 
   function testEstimatePrizeFrequencyInDraws() public {
-    assertEq(TierCalculationLib.estimatePrizeFrequencyInDraws(0, 4, 365), 366);
-    assertEq(TierCalculationLib.estimatePrizeFrequencyInDraws(1, 4, 365), 52);
-    assertEq(TierCalculationLib.estimatePrizeFrequencyInDraws(2, 4, 365), 8);
-    assertEq(TierCalculationLib.estimatePrizeFrequencyInDraws(3, 4, 365), 1);
+    assertEq(
+      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(0, 4, 365)),
+      366
+    );
+    assertEq(
+      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(1, 4, 365)),
+      52
+    );
+    assertEq(
+      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(2, 4, 365)),
+      8
+    );
+    assertEq(
+      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(3, 4, 365)),
+      1
+    );
   }
 
   function testPrizeCount() public {
