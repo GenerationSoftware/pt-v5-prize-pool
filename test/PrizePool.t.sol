@@ -103,6 +103,18 @@ contract PrizePoolTest is Test {
         address indexed drawManager
     );
 
+    event ClaimedPrize(
+        address indexed vault,
+        address indexed winner,
+        address indexed recipient,
+        uint16 drawId,
+        uint8 tier,
+        uint32 prizeIndex,
+        uint152 payout,
+        uint96 fee,
+        address feeRecipient
+    );
+
     /**********************************************************************************/
 
     ConstructorParams params;
@@ -621,10 +633,28 @@ contract PrizePoolTest is Test {
     function testClaimPrize_single() public {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
-        mockTwab(msg.sender, 0);
-        claimPrize(msg.sender, 0, 0);
+        address winner = makeAddr("winner");
+        address recipient = makeAddr("recipient");
+        mockTwab(winner, 1);
+
+        console2.log("winner", winner);
+        console2.log("recipient", recipient);
+
+        vm.expectEmit();
+        emit ClaimedPrize(
+            address(this),
+            winner,
+            recipient,
+            1,
+            1,
+            0,
+            1.13636363636363635e18,
+            0,
+            address(0)
+        );
+        prizePool.claimPrize(winner, 1, 0, recipient, 0, address(0));
         // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
-        assertEq(prizeToken.balanceOf(msg.sender), 4.5454545454545454e18);
+        assertEq(prizeToken.balanceOf(recipient), 1.13636363636363635e18, "recipient balance is good");
         assertEq(prizePool.claimCount(), 1);
     }
 
@@ -661,7 +691,7 @@ contract PrizePoolTest is Test {
         mockTwab(msg.sender, 0);
         assertEq(claimPrize(msg.sender, 0, 0), 4.5454545454545454e18, "prize size");
         // second claim is zero
-        vm.expectRevert(abi.encodeWithSelector(AlreadyClaimedPrize.selector, address(this), msg.sender, 0, 0));
+        vm.expectRevert(abi.encodeWithSelector(AlreadyClaimedPrize.selector, address(this), msg.sender, 0, 0, msg.sender));
         claimPrize(msg.sender, 0, 0);
     }
 

@@ -21,7 +21,7 @@ error DrawManagerAlreadySet();
 /// @notice Emitted when someone tries to claim a prize that was already claimed
 /// @param winner The winner of the prize
 /// @param tier The prize tier
-error AlreadyClaimedPrize(address vault, address winner, uint8 tier, uint32 prizeIndex);
+error AlreadyClaimedPrize(address vault, address winner, uint8 tier, uint32 prizeIndex, address recipient);
 
 /// @notice Emitted when someone tries to withdraw too many rewards
 /// @param requested The requested reward amount to withdraw
@@ -133,6 +133,7 @@ contract PrizePool is TieredLiquidityDistributor {
         address indexed recipient,
         uint16 drawId,
         uint8 tier,
+        uint32 prizeIndex,
         uint152 payout,
         uint96 fee,
         address feeRecipient
@@ -523,22 +524,25 @@ contract PrizePool is TieredLiquidityDistributor {
         address _feeRecipient
     ) external returns (uint256) {
         Tier memory tierLiquidity = _getTier(_tier, numberOfTiers);
+
         if (_fee > tierLiquidity.prizeSize) {
             revert FeeTooLarge(_fee, tierLiquidity.prizeSize);
         }
 
         (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint16 _drawDuration) = _computeVaultTierDetails(msg.sender, _tier, numberOfTiers, lastCompletedDrawId);
 
+        
         if (!_isWinner(msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _tierOdds, _drawDuration)) {
             revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
         }
 
+        
         if (claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndex]) {
-            revert AlreadyClaimedPrize(msg.sender, _winner, _tier, _prizeIndex);
+            revert AlreadyClaimedPrize(msg.sender, _winner, _tier, _prizeIndex, _prizeRecipient);
         }
 
         claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndex] = true;
-
+        
         if (_isCanaryTier(_tier, numberOfTiers)) {
             canaryClaimCount++;
         } else {
@@ -556,9 +560,10 @@ contract PrizePool is TieredLiquidityDistributor {
         }
 
         uint256 payout = tierLiquidity.prizeSize - _fee;
-        emit ClaimedPrize(msg.sender, _winner, _prizeRecipient, lastCompletedDrawId, _tier, uint152(payout), _fee, _feeRecipient);
 
-        _transfer(_winner, payout);
+        emit ClaimedPrize(msg.sender, _winner, _prizeRecipient, lastCompletedDrawId, _tier, _prizeIndex, uint152(payout), _fee, _feeRecipient);
+
+        _transfer(_prizeRecipient, payout);
 
         return tierLiquidity.prizeSize;
     }
