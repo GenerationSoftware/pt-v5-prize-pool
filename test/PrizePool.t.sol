@@ -24,7 +24,6 @@ import {
     InsufficientReserve,
     RandomNumberIsZero,
     DrawNotFinished,
-    WinnerPrizeMismatch,
     InvalidPrizeIndex,
     NoCompletedDraw,
     InvalidTier,
@@ -644,7 +643,7 @@ contract PrizePoolTest is Test {
     function testClaimPrize_notWinner() public {
         contribute(100e18);
         completeAndStartNextDraw(winningRandomNumber);
-        vm.expectRevert(abi.encodeWithSelector(DidNotWin.selector, msg.sender, address(this), 0, 0));
+        vm.expectRevert(abi.encodeWithSelector(DidNotWin.selector, address(this), msg.sender, 0, 0));
         claimPrize(msg.sender, 0, 0);
     }
 
@@ -662,7 +661,7 @@ contract PrizePoolTest is Test {
         mockTwab(msg.sender, 0);
         assertEq(claimPrize(msg.sender, 0, 0), 4.5454545454545454e18, "prize size");
         // second claim is zero
-        vm.expectRevert(abi.encodeWithSelector(AlreadyClaimedPrize.selector, msg.sender, 0));
+        vm.expectRevert(abi.encodeWithSelector(AlreadyClaimedPrize.selector, address(this), msg.sender, 0, 0));
         claimPrize(msg.sender, 0, 0);
     }
 
@@ -762,23 +761,11 @@ contract PrizePoolTest is Test {
         completeAndStartNextDraw(winningRandomNumber);
         mockTwab(msg.sender, 0);
 
-        address[] memory winners = new address[](1);
-        winners[0] = msg.sender;
-        uint32[][] memory prizeIndices = new uint32[][](1);
-        prizeIndices[0] = new uint32[](1);
-        prizeIndices[0][0] = 0;
-        prizePool.claimPrizes(0, winners, prizeIndices, 1e18, address(this));
+        prizePool.claimPrize(msg.sender, 0, 0, msg.sender, 1e18, address(this));
 
         vm.expectEmit();
         emit WithdrawClaimRewards(address(this), 5e17, 1e18);
         prizePool.withdrawClaimRewards(address(this), 5e17);
-    }
-
-    function testClaimPrizes_winnerPrizeMismatch() public {
-        vm.expectRevert(abi.encodeWithSelector(WinnerPrizeMismatch.selector, 2, 3));
-        address[] memory winners = new address[](2);
-        uint32[][] memory prizeIndices = new uint32[][](3);
-        prizePool.claimPrizes(0, winners, prizeIndices, 0, address(this));
     }
 
     function testNextDrawStartsAt_zeroDraw() public {
@@ -956,12 +943,7 @@ contract PrizePoolTest is Test {
     }
 
     function claimPrize(address sender, uint8 tier, uint32 prizeIndex, uint96 fee, address feeRecipient) public returns (uint256) {
-        address[] memory winners = new address[](1);
-        winners[0] = sender;
-        uint32[][] memory prizeIndices = new uint32[][](1);
-        prizeIndices[0] = new uint32[](1);
-        prizeIndices[0][0] = prizeIndex;
-        return prizePool.claimPrizes(tier, winners, prizeIndices, fee, feeRecipient);
+        return prizePool.claimPrize(sender, tier, prizeIndex, sender, fee, feeRecipient);
     }
 
     function mockTwab(address _account, uint256 startTime, uint256 endTime) public {
