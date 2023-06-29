@@ -28,12 +28,6 @@ contract TierCalculationInvariants is Test {
         harness.grandPrizePeriod()
       );
       uint bounds = 30;
-      console2.log(
-        "harness.averagePrizesPerDraw()",
-        harness.averagePrizesPerDraw(),
-        "estimatedPrizeCount",
-        estimatedPrizeCount
-      );
       assertApproxEqAbs(
         harness.averagePrizesPerDraw(),
         estimatedPrizeCount,

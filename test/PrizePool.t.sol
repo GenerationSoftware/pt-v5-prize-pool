@@ -653,9 +653,6 @@ contract PrizePoolTest is Test {
     address recipient = makeAddr("recipient");
     mockTwab(winner, 1);
 
-    console2.log("winner", winner);
-    console2.log("recipient", recipient);
-
     vm.expectEmit();
     emit ClaimedPrize(
       address(this),
