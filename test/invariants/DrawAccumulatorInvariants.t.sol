@@ -9,15 +9,14 @@ import { Observation } from "src/libraries/DrawAccumulatorLib.sol";
 import { SD59x18, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
 contract DrawAccumulatorInvariants is Test {
+  DrawAccumulatorFuzzHarness public accumulator;
 
-    DrawAccumulatorFuzzHarness public accumulator;
+  function setUp() external {
+    accumulator = new DrawAccumulatorFuzzHarness();
+  }
 
-    function setUp() external {
-        accumulator = new DrawAccumulatorFuzzHarness();
-    }
-
-    function invariant_future_plus_past_equals_total() external {
-        Observation memory obs = accumulator.newestObservation();
-        assertEq(obs.available + obs.disbursed, accumulator.totalAdded());
-    }
+  function invariant_future_plus_past_equals_total() external {
+    Observation memory obs = accumulator.newestObservation();
+    assertEq(obs.available + obs.disbursed, accumulator.totalAdded());
+  }
 }
