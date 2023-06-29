@@ -21,7 +21,7 @@ error DrawManagerAlreadySet();
 /// @notice Emitted when someone tries to claim a prize that was already claimed
 /// @param winner The winner of the prize
 /// @param tier The prize tier
-error AlreadyClaimedPrize(address winner, uint8 tier);
+error AlreadyClaimedPrize(address vault, address winner, uint8 tier, uint32 prizeIndex, address recipient);
 
 /// @notice Emitted when someone tries to withdraw too many rewards
 /// @param requested The requested reward amount to withdraw
@@ -29,11 +29,11 @@ error AlreadyClaimedPrize(address winner, uint8 tier);
 error InsufficientRewardsError(uint256 requested, uint256 available);
 
 /// @notice Emitted when an address did not win the specified prize on a vault
-/// @param _address The address checked for the prize
+/// @param winner The address checked for the prize
 /// @param vault The vault address
 /// @param tier The prize tier
 /// @param prizeIndex The prize index
-error DidNotWin(address _address, address vault, uint8 tier, uint32 prizeIndex);
+error DidNotWin(address vault, address winner, uint8 tier, uint32 prizeIndex);
 
 /// @notice Emitted when the fee being claimed is larger than the max allowed fee
 /// @param fee The fee being claimed
@@ -60,11 +60,6 @@ error RandomNumberIsZero();
 /// @notice Emitted when the draw cannot be completed since it has not finished
 /// @param drawEndsAt The timestamp in seconds at which the draw ends
 error DrawNotFinished(uint64 drawEndsAt);
-
-/// @notice Emitted when the number of winners and number of prize lists do not match while claiming prizes
-/// @param numWinners The number of winner addresses provided
-/// @param numPrizeLists The number of prize lists provided
-error WinnerPrizeMismatch(uint128 numWinners, uint128 numPrizeLists);
 
 /// @notice Emitted when prize index is greater or equal to the max prize count for the tier
 /// @param invalidPrizeIndex The invalid prize index
@@ -124,18 +119,21 @@ contract PrizePool is TieredLiquidityDistributor {
     using SafeERC20 for IERC20;
 
     /// @notice Emitted when a prize is claimed.
-    /// @param drawId The draw ID of the draw that was claimed.
     /// @param vault The address of the vault that claimed the prize.
     /// @param winner The address of the winner
+    /// @param recipient The address of the prize recipient
+    /// @param drawId The draw ID of the draw that was claimed.
     /// @param tier The prize tier that was claimed.
     /// @param payout The amount of prize tokens that were paid out to the winner
     /// @param fee The amount of prize tokens that were paid to the claimer
     /// @param feeRecipient The address that the claim fee was sent to
     event ClaimedPrize(
-        uint16 indexed drawId,
         address indexed vault,
         address indexed winner,
+        address indexed recipient,
+        uint16 drawId,
         uint8 tier,
+        uint32 prizeIndex,
         uint152 payout,
         uint96 fee,
         address feeRecipient
@@ -510,96 +508,64 @@ contract PrizePool is TieredLiquidityDistributor {
         tier claimed and the claim count, and transferring prize tokens. The function is marked as external which
         means that it can be called from outside the contract.
         @param _tier The tier of the prize to be claimed.
-        @param _winners The address of the winners to claim the prize for.
-        @param _prizeIndices The array of prizes to claim for each winner.
-        @param _feePerPrizeClaim The fee associated with claiming the prize.
+        @param _winner The address of the eligible winner
+        @param _prizeIndex The prize to claim for the winner. Must be less than the prize count for the tier.
+        @param _prizeRecipient The recipient of the prize
+        @param _fee The fee associated with claiming the prize.
         @param _feeRecipient The address to receive the fee.
         @return Total prize amount claimed (payout and fees combined).
     */
-    function claimPrizes(
+    function claimPrize(
+        address _winner,
         uint8 _tier,
-        address[] calldata _winners,
-        uint32[][] calldata _prizeIndices,
-        uint96 _feePerPrizeClaim,
+        uint32 _prizeIndex,
+        address _prizeRecipient,
+        uint96 _fee,
         address _feeRecipient
     ) external returns (uint256) {
-        if (_winners.length != _prizeIndices.length) {
-            revert WinnerPrizeMismatch(uint128(_winners.length), uint128(_prizeIndices.length));
-        }
-
         Tier memory tierLiquidity = _getTier(_tier, numberOfTiers);
-        if (_feePerPrizeClaim > tierLiquidity.prizeSize) {
-            revert FeeTooLarge(_feePerPrizeClaim, tierLiquidity.prizeSize);
+
+        if (_fee > tierLiquidity.prizeSize) {
+            revert FeeTooLarge(_fee, tierLiquidity.prizeSize);
         }
 
-        uint32 prizeClaimCount = _claimPrizes(msg.sender, _tier, _winners, _prizeIndices, tierLiquidity.prizeSize - _feePerPrizeClaim, _feePerPrizeClaim, _feeRecipient);
+        (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint16 _drawDuration) = _computeVaultTierDetails(msg.sender, _tier, numberOfTiers, lastCompletedDrawId);
 
+        
+        if (!_isWinner(msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _tierOdds, _drawDuration)) {
+            revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
+        }
+
+        
+        if (claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndex]) {
+            revert AlreadyClaimedPrize(msg.sender, _winner, _tier, _prizeIndex, _prizeRecipient);
+        }
+
+        claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndex] = true;
+        
         if (_isCanaryTier(_tier, numberOfTiers)) {
-            canaryClaimCount += prizeClaimCount;
+            canaryClaimCount++;
         } else {
-            claimCount += prizeClaimCount;
+            claimCount++;
         }
 
         if (largestTierClaimed < _tier) {
             largestTierClaimed = _tier;
         }
 
-        _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize * prizeClaimCount);
+        _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize);
 
-        if (_feePerPrizeClaim != 0 && prizeClaimCount != 0) {
-            claimerRewards[_feeRecipient] += _feePerPrizeClaim * prizeClaimCount;
+        if (_fee != 0) {
+            claimerRewards[_feeRecipient] += _fee;
         }
 
-        return tierLiquidity.prizeSize * prizeClaimCount;
-    }
+        uint256 payout = tierLiquidity.prizeSize - _fee;
 
-    function _claimPrizes(
-        address _vault,
-        uint8 _tier,
-        address[] calldata _winners,
-        uint32[][] calldata _prizeIndices,
-        uint96 _payout,
-        uint96 _feePerPrizeClaim,
-        address _feeRecipient
-    ) internal returns (uint32) {
-        uint32 _prizeClaimCount = 0;
-        (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint16 _drawDuration) = _computeVaultTierDetails(_vault, _tier, numberOfTiers, lastCompletedDrawId);
+        emit ClaimedPrize(msg.sender, _winner, _prizeRecipient, lastCompletedDrawId, _tier, _prizeIndex, uint152(payout), _fee, _feeRecipient);
 
-        for (uint winnerIndex = 0; winnerIndex < _winners.length; winnerIndex++) {
-            _prizeClaimCount += _claimWinnerPrizes(_vault, _tier, _winners[winnerIndex], _prizeIndices[winnerIndex], _payout, _feePerPrizeClaim, _feeRecipient, _vaultPortion, _tierOdds, _drawDuration);
-        }
+        _transfer(_prizeRecipient, payout);
 
-        return _prizeClaimCount;
-    }
-
-    function _claimWinnerPrizes(
-        address _vault,
-        uint8 _tier,
-        address _winner,
-        uint32[] calldata _prizeIndices,
-        uint96 _payout,
-        uint96 _feePerPrizeClaim,
-        address _feeRecipient,
-        SD59x18 _vaultPortion,
-        SD59x18 _tierOdds,
-        uint16 _drawDuration
-    ) internal returns (uint32) {
-        for (uint256 _prizeArrayIndex = 0; _prizeArrayIndex < _prizeIndices.length; _prizeArrayIndex++) {
-            if (!_isWinner(_vault, _winner, _tier, _prizeIndices[_prizeArrayIndex], _vaultPortion, _tierOdds, _drawDuration)) {
-                revert DidNotWin(_winner, _vault, _tier, _prizeIndices[_prizeArrayIndex]);
-            }
-
-            if (claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndices[_prizeArrayIndex]]) {
-                revert AlreadyClaimedPrize(_winner, _tier);
-            }
-
-            claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndices[_prizeArrayIndex]] = true;
-            _transfer(_winner, _payout);
-
-            emit ClaimedPrize(lastCompletedDrawId, _vault, _winner, _tier, uint152(_payout), _feePerPrizeClaim, _feeRecipient);
-        }
-
-        return uint32(_prizeIndices.length);
+        return tierLiquidity.prizeSize;
     }
 
     function _transfer(address _to, uint256 _amount) internal {
