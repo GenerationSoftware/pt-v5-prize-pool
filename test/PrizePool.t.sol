@@ -538,7 +538,7 @@ contract PrizePoolTest is Test {
   }
 
   function testGetRemainingTierLiquidity_invalidTier() public {
-    assertEq(prizePool.getRemainingTierLiquidity(10), 0);
+    assertEq(prizePool.getTierRemainingLiquidity(10), 0);
   }
 
   function testGetRemainingTierLiquidity_grandPrize() public {
@@ -547,14 +547,14 @@ contract PrizePoolTest is Test {
     // 2 tiers at 100 shares each, and 10 for canary and 10 for reserve
     // = 100 / 220 = 10 / 22 = 0.45454545454545453
     // then take only 10% due to alpha = 0.9
-    assertEq(prizePool.getRemainingTierLiquidity(0), 0.0454545454545454e18);
+    assertEq(prizePool.getTierRemainingLiquidity(0), 0.0454545454545454e18);
   }
 
   function testGetRemainingTierLiquidity_afterClaim() public {
     contribute(100e18);
     completeAndStartNextDraw(winningRandomNumber);
     uint256 liquidity = 4.5454545454545454e18;
-    assertEq(prizePool.getRemainingTierLiquidity(1), liquidity, "second tier");
+    assertEq(prizePool.getTierRemainingLiquidity(1), liquidity, "second tier");
 
     mockTwab(sender1, 1);
     uint256 prize = 1.13636363636363635e18;
@@ -562,7 +562,7 @@ contract PrizePoolTest is Test {
 
     // reduce by prize
     assertEq(
-      prizePool.getRemainingTierLiquidity(1),
+      prizePool.getTierRemainingLiquidity(1),
       liquidity - prize,
       "second tier liquidity post claim 1"
     );
@@ -571,10 +571,10 @@ contract PrizePoolTest is Test {
   function testGetRemainingTierLiquidity_canary() public {
     contribute(220e18);
     completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.getRemainingTierLiquidity(0), 10e18);
-    assertEq(prizePool.getRemainingTierLiquidity(1), 10e18);
+    assertEq(prizePool.getTierRemainingLiquidity(0), 10e18);
+    assertEq(prizePool.getTierRemainingLiquidity(1), 10e18);
     // canary tier
-    assertEq(prizePool.getRemainingTierLiquidity(2), 1e18);
+    assertEq(prizePool.getTierRemainingLiquidity(2), 1e18);
   }
 
   function testSetDrawManager() public {

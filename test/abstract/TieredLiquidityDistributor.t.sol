@@ -88,7 +88,7 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testGetRemainingTierLiquidity() public {
     distributor.nextDraw(3, 220e18);
-    assertEq(distributor.getRemainingTierLiquidity(0), 100e18);
+    assertEq(distributor.getTierRemainingLiquidity(0), 100e18);
   }
 
   function testGetTierRemainingLiquidity() public {
@@ -122,11 +122,11 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testExpansionTierLiquidity() public {
     distributor.nextDraw(3, 220e18); // canary gets 10e18
-    assertEq(distributor.getRemainingTierLiquidity(2), 10e18, "canary initial liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(2), 10e18, "canary initial liquidity");
     distributor.nextDraw(5, 420e18); // should be 420 distributed
 
-    assertEq(distributor.getRemainingTierLiquidity(3), 100e18, "new tier liquidity");
-    assertEq(distributor.getRemainingTierLiquidity(4), 10e18, "canary liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(3), 100e18, "new tier liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(4), 10e18, "canary liquidity");
   }
 
   function testExpansionTierLiquidity_max() public {
@@ -142,7 +142,7 @@ contract TieredLiquidityDistributorTest is Test {
 
     uint256 summed;
     for (uint8 t = 0; t < distributor.numberOfTiers(); t++) {
-      summed += distributor.getRemainingTierLiquidity(t);
+      summed += distributor.getTierRemainingLiquidity(t);
     }
     summed += distributor.reserve();
 
@@ -195,7 +195,7 @@ contract TieredLiquidityDistributorTest is Test {
   function summedLiquidity() public view returns (uint256) {
     uint256 summed;
     for (uint8 t = 0; t < distributor.numberOfTiers(); t++) {
-      summed += distributor.getRemainingTierLiquidity(t);
+      summed += distributor.getTierRemainingLiquidity(t);
     }
     summed += distributor.reserve();
     return summed;

@@ -651,15 +651,6 @@ contract TieredLiquidityDistributor {
         : uint32(TierCalculationLib.prizeCount(_tier));
   }
 
-  /// @notice Computes the remaining liquidity for the given tier
-  /// @param _tier The tier to compute the remaining liquidity for
-  /// @return The remaining liquidity
-  function getTierRemainingLiquidity(uint8 _tier) external view returns (uint112) {
-    uint8 numTiers = numberOfTiers;
-    return
-      uint104(_remainingTierLiquidity(_getTier(_tier, numTiers), _computeShares(_tier, numTiers)));
-  }
-
   /// @notice Retrieves an up-to-date Tier struct for the given tier
   /// @param _tier The tier to retrieve
   /// @param _numberOfTiers The number of tiers, should match the current. Passed explicitly as an optimization
@@ -717,7 +708,15 @@ contract TieredLiquidityDistributor {
     uint104 _liquidity
   ) internal returns (Tier memory) {
     uint8 _shares = _computeShares(_tier, numberOfTiers);
-    uint104 remainingLiquidity = uint104(_remainingTierLiquidity(_tierStruct, _shares));
+    uint104 remainingLiquidity = uint104(
+      fromUD60x18(
+        _getTierRemainingLiquidity(
+          _shares,
+          fromUD34x4toUD60x18(_tierStruct.prizeTokenPerShare),
+          fromUD34x4toUD60x18(prizeTokenPerShare)
+        )
+      )
+    );
     if (_liquidity > remainingLiquidity) {
       uint104 excess = _liquidity - remainingLiquidity;
       if (excess > _reserve) {
@@ -733,26 +732,6 @@ contract TieredLiquidityDistributor {
     }
     _tiers[_tier] = _tierStruct;
     return _tierStruct;
-  }
-
-  /// @notice Computes the total liquidity available to a tier
-  /// @param _tier The tier to compute the liquidity for
-  /// @return The total liquidity
-  function _remainingTierLiquidity(
-    Tier memory _tier,
-    uint8 _shares
-  ) internal view returns (uint112) {
-    UD34x4 _prizeTokenPerShare = prizeTokenPerShare;
-    if (UD34x4.unwrap(_tier.prizeTokenPerShare) >= UD34x4.unwrap(_prizeTokenPerShare)) {
-      return 0;
-    }
-    UD60x18 delta = fromUD34x4toUD60x18(_prizeTokenPerShare).sub(
-      fromUD34x4toUD60x18(_tier.prizeTokenPerShare)
-    );
-    // delta max int size is (uMAX_UD34x4 / 1e4)
-    // max share size is 256
-    // result max = (uMAX_UD34x4 / 1e4) * 256
-    return uint112(fromUD60x18(delta.mul(toUD60x18(_shares))));
   }
 
   /// @notice Computes the prize size of the given tier
@@ -838,7 +817,7 @@ contract TieredLiquidityDistributor {
     for (uint8 i = start; i < end; i++) {
       Tier memory tierLiquidity = _tiers[i];
       uint8 shares = _computeShares(i, _numberOfTiers);
-      UD60x18 liq = _getRemainingTierLiquidity(
+      UD60x18 liq = _getTierRemainingLiquidity(
         shares,
         fromUD34x4toUD60x18(tierLiquidity.prizeTokenPerShare),
         _prizeTokenPerShare
@@ -848,14 +827,14 @@ contract TieredLiquidityDistributor {
     return fromUD60x18(reclaimedLiquidity);
   }
 
-  /// @notice Computes the total liquidity available to a tier
+  /// @notice Computes the remaining liquidity available to a tier
   /// @param _tier The tier to compute the liquidity for
-  /// @return The total liquidity
-  function getRemainingTierLiquidity(uint8 _tier) external view returns (uint256) {
+  /// @return The remaining liquidity
+  function getTierRemainingLiquidity(uint8 _tier) external view returns (uint256) {
     uint8 _numTiers = numberOfTiers;
     return
       fromUD60x18(
-        _getRemainingTierLiquidity(
+        _getTierRemainingLiquidity(
           _computeShares(_tier, _numTiers),
           fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare),
           fromUD34x4toUD60x18(prizeTokenPerShare)
@@ -867,8 +846,8 @@ contract TieredLiquidityDistributor {
   /// @param _shares The number of shares that the tier has (can be tierShares or canaryShares)
   /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
   /// @param _prizeTokenPerShare The global prizeTokenPerShare
-  /// @return The total available liquidity
-  function _getRemainingTierLiquidity(
+  /// @return The remaining available liquidity
+  function _getTierRemainingLiquidity(
     uint256 _shares,
     UD60x18 _tierPrizeTokenPerShare,
     UD60x18 _prizeTokenPerShare
