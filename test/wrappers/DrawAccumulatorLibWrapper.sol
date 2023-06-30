@@ -86,7 +86,7 @@ contract DrawAccumulatorLibWrapper {
     uint16 _oldestIndex,
     uint16 _newestIndex,
     uint16 _cardinality,
-    uint16 _targetLastCompletedDrawId
+    uint16 _targetLastClosedDrawId
   )
     public
     view
@@ -103,7 +103,7 @@ contract DrawAccumulatorLibWrapper {
         _oldestIndex,
         _newestIndex,
         _cardinality,
-        _targetLastCompletedDrawId
+        _targetLastClosedDrawId
       );
   }
 }

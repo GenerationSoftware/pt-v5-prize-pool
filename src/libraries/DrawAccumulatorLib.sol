@@ -412,7 +412,7 @@ library DrawAccumulatorLib {
   /// @param _oldestIndex The oldest index in the ring buffer
   /// @param _newestIndex The newest index in the ring buffer
   /// @param _cardinality The number of items in the ring buffer
-  /// @param _targetLastCompletedDrawId The target draw id to search for
+  /// @param _targetLastClosedDrawId The target draw id to search for
   /// @return beforeOrAtIndex The index of the observation occurring at or before the target draw id
   /// @return beforeOrAtDrawId The draw id of the observation occurring at or before the target draw id
   /// @return afterOrAtIndex The index of the observation occurring at or after the target draw id
@@ -422,7 +422,7 @@ library DrawAccumulatorLib {
     uint16 _oldestIndex,
     uint16 _newestIndex,
     uint16 _cardinality,
-    uint16 _targetLastCompletedDrawId
+    uint16 _targetLastClosedDrawId
   )
     internal
     view
@@ -448,10 +448,10 @@ library DrawAccumulatorLib {
       afterOrAtIndex = uint16(RingBufferLib.nextIndex(currentIndex, _cardinality));
       afterOrAtDrawId = _drawRingBuffer[afterOrAtIndex];
 
-      bool targetAtOrAfter = beforeOrAtDrawId <= _targetLastCompletedDrawId;
+      bool targetAtOrAfter = beforeOrAtDrawId <= _targetLastClosedDrawId;
 
       // Check if we've found the corresponding Observation.
-      if (targetAtOrAfter && _targetLastCompletedDrawId <= afterOrAtDrawId) {
+      if (targetAtOrAfter && _targetLastClosedDrawId <= afterOrAtDrawId) {
         break;
       }
 

@@ -63,7 +63,7 @@ error InsufficientReserve(uint104 amount, uint104 reserve);
 /// @notice Emitted when the winning random number is zero.
 error RandomNumberIsZero();
 
-/// @notice Emitted when the draw cannot be completed since it has not finished.
+/// @notice Emitted when the draw cannot be closed since it has not finished.
 /// @param drawEndsAt The timestamp in seconds at which the draw ends
 /// @param errorTimestamp The timestamp in seconds at which the error occured
 error DrawNotFinished(uint64 drawEndsAt, uint64 errorTimestamp);
@@ -74,8 +74,8 @@ error DrawNotFinished(uint64 drawEndsAt, uint64 errorTimestamp);
 /// @param tier The tier number
 error InvalidPrizeIndex(uint32 invalidPrizeIndex, uint32 prizeCount, uint8 tier);
 
-/// @notice Emitted when there are no completed draws when a computation requires a completed draw.
-error NoCompletedDraw();
+/// @notice Emitted when there are no closed draws when a computation requires a closed draw.
+error NoClosedDraw();
 
 /// @notice Emitted when attempting to claim from a tier that does not exist.
 /// @param tier The tier number that does not exist
@@ -146,14 +146,14 @@ contract PrizePool is TieredLiquidityDistributor {
     address feeRecipient
   );
 
-  /// @notice Emitted when a draw is completed.
-  /// @param drawId The ID of the draw that was completed
-  /// @param winningRandomNumber The winning random number for the completed draw
-  /// @param numTiers The number of prize tiers in the completed draw
+  /// @notice Emitted when a draw is closed.
+  /// @param drawId The ID of the draw that was closed
+  /// @param winningRandomNumber The winning random number for the closed draw
+  /// @param numTiers The number of prize tiers in the closed draw
   /// @param nextNumTiers The number of tiers for the next draw
   /// @param reserve The resulting reserve available for the next draw
   /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
-  event DrawCompleted(
+  event DrawClosed(
     uint16 indexed drawId,
     uint256 winningRandomNumber,
     uint8 numTiers,
@@ -229,23 +229,23 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice The total amount of prize tokens that have been claimed for all time.
   uint256 internal _totalWithdrawn;
 
-  /// @notice The winner random number for the last completed draw.
+  /// @notice The winner random number for the last closed draw.
   uint256 internal _winningRandomNumber;
 
-  /// @notice The number of prize claims for the last completed draw.
+  /// @notice The number of prize claims for the last closed draw.
   uint32 public claimCount;
 
-  /// @notice The number of canary prize claims for the last completed draw.
+  /// @notice The number of canary prize claims for the last closed draw.
   uint32 public canaryClaimCount;
 
-  /// @notice The largest tier claimed so far for the last completed draw.
+  /// @notice The largest tier claimed so far for the last closed draw.
   uint8 public largestTierClaimed;
 
-  /// @notice The timestamp at which the last completed draw started.
-  uint64 internal _lastCompletedDrawStartedAt;
+  /// @notice The timestamp at which the last closed draw started.
+  uint64 internal _lastClosedDrawStartedAt;
 
-  /// @notice The timestamp at which the last completed draw was awarded.
-  uint64 internal _lastCompletedDrawAwardedAt;
+  /// @notice The timestamp at which the last closed draw was awarded.
+  uint64 internal _lastClosedDrawAwardedAt;
 
   /* ============ Constructor ============ */
 
@@ -269,7 +269,7 @@ contract PrizePool is TieredLiquidityDistributor {
     smoothing = params.smoothing;
     claimExpansionThreshold = params.claimExpansionThreshold;
     drawPeriodSeconds = params.drawPeriodSeconds;
-    _lastCompletedDrawStartedAt = params.firstDrawStartsAt;
+    _lastClosedDrawStartedAt = params.firstDrawStartsAt;
 
     drawManager = params.drawManager;
     if (params.drawManager != address(0)) {
@@ -312,20 +312,20 @@ contract PrizePool is TieredLiquidityDistributor {
     DrawAccumulatorLib.add(
       vaultAccumulator[_prizeVault],
       _amount,
-      lastCompletedDrawId + 1,
+      lastClosedDrawId + 1,
       smoothing.intoSD59x18()
     );
     DrawAccumulatorLib.add(
       totalAccumulator,
       _amount,
-      lastCompletedDrawId + 1,
+      lastClosedDrawId + 1,
       smoothing.intoSD59x18()
     );
-    emit ContributePrizeTokens(_prizeVault, lastCompletedDrawId + 1, _amount);
+    emit ContributePrizeTokens(_prizeVault, lastClosedDrawId + 1, _amount);
     return _deltaBalance;
   }
 
-  // @notice Allows the Manager to withdraw tokens from the reserve
+  /// @notice Allows the Manager to withdraw tokens from the reserve.
   /// @param _to The address to send the tokens to
   /// @param _amount The amount of tokens to withdraw
   function withdrawReserve(address _to, uint104 _amount) external onlyDrawManager {
@@ -337,40 +337,39 @@ contract PrizePool is TieredLiquidityDistributor {
     emit WithdrawReserve(_to, _amount);
   }
 
-  /// @notice Allows the Manager to complete the current prize period and starts the next one, updating the number of tiers, the winning random number, and the prize pool reserve
+  /// @notice Allows the Manager to close the current open draw and open the next one.
+  ///         Updates the number of tiers, the winning random number and the prize pool reserve.
   /// @param winningRandomNumber_ The winning random number for the current draw
-  /// @return The ID of the completed draw
-  function completeAndStartNextDraw(
-    uint256 winningRandomNumber_
-  ) external onlyDrawManager returns (uint16) {
+  /// @return The ID of the closed draw
+  function transitionDraws(uint256 winningRandomNumber_) external onlyDrawManager returns (uint16) {
     // check winning random number
     if (winningRandomNumber_ == 0) {
       revert RandomNumberIsZero();
     }
-    if (block.timestamp < _nextDrawEndsAt()) {
-      revert DrawNotFinished(_nextDrawEndsAt(), uint64(block.timestamp));
+    if (block.timestamp < _openDrawEndsAt()) {
+      revert DrawNotFinished(_openDrawEndsAt(), uint64(block.timestamp));
     }
 
     uint8 _numTiers = numberOfTiers;
     uint8 _nextNumberOfTiers = _numTiers;
 
-    if (lastCompletedDrawId != 0) {
+    if (lastClosedDrawId != 0) {
       _nextNumberOfTiers = _computeNextNumberOfTiers(_numTiers);
     }
 
-    uint64 nextDrawStartsAt_ = _nextDrawStartsAt();
+    uint64 openDrawStartsAt_ = _openDrawStartsAt();
 
-    _nextDraw(_nextNumberOfTiers, uint96(_contributionsForDraw(lastCompletedDrawId + 1)));
+    _nextDraw(_nextNumberOfTiers, uint96(_contributionsForDraw(lastClosedDrawId + 1)));
 
     _winningRandomNumber = winningRandomNumber_;
     claimCount = 0;
     canaryClaimCount = 0;
     largestTierClaimed = 0;
-    _lastCompletedDrawStartedAt = nextDrawStartsAt_;
-    _lastCompletedDrawAwardedAt = uint64(block.timestamp);
+    _lastClosedDrawStartedAt = openDrawStartsAt_;
+    _lastClosedDrawAwardedAt = uint64(block.timestamp);
 
-    emit DrawCompleted(
-      lastCompletedDrawId,
+    emit DrawClosed(
+      lastClosedDrawId,
       winningRandomNumber_,
       _numTiers,
       _nextNumberOfTiers,
@@ -378,7 +377,7 @@ contract PrizePool is TieredLiquidityDistributor {
       prizeTokenPerShare
     );
 
-    return lastCompletedDrawId;
+    return lastClosedDrawId;
   }
 
   /**
@@ -418,7 +417,7 @@ contract PrizePool is TieredLiquidityDistributor {
       msg.sender,
       _tier,
       numberOfTiers,
-      lastCompletedDrawId
+      lastClosedDrawId
     );
 
     if (
@@ -427,11 +426,11 @@ contract PrizePool is TieredLiquidityDistributor {
       revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
     }
 
-    if (claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndex]) {
+    if (claimedPrizes[_winner][lastClosedDrawId][_tier][_prizeIndex]) {
       revert AlreadyClaimedPrize(msg.sender, _winner, _tier, _prizeIndex, _prizeRecipient);
     }
 
-    claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndex] = true;
+    claimedPrizes[_winner][lastClosedDrawId][_tier][_prizeIndex] = true;
 
     if (_isCanaryTier(_tier, numberOfTiers)) {
       canaryClaimCount++;
@@ -463,7 +462,7 @@ contract PrizePool is TieredLiquidityDistributor {
       msg.sender,
       _winner,
       _prizeRecipient,
-      lastCompletedDrawId,
+      lastClosedDrawId,
       _tier,
       _prizeIndex,
       uint152(amount),
@@ -495,16 +494,16 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /* ============ External Read Functions ============ */
 
-  /// @notice Returns the winning random number for the last completed draw.
+  /// @notice Returns the winning random number for the last closed draw.
   /// @return The winning random number
   function getWinningRandomNumber() external view returns (uint256) {
     return _winningRandomNumber;
   }
 
-  /// @notice Returns the last completed draw id.
-  /// @return The last completed draw id
-  function getLastCompletedDrawId() external view returns (uint256) {
-    return lastCompletedDrawId;
+  /// @notice Returns the last closed draw id.
+  /// @return The last closed draw id
+  function getLastClosedDrawId() external view returns (uint256) {
+    return lastClosedDrawId;
   }
 
   /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive. Note that this is after smoothing is applied.
@@ -557,65 +556,65 @@ contract PrizePool is TieredLiquidityDistributor {
     return _accountedBalance();
   }
 
-  /// @notice Returns the start time of the last completed draw. If there was no completed draw, then it will be zero.
-  /// @return The start time of the last completed draw
-  function lastCompletedDrawStartedAt() external view returns (uint64) {
-    return lastCompletedDrawId != 0 ? _lastCompletedDrawStartedAt : 0;
+  /// @notice Returns the start time of the last closed draw. If there was no closed draw, then it will be zero.
+  /// @return The start time of the last closed draw
+  function lastClosedDrawStartedAt() external view returns (uint64) {
+    return lastClosedDrawId != 0 ? _lastClosedDrawStartedAt : 0;
   }
 
-  /// @notice Returns the end time of the last completed draw. If there was no completed draw, then it will be zero.
-  /// @return The end time of the last completed draw
-  function lastCompletedDrawEndedAt() external view returns (uint64) {
-    return lastCompletedDrawId != 0 ? _lastCompletedDrawStartedAt + drawPeriodSeconds : 0;
+  /// @notice Returns the end time of the last closed draw. If there was no closed draw, then it will be zero.
+  /// @return The end time of the last closed draw
+  function lastClosedDrawEndedAt() external view returns (uint64) {
+    return lastClosedDrawId != 0 ? _lastClosedDrawStartedAt + drawPeriodSeconds : 0;
   }
 
-  /// @notice Returns the time at which the last completed draw was awarded.
-  /// @return The time at which the last completed draw was awarded
-  function lastCompletedDrawAwardedAt() external view returns (uint64) {
-    return lastCompletedDrawId != 0 ? _lastCompletedDrawAwardedAt : 0;
+  /// @notice Returns the time at which the last closed draw was awarded.
+  /// @return The time at which the last closed draw was awarded
+  function lastClosedDrawAwardedAt() external view returns (uint64) {
+    return lastClosedDrawId != 0 ? _lastClosedDrawAwardedAt : 0;
   }
 
-  /// @notice Returns whether the next draw has finished
-  function hasNextDrawFinished() external view returns (bool) {
-    return block.timestamp >= _nextDrawEndsAt();
+  /// @notice Returns whether the open draw has finished
+  function hasOpenDrawFinished() external view returns (bool) {
+    return block.timestamp >= _openDrawEndsAt();
   }
 
-  /// @notice Returns the start time of the draw for the next successful completeAndStartNextDraw
-  function nextDrawStartsAt() external view returns (uint64) {
-    return _nextDrawStartsAt();
+  /// @notice Returns the start time of the draw for the next successful transitionDraws
+  function openDrawStartsAt() external view returns (uint64) {
+    return _openDrawStartsAt();
   }
 
   /// @notice Returns the time at which the next draw ends
-  function nextDrawEndsAt() external view returns (uint64) {
-    return _nextDrawEndsAt();
+  function openDrawEndsAt() external view returns (uint64) {
+    return _openDrawEndsAt();
   }
 
-  /// @notice Returns the amount of tokens that will be added to the reserve on the next draw.
-  /// @dev Intended for Draw manager to use after the draw has ended but not yet been completed.
+  /// @notice Returns the amount of tokens that will be added to the reserve when the open draw closes.
+  /// @dev Intended for Draw manager to use after the draw has ended but not yet been closed.
   /// @return The amount of prize tokens that will be added to the reserve
-  function reserveForNextDraw() external view returns (uint256) {
+  function reserveForOpenDraw() external view returns (uint256) {
     uint8 _numTiers = numberOfTiers;
     uint8 _nextNumberOfTiers = _numTiers;
 
-    if (lastCompletedDrawId != 0) {
+    if (lastClosedDrawId != 0) {
       _nextNumberOfTiers = _computeNextNumberOfTiers(_numTiers);
     }
 
     (, uint104 newReserve, ) = _computeNewDistributions(
       _numTiers,
       _nextNumberOfTiers,
-      uint96(_contributionsForDraw(lastCompletedDrawId + 1))
+      uint96(_contributionsForDraw(lastClosedDrawId + 1))
     );
 
     return newReserve;
   }
 
-  /// @notice Calculates the total liquidity available for the current completed draw.
-  function getTotalContributionsForCompletedDraw() external view returns (uint256) {
-    return _contributionsForDraw(lastCompletedDrawId);
+  /// @notice Calculates the total liquidity available for the last closed draw.
+  function getTotalContributionsForClosedDraw() external view returns (uint256) {
+    return _contributionsForDraw(lastClosedDrawId);
   }
 
-  /// @notice Returns whether the winner has claimed the tier for the last completed draw
+  /// @notice Returns whether the winner has claimed the tier for the last closed draw
   /// @param _winner The account to check
   /// @param _tier The tier to check
   /// @return True if the winner claimed the tier for the current draw, false otherwise.
@@ -624,7 +623,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint8 _tier,
     uint32 _prizeIndex
   ) external view returns (bool) {
-    return claimedPrizes[_winner][lastCompletedDrawId][_tier][_prizeIndex];
+    return claimedPrizes[_winner][lastClosedDrawId][_tier][_prizeIndex];
   }
 
   /**
@@ -653,7 +652,7 @@ contract PrizePool is TieredLiquidityDistributor {
       _vault,
       _tier,
       numberOfTiers,
-      lastCompletedDrawId
+      lastClosedDrawId
     );
     return _isWinner(_vault, _user, _tier, _prizeIndex, vaultPortion, tierOdds, drawDuration);
   }
@@ -666,7 +665,7 @@ contract PrizePool is TieredLiquidityDistributor {
   function calculateTierTwabTimestamps(
     uint8 _tier
   ) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
-    endTimestamp = _lastCompletedDrawStartedAt + drawPeriodSeconds;
+    endTimestamp = _lastClosedDrawStartedAt + drawPeriodSeconds;
 
     startTimestamp = uint64(
       endTimestamp -
@@ -720,16 +719,16 @@ contract PrizePool is TieredLiquidityDistributor {
     return (obs.available + obs.disbursed) - _totalWithdrawn;
   }
 
-  /// @notice Returns the start time of the draw for the next successful completeAndStartNextDraw
-  function _nextDrawStartsAt() internal view returns (uint64) {
-    return _nextDrawEndsAt() - drawPeriodSeconds;
+  /// @notice Returns the start time of the draw for the next successful closeAndStartNextDraw
+  function _openDrawStartsAt() internal view returns (uint64) {
+    return _openDrawEndsAt() - drawPeriodSeconds;
   }
 
-  /// @notice Returns the time at which the next draw end.
-  function _nextDrawEndsAt() internal view returns (uint64) {
-    // If this is the first draw, we treat _lastCompletedDrawStartedAt as the start of this draw
-    uint64 _nextExpectedEndTime = _lastCompletedDrawStartedAt +
-      (lastCompletedDrawId == 0 ? 1 : 2) *
+  /// @notice Returns the time at which the open draw ends.
+  function _openDrawEndsAt() internal view returns (uint64) {
+    // If this is the first draw, we treat _lastClosedDrawStartedAt as the start of this draw
+    uint64 _nextExpectedEndTime = _lastClosedDrawStartedAt +
+      (lastClosedDrawId == 0 ? 1 : 2) *
       drawPeriodSeconds;
 
     if (block.timestamp > _nextExpectedEndTime) {
@@ -848,7 +847,7 @@ contract PrizePool is TieredLiquidityDistributor {
    * @param _vault The address of the vault to check.
    * @param _tier The tier for which the prize is to be checked.
    * @param _numberOfTiers The number of tiers in the draw.
-   * @param _lastCompletedDrawId The ID of the last completed draw.
+   * @param _lastClosedDrawId The ID of the last closed draw.
    * @return vaultPortion The portion of the prizes that are going to this vault.
    * @return tierOdds The odds of winning the prize for the given tier.
    * @return drawDuration The duration of the draw.
@@ -857,10 +856,10 @@ contract PrizePool is TieredLiquidityDistributor {
     address _vault,
     uint8 _tier,
     uint8 _numberOfTiers,
-    uint16 _lastCompletedDrawId
+    uint16 _lastClosedDrawId
   ) internal view returns (SD59x18 vaultPortion, SD59x18 tierOdds, uint16 drawDuration) {
-    if (_lastCompletedDrawId == 0) {
-      revert NoCompletedDraw();
+    if (_lastClosedDrawId == 0) {
+      revert NoClosedDraw();
     }
     if (_tier >= _numberOfTiers) {
       revert InvalidTier(_tier, _numberOfTiers);
@@ -870,8 +869,8 @@ contract PrizePool is TieredLiquidityDistributor {
     drawDuration = uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
     vaultPortion = _getVaultPortion(
       _vault,
-      uint16(drawDuration > _lastCompletedDrawId ? 0 : _lastCompletedDrawId - drawDuration + 1),
-      _lastCompletedDrawId + 1,
+      uint16(drawDuration > _lastClosedDrawId ? 0 : _lastClosedDrawId - drawDuration + 1),
+      _lastClosedDrawId + 1,
       smoothing.intoSD59x18()
     );
   }
@@ -890,7 +889,7 @@ contract PrizePool is TieredLiquidityDistributor {
     address _user,
     uint256 _drawDuration
   ) internal view returns (uint256 twab, uint256 twabTotalSupply) {
-    uint32 _endTimestamp = uint32(_lastCompletedDrawStartedAt + drawPeriodSeconds);
+    uint32 _endTimestamp = uint32(_lastClosedDrawStartedAt + drawPeriodSeconds);
     uint32 _startTimestamp = uint32(_endTimestamp - _drawDuration * drawPeriodSeconds);
 
     twab = twabController.getTwabBetween(_vault, _user, _startTimestamp, _endTimestamp);
