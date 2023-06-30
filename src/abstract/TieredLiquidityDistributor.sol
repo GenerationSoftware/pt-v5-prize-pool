@@ -635,9 +635,18 @@ contract TieredLiquidityDistributor {
   }
 
   /// @notice Returns the estimated number of prizes for the given tier
+  /// @param _tier The tier to retrieve
   /// @return The estimated number of prizes
   function getTierPrizeCount(uint8 _tier) external view returns (uint32) {
     return _getTierPrizeCount(_tier, numberOfTiers);
+  }
+
+  /// @notice Returns the estimated number of prizes for the given tier and number of tiers
+  /// @param _tier The tier to retrieve
+  /// @param _numberOfTiers The number of tiers, should match the current number of tiers
+  /// @return The estimated number of prizes
+  function getTierPrizeCount(uint8 _tier, uint8 _numberOfTiers) external view returns (uint32) {
+    return _getTierPrizeCount(_tier, _numberOfTiers);
   }
 
   /// @notice Returns the number of available prizes for the given tier
