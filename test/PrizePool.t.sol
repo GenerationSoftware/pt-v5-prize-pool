@@ -33,6 +33,7 @@ contract PrizePoolTest is Test {
 
   uint64 lastCompletedDrawStartedAt;
   uint32 drawPeriodSeconds;
+  uint8 initialNumberOfTiers;
   uint256 winningRandomNumber = 123456;
   uint256 startTimestamp = 1000 days;
 
@@ -84,6 +85,7 @@ contract PrizePoolTest is Test {
 
     lastCompletedDrawStartedAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
     drawPeriodSeconds = 1 days;
+    initialNumberOfTiers = 3;
 
     address drawManager = address(this);
 
@@ -94,7 +96,7 @@ contract PrizePoolTest is Test {
       uint16(365),
       drawPeriodSeconds,
       lastCompletedDrawStartedAt,
-      uint8(3), // minimum number of tiers
+      initialNumberOfTiers, // minimum number of tiers
       100,
       10,
       10,
@@ -598,8 +600,21 @@ contract PrizePoolTest is Test {
 
   function testIsWinner_invalidTier() public {
     completeAndStartNextDraw(winningRandomNumber);
-    vm.expectRevert(abi.encodeWithSelector(InvalidTier.selector, 10, 3));
-    prizePool.isWinner(address(this), msg.sender, 10, 0);
+
+    // Less than number of tiers is valid.
+    prizePool.isWinner(address(this), msg.sender, initialNumberOfTiers - 1, 0);
+
+    // Number of tiers is invalid.
+    vm.expectRevert(
+      abi.encodeWithSelector(InvalidTier.selector, initialNumberOfTiers, initialNumberOfTiers)
+    );
+    prizePool.isWinner(address(this), msg.sender, initialNumberOfTiers, 0);
+
+    // More than number of tiers is invalid.
+    vm.expectRevert(
+      abi.encodeWithSelector(InvalidTier.selector, initialNumberOfTiers + 1, initialNumberOfTiers)
+    );
+    prizePool.isWinner(address(this), msg.sender, initialNumberOfTiers + 1, 0);
   }
 
   function testIsWinnerDailyPrize() public {
