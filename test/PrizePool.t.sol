@@ -12,7 +12,7 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoCompletedDraw, InvalidTier, DrawManagerAlreadySet, CallerNotDrawManager } from "../src/PrizePool.sol";
+import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerAlreadySet, CallerNotDrawManager } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -31,7 +31,7 @@ contract PrizePoolTest is Test {
   address sender5 = 0x9ebC8E61f87A301fF25a606d7C06150f856F24E2;
   address sender6 = 0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5;
 
-  uint64 lastCompletedDrawStartedAt;
+  uint64 lastClosedDrawStartedAt;
   uint32 drawPeriodSeconds;
   uint8 initialNumberOfTiers;
   uint256 winningRandomNumber = 123456;
@@ -40,12 +40,12 @@ contract PrizePoolTest is Test {
   /**********************************************************************************
    * Events copied from PrizePool.sol
    **********************************************************************************/
-  /// @notice Emitted when a draw is completed.
+  /// @notice Emitted when a draw is closed.
   /// @param drawId The ID of the draw that was claimed
-  /// @param winningRandomNumber The winning random number for the completed draw
-  /// @param numTiers The number of prize tiers in the completed draw
+  /// @param winningRandomNumber The winning random number for the closed draw
+  /// @param numTiers The number of prize tiers in the closed draw
   /// @param nextNumTiers The number of tiers for the next draw
-  event DrawCompleted(
+  event DrawClosed(
     uint16 indexed drawId,
     uint256 winningRandomNumber,
     uint8 numTiers,
@@ -90,7 +90,7 @@ contract PrizePoolTest is Test {
     prizeToken = new ERC20Mintable("PoolTogether POOL token", "POOL");
     twabController = new TwabController();
 
-    lastCompletedDrawStartedAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
+    lastClosedDrawStartedAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
     drawPeriodSeconds = 1 days;
     initialNumberOfTiers = 3;
 
@@ -101,7 +101,7 @@ contract PrizePoolTest is Test {
       twabController,
       drawManager,
       drawPeriodSeconds,
-      lastCompletedDrawStartedAt,
+      lastClosedDrawStartedAt,
       initialNumberOfTiers, // minimum number of tiers
       100,
       10,
@@ -134,7 +134,7 @@ contract PrizePoolTest is Test {
 
   function testReserve_noRemainder() public {
     contribute(220e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
 
     // reserve + remainder
     assertEq(prizePool.reserve(), 1e18);
@@ -155,19 +155,19 @@ contract PrizePoolTest is Test {
   /**********************************************************************************/
   function testReserve_withRemainder() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     // reserve + remainder
     assertEq(prizePool.reserve(), 0.45454545454545466e18);
   }
 
-  function testReserveForNextDraw_noDraw() public {
+  function testReserveForOpenDraw_noDraw() public {
     contribute(100e18);
-    assertEq(prizePool.reserveForNextDraw(), 0.45454545454545466e18);
+    assertEq(prizePool.reserveForOpenDraw(), 0.45454545454545466e18);
   }
 
   function testReserveForNextDraw_existingDraw() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     contribute(100e18);
 
     /*
@@ -178,7 +178,7 @@ contract PrizePoolTest is Test {
             0.454545454545454546e18 + 0.454545454545454546e18 + 0.409090909090909091e18 = 1.318181818181818182e18
         */
 
-    assertEq(prizePool.reserveForNextDraw(), 1.318181818181818310e18);
+    assertEq(prizePool.reserveForOpenDraw(), 1.318181818181818310e18);
   }
 
   function testWithdrawReserve_notManager() public {
@@ -196,7 +196,7 @@ contract PrizePoolTest is Test {
 
   function testWithdrawReserve() public {
     contribute(220e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     assertEq(prizeToken.balanceOf(address(this)), 0);
     vm.expectEmit();
     emit WithdrawReserve(address(this), 1e18);
@@ -249,7 +249,7 @@ contract PrizePoolTest is Test {
 
   function testAccountedBalance_withdrawnReserve() public {
     contribute(100e18);
-    completeAndStartNextDraw(1);
+    closeDraw(1);
     assertEq(prizePool.reserve(), 0.45454545454545466e18);
     prizePool.withdrawReserve(address(this), uint104(prizePool.reserve()));
     assertEq(prizePool.accountedBalance(), prizeToken.balanceOf(address(prizePool)));
@@ -263,7 +263,7 @@ contract PrizePoolTest is Test {
 
   function testAccountedBalance_oneClaim() public {
     contribute(100e18);
-    completeAndStartNextDraw(1);
+    closeDraw(1);
     mockTwab(msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
     assertEq(prizePool.accountedBalance(), 95.4545454545454546e18);
@@ -271,7 +271,7 @@ contract PrizePoolTest is Test {
 
   function testAccountedBalance_oneClaim_andMoreContrib() public {
     contribute(100e18);
-    completeAndStartNextDraw(1);
+    closeDraw(1);
     mockTwab(msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
     contribute(10e18);
@@ -280,11 +280,11 @@ contract PrizePoolTest is Test {
 
   function testAccountedBalance_twoClaims() public {
     contribute(100e18);
-    completeAndStartNextDraw(1);
+    closeDraw(1);
     mockTwab(msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
     // 10e18 - 4.5454545454545454e18 = 5.4545454545454546e18
-    completeAndStartNextDraw(1);
+    closeDraw(1);
 
     // 9e18*100/220 = 4.0909090909090909e18
     assertEq(prizePool.accountedBalance(), 95.4545454545454546e18, "accounted balance");
@@ -323,9 +323,9 @@ contract PrizePoolTest is Test {
   }
 
   function testGetVaultPortion_BeforeContributionOnDraw3() public {
-    completeAndStartNextDraw(winningRandomNumber); // draw 1
-    completeAndStartNextDraw(winningRandomNumber); // draw 2
-    assertEq(prizePool.getLastCompletedDrawId(), 2);
+    closeDraw(winningRandomNumber); // draw 1
+    closeDraw(winningRandomNumber); // draw 2
+    assertEq(prizePool.getLastClosedDrawId(), 2);
     contribute(100e18); // available on draw 3
 
     assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 2, 2)), 0);
@@ -338,120 +338,120 @@ contract PrizePoolTest is Test {
   }
 
   function testGetVaultPortion_BeforeAndAfterContribution() public {
-    completeAndStartNextDraw(winningRandomNumber); // draw 1
+    closeDraw(winningRandomNumber); // draw 1
     contribute(100e18); // available draw 2
 
     assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 2)), 1e18);
   }
 
-  function testGetNextDrawId() public {
-    uint256 nextDrawId = prizePool.getNextDrawId();
-    assertEq(nextDrawId, 1);
+  function testGetOpenDrawId() public {
+    uint256 openDrawId = prizePool.getOpenDrawId();
+    assertEq(openDrawId, 1);
   }
 
-  function testCompleteAndStartNextDraw_notManager() public {
+  function testCloseAndOpenNextDraw_notManager() public {
     vm.prank(address(0));
     vm.expectRevert(
       abi.encodeWithSelector(CallerNotDrawManager.selector, address(0), address(this))
     );
-    prizePool.completeAndStartNextDraw(winningRandomNumber);
+    prizePool.closeDraw(winningRandomNumber);
   }
 
-  function testCompleteAndStartNextDraw_notElapsed_atStart() public {
-    vm.warp(lastCompletedDrawStartedAt);
+  function testCloseAndOpenNextDraw_notElapsed_atStart() public {
+    vm.warp(lastClosedDrawStartedAt);
     vm.expectRevert(
       abi.encodeWithSelector(
         DrawNotFinished.selector,
-        lastCompletedDrawStartedAt + drawPeriodSeconds,
+        lastClosedDrawStartedAt + drawPeriodSeconds,
         block.timestamp
       )
     );
-    prizePool.completeAndStartNextDraw(winningRandomNumber);
+    prizePool.closeDraw(winningRandomNumber);
   }
 
-  function testCompleteAndStartNextDraw_notElapsed_subsequent() public {
-    vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds);
-    prizePool.completeAndStartNextDraw(winningRandomNumber);
+  function testCloseAndOpenNextDraw_notElapsed_subsequent() public {
+    vm.warp(lastClosedDrawStartedAt + drawPeriodSeconds);
+    prizePool.closeDraw(winningRandomNumber);
     vm.expectRevert(
       abi.encodeWithSelector(
         DrawNotFinished.selector,
-        lastCompletedDrawStartedAt + drawPeriodSeconds * 2,
+        lastClosedDrawStartedAt + drawPeriodSeconds * 2,
         block.timestamp
       )
     );
-    prizePool.completeAndStartNextDraw(winningRandomNumber);
+    prizePool.closeDraw(winningRandomNumber);
   }
 
-  function testCompleteAndStartNextDraw_notElapsed_nextDrawPartway() public {
-    vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds);
-    prizePool.completeAndStartNextDraw(winningRandomNumber);
-    vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds + drawPeriodSeconds / 2);
+  function testCloseAndOpenNextDraw_notElapsed_openDrawPartway() public {
+    vm.warp(lastClosedDrawStartedAt + drawPeriodSeconds);
+    prizePool.closeDraw(winningRandomNumber);
+    vm.warp(lastClosedDrawStartedAt + drawPeriodSeconds + drawPeriodSeconds / 2);
     vm.expectRevert(
       abi.encodeWithSelector(
         DrawNotFinished.selector,
-        lastCompletedDrawStartedAt + drawPeriodSeconds * 2,
+        lastClosedDrawStartedAt + drawPeriodSeconds * 2,
         block.timestamp
       )
     );
-    prizePool.completeAndStartNextDraw(winningRandomNumber);
+    prizePool.closeDraw(winningRandomNumber);
   }
 
-  function testCompleteAndStartNextDraw_notElapsed_partway() public {
-    vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds / 2);
+  function testCloseAndOpenNextDraw_notElapsed_partway() public {
+    vm.warp(lastClosedDrawStartedAt + drawPeriodSeconds / 2);
     vm.expectRevert(
       abi.encodeWithSelector(
         DrawNotFinished.selector,
-        lastCompletedDrawStartedAt + drawPeriodSeconds,
+        lastClosedDrawStartedAt + drawPeriodSeconds,
         block.timestamp
       )
     );
-    prizePool.completeAndStartNextDraw(winningRandomNumber);
+    prizePool.closeDraw(winningRandomNumber);
   }
 
-  function testCompleteAndStartNextDraw_invalidNumber() public {
+  function testCloseAndOpenNextDraw_invalidNumber() public {
     vm.expectRevert(abi.encodeWithSelector(RandomNumberIsZero.selector));
-    prizePool.completeAndStartNextDraw(0);
+    prizePool.closeDraw(0);
   }
 
-  function testCompleteAndStartNextDraw_noLiquidity() public {
-    completeAndStartNextDraw(winningRandomNumber);
+  function testCloseAndOpenNextDraw_noLiquidity() public {
+    closeDraw(winningRandomNumber);
 
     assertEq(prizePool.getWinningRandomNumber(), winningRandomNumber);
-    assertEq(prizePool.getLastCompletedDrawId(), 1);
-    assertEq(prizePool.getNextDrawId(), 2);
-    assertEq(prizePool.lastCompletedDrawStartedAt(), lastCompletedDrawStartedAt);
-    assertEq(prizePool.lastCompletedDrawEndedAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
-    assertEq(prizePool.lastCompletedDrawAwardedAt(), block.timestamp);
+    assertEq(prizePool.getLastClosedDrawId(), 1);
+    assertEq(prizePool.getOpenDrawId(), 2);
+    assertEq(prizePool.lastClosedDrawStartedAt(), lastClosedDrawStartedAt);
+    assertEq(prizePool.lastClosedDrawEndedAt(), lastClosedDrawStartedAt + drawPeriodSeconds);
+    assertEq(prizePool.lastClosedDrawAwardedAt(), block.timestamp);
   }
 
-  function testCompleteAndStartNextDraw_withLiquidity() public {
+  function testCloseAndOpenNextDraw_withLiquidity() public {
     contribute(100e18);
     // = 1e18 / 220e18 = 0.004545454...
     // but because of alpha only 10% is released on this draw
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     assertEq(
       fromUD34x4(prizePool.prizeTokenPerShare()),
       0.045454545454545454e18,
       "prize token per share"
     );
     assertEq(prizePool.reserve(), 0.45454545454545466e18, "reserve"); // remainder of the complex fraction
-    assertEq(prizePool.getTotalContributionsForCompletedDraw(), 10e18); // ensure not a single wei is lost!
+    assertEq(prizePool.getTotalContributionsForClosedDraw(), 10e18); // ensure not a single wei is lost!
   }
 
-  function testTotalContributionsForCompletedDraw_noClaims() public {
+  function testTotalContributionsForClosedDraw_noClaims() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.getTotalContributionsForCompletedDraw(), 10e18, "first draw"); // 10e18
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.getTotalContributionsForClosedDraw(), 10e18, "first draw"); // 10e18
+    closeDraw(winningRandomNumber);
     // liquidity should carry over!
     assertEq(
-      prizePool.getTotalContributionsForCompletedDraw(),
+      prizePool.getTotalContributionsForClosedDraw(),
       8.999999999999998700e18,
       "second draw"
     ); // 10e18 + 9e18
   }
 
-  function testCompleteAndStartNextDraw_shrinkTiers() public {
+  function testCloseAndOpenNextDraw_shrinkTiers() public {
     uint8 startingTiers = 5;
 
     // reset prize pool at higher tiers
@@ -460,7 +460,7 @@ contract PrizePoolTest is Test {
       twabController,
       address(this),
       drawPeriodSeconds,
-      lastCompletedDrawStartedAt,
+      lastClosedDrawStartedAt,
       startingTiers, // higher number of tiers
       100,
       10,
@@ -471,7 +471,7 @@ contract PrizePoolTest is Test {
     prizePool = new PrizePool(prizePoolParams);
 
     contribute(420e18);
-    completeAndStartNextDraw(1234);
+    closeDraw(1234);
 
     // tier 0 liquidity: 10e18
     // tier 1 liquidity: 10e18
@@ -490,7 +490,7 @@ contract PrizePoolTest is Test {
 
     vm.expectEmit();
     // shrink to minimum
-    emit DrawCompleted(
+    emit DrawClosed(
       2,
       4567,
       startingTiers,
@@ -499,7 +499,7 @@ contract PrizePoolTest is Test {
       UD34x4.wrap(2718181818181817930000)
     );
 
-    completeAndStartNextDraw(4567);
+    closeDraw(4567);
     // reclaimed tier 2, 3, and canary.  22e18 in total.
     // draw 2 has 37.8.  Reserve is 10/220.0 * 37.8e18 = 1.718181818181818e18
     // 22e18 + 1.718181818181818e18 = 23.718181818181818e18
@@ -508,9 +508,9 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.reserve(), 23.71818181818181801e18, "size of reserve");
   }
 
-  function testCompleteAndStartNextDraw_expandingTiers() public {
+  function testCloseAndOpenNextDraw_expandingTiers() public {
     contribute(1e18);
-    completeAndStartNextDraw(1234);
+    closeDraw(1234);
     mockTwab(address(this), 0);
     claimPrize(address(this), 0, 0);
     mockTwab(sender1, 1);
@@ -529,26 +529,26 @@ contract PrizePoolTest is Test {
     claimPrize(sender6, 2, 0);
 
     vm.expectEmit();
-    emit DrawCompleted(2, 245, 3, 4, 7997159090909503, UD34x4.wrap(7357954545454530000));
+    emit DrawClosed(2, 245, 3, 4, 7997159090909503, UD34x4.wrap(7357954545454530000));
 
-    completeAndStartNextDraw(245);
+    closeDraw(245);
     assertEq(prizePool.numberOfTiers(), 4);
   }
 
-  function testCompleteAndStartNextDraw_multipleDraws() public {
+  function testCloseAndOpenNextDraw_multipleDraws() public {
     contribute(1e18);
-    completeAndStartNextDraw(1234);
-    completeAndStartNextDraw(1234);
-    completeAndStartNextDraw(554);
+    closeDraw(1234);
+    closeDraw(1234);
+    closeDraw(554);
 
     mockTwab(sender5, 1);
     assertTrue(claimPrize(sender5, 1, 0) > 0, "has prize");
   }
 
-  function testCompleteAndStartNextDraw_emitsEvent() public {
+  function testCloseAndOpenNextDraw_emitsEvent() public {
     vm.expectEmit();
-    emit DrawCompleted(1, 12345, 3, 3, 0, UD34x4.wrap(0));
-    completeAndStartNextDraw(12345);
+    emit DrawClosed(1, 12345, 3, 3, 0, UD34x4.wrap(0));
+    closeDraw(12345);
   }
 
   function testGetTotalShares() public {
@@ -561,7 +561,7 @@ contract PrizePoolTest is Test {
 
   function testGetRemainingTierLiquidity_grandPrize() public {
     contribute(1e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     // 2 tiers at 100 shares each, and 10 for canary and 10 for reserve
     // = 100 / 220 = 10 / 22 = 0.45454545454545453
     // then take only 10% due to alpha = 0.9
@@ -570,7 +570,7 @@ contract PrizePoolTest is Test {
 
   function testGetRemainingTierLiquidity_afterClaim() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     uint256 liquidity = 4.5454545454545454e18;
     assertEq(prizePool.getTierRemainingLiquidity(1), liquidity, "second tier");
 
@@ -588,7 +588,7 @@ contract PrizePoolTest is Test {
 
   function testGetRemainingTierLiquidity_canary() public {
     contribute(220e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     assertEq(prizePool.getTierRemainingLiquidity(0), 10e18);
     assertEq(prizePool.getTierRemainingLiquidity(1), 10e18);
     // canary tier
@@ -610,12 +610,12 @@ contract PrizePoolTest is Test {
   }
 
   function testIsWinner_noDraw() public {
-    vm.expectRevert(abi.encodeWithSelector(NoCompletedDraw.selector));
+    vm.expectRevert(abi.encodeWithSelector(NoClosedDraw.selector));
     prizePool.isWinner(address(this), msg.sender, 10, 0);
   }
 
   function testIsWinner_invalidTier() public {
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
 
     // Less than number of tiers is valid.
     prizePool.isWinner(address(this), msg.sender, initialNumberOfTiers - 1, 0);
@@ -635,21 +635,21 @@ contract PrizePoolTest is Test {
 
   function testIsWinnerDailyPrize() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 1);
     assertEq(prizePool.isWinner(address(this), msg.sender, 1, 0), true);
   }
 
   function testIsWinnerGrandPrize() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     assertEq(prizePool.isWinner(address(this), msg.sender, 0, 0), true);
   }
 
   function testIsWinner_emitsInvalidPrizeIndex() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 1);
     vm.expectRevert(abi.encodeWithSelector(InvalidPrizeIndex.selector, 4, 4, 1));
     prizePool.isWinner(address(this), msg.sender, 1, 4);
@@ -661,7 +661,7 @@ contract PrizePoolTest is Test {
 
   function testWasClaimed_single() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
     assertEq(prizePool.wasClaimed(msg.sender, 0, 0), true);
@@ -669,17 +669,17 @@ contract PrizePoolTest is Test {
 
   function testWasClaimed_old_draw() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
     assertEq(prizePool.wasClaimed(msg.sender, 0, 0), true);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     assertEq(prizePool.wasClaimed(msg.sender, 0, 0), false);
   }
 
   function testClaimPrize_single() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     address winner = makeAddr("winner");
     address recipient = makeAddr("recipient");
     mockTwab(winner, 1);
@@ -704,7 +704,7 @@ contract PrizePoolTest is Test {
 
   function testClaimPrize_withFee() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     // total prize size is returned
     vm.expectEmit();
@@ -718,14 +718,14 @@ contract PrizePoolTest is Test {
 
   function testClaimPrize_notWinner() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     vm.expectRevert(abi.encodeWithSelector(DidNotWin.selector, address(this), msg.sender, 0, 0));
     claimPrize(msg.sender, 0, 0);
   }
 
   function testClaimPrize_feeTooLarge() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     vm.expectRevert(abi.encodeWithSelector(FeeTooLarge.selector, 10e18, 4.5454545454545454e18));
     claimPrize(msg.sender, 0, 0, 10e18, address(0));
@@ -733,7 +733,7 @@ contract PrizePoolTest is Test {
 
   function testClaimPrize_grandPrize_claimTwice() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     assertEq(claimPrize(msg.sender, 0, 0), 4.5454545454545454e18, "prize size");
     // second claim is zero
@@ -752,7 +752,7 @@ contract PrizePoolTest is Test {
 
   function testClaimPrize_secondTier_claimTwice() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 1);
     assertEq(claimPrize(msg.sender, 1, 0), 1.13636363636363635e18, "first claim");
     // second claim is same
@@ -762,7 +762,7 @@ contract PrizePoolTest is Test {
 
   function testClaimCanaryPrize() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(sender1, 2);
     claimPrize(sender1, 2, 0);
     assertEq(prizePool.claimCount(), 0);
@@ -771,7 +771,7 @@ contract PrizePoolTest is Test {
 
   function testClaimPrizePartial() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(sender1, 2);
     claimPrize(sender1, 2, 0);
     assertEq(prizePool.claimCount(), 0);
@@ -781,55 +781,67 @@ contract PrizePoolTest is Test {
   function testTotalClaimedPrizes() public {
     assertEq(prizePool.totalWithdrawn(), 0);
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     uint256 prize = 4.5454545454545454e18;
     assertEq(claimPrize(msg.sender, 0, 0), prize, "prize size");
     assertEq(prizePool.totalWithdrawn(), prize, "total claimed prize");
   }
 
-  function testLastCompletedDrawStartedAt() public {
-    assertEq(prizePool.lastCompletedDrawStartedAt(), 0);
-    completeAndStartNextDraw(winningRandomNumber);
+  function testLastClosedDrawStartedAt() public {
+    assertEq(prizePool.lastClosedDrawStartedAt(), 0);
+    closeDraw(winningRandomNumber);
 
-    assertEq(prizePool.lastCompletedDrawStartedAt(), lastCompletedDrawStartedAt);
-    assertEq(prizePool.lastCompletedDrawEndedAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
-    assertEq(prizePool.lastCompletedDrawAwardedAt(), block.timestamp);
+    assertEq(prizePool.lastClosedDrawStartedAt(), lastClosedDrawStartedAt);
+    assertEq(prizePool.lastClosedDrawEndedAt(), lastClosedDrawStartedAt + drawPeriodSeconds);
+    assertEq(prizePool.lastClosedDrawAwardedAt(), block.timestamp);
   }
 
-  function testLastCompletedDrawEndedAt() public {
-    assertEq(prizePool.lastCompletedDrawEndedAt(), 0);
-    completeAndStartNextDraw(winningRandomNumber);
+  function testLastClosedDrawEndedAt() public {
+    assertEq(prizePool.lastClosedDrawEndedAt(), 0);
+    closeDraw(winningRandomNumber);
 
-    assertEq(prizePool.lastCompletedDrawStartedAt(), lastCompletedDrawStartedAt);
-    assertEq(prizePool.lastCompletedDrawEndedAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
-    assertEq(prizePool.lastCompletedDrawAwardedAt(), block.timestamp);
+    assertEq(prizePool.lastClosedDrawStartedAt(), lastClosedDrawStartedAt);
+    assertEq(prizePool.lastClosedDrawEndedAt(), lastClosedDrawStartedAt + drawPeriodSeconds);
+    assertEq(prizePool.lastClosedDrawAwardedAt(), block.timestamp);
   }
 
-  function testLastCompletedDrawAwardedAt() public {
-    assertEq(prizePool.lastCompletedDrawAwardedAt(), 0);
+  function testOpenDrawStartedMatchesLastDrawClosed() public {
+    vm.warp(prizePool.openDrawEndsAt() + 1 hours);
+    prizePool.closeDraw(winningRandomNumber);
+    assertEq(prizePool.openDrawStartedAt(), prizePool.lastClosedDrawEndedAt());
+    vm.warp(prizePool.openDrawEndsAt() + 1 hours);
+    prizePool.closeDraw(winningRandomNumber);
+    assertEq(prizePool.openDrawStartedAt(), prizePool.lastClosedDrawEndedAt());
+    vm.warp(prizePool.openDrawEndsAt() + 1 hours);
+    prizePool.closeDraw(winningRandomNumber);
+    assertEq(prizePool.openDrawStartedAt(), prizePool.lastClosedDrawEndedAt());
+  }
 
-    uint64 targetTimestamp = prizePool.nextDrawEndsAt() + 3 hours;
+  function testLastClosedDrawAwardedAt() public {
+    assertEq(prizePool.lastClosedDrawAwardedAt(), 0);
+
+    uint64 targetTimestamp = prizePool.openDrawEndsAt() + 3 hours;
 
     vm.warp(targetTimestamp);
-    prizePool.completeAndStartNextDraw(winningRandomNumber);
+    prizePool.closeDraw(winningRandomNumber);
 
-    assertEq(prizePool.lastCompletedDrawStartedAt(), lastCompletedDrawStartedAt);
-    assertEq(prizePool.lastCompletedDrawEndedAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
-    assertEq(prizePool.lastCompletedDrawAwardedAt(), targetTimestamp);
+    assertEq(prizePool.lastClosedDrawStartedAt(), lastClosedDrawStartedAt);
+    assertEq(prizePool.lastClosedDrawEndedAt(), lastClosedDrawStartedAt + drawPeriodSeconds);
+    assertEq(prizePool.lastClosedDrawAwardedAt(), targetTimestamp);
   }
 
-  function testHasNextDrawFinished() public {
-    assertEq(prizePool.hasNextDrawFinished(), false);
-    vm.warp(prizePool.nextDrawEndsAt() - 1);
-    assertEq(prizePool.hasNextDrawFinished(), false);
-    vm.warp(prizePool.nextDrawEndsAt());
-    assertEq(prizePool.hasNextDrawFinished(), true);
+  function testHasOpenDrawFinished() public {
+    assertEq(prizePool.hasOpenDrawFinished(), false);
+    vm.warp(prizePool.openDrawEndsAt() - 1);
+    assertEq(prizePool.hasOpenDrawFinished(), false);
+    vm.warp(prizePool.openDrawEndsAt());
+    assertEq(prizePool.hasOpenDrawFinished(), true);
   }
 
   function testWithdrawClaimRewards_sufficient() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     claimPrize(msg.sender, 0, 0, 1e18, address(this));
     prizePool.withdrawClaimRewards(address(this), 1e18);
@@ -843,7 +855,7 @@ contract PrizePoolTest is Test {
 
   function testWithdrawClaimRewards_emitsEvent() public {
     contribute(100e18);
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
 
     prizePool.claimPrize(msg.sender, 0, 0, msg.sender, 1e18, address(this));
@@ -853,98 +865,98 @@ contract PrizePoolTest is Test {
     prizePool.withdrawClaimRewards(address(this), 5e17);
   }
 
-  function testNextDrawStartsAt_zeroDraw() public {
-    // current time *is* lastCompletedDrawStartedAt
-    assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+  function testOpenDrawStartsAt_zeroDraw() public {
+    // current time *is* lastClosedDrawStartedAt
+    assertEq(prizePool.openDrawStartedAt(), lastClosedDrawStartedAt);
   }
 
-  function testNextDrawStartsAt_zeroDrawPartwayThrough() public {
+  function testOpenDrawStartsAt_zeroDrawPartwayThrough() public {
     // current time is halfway through first draw
-    vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds / 2);
-    assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+    vm.warp(lastClosedDrawStartedAt + drawPeriodSeconds / 2);
+    assertEq(prizePool.openDrawStartedAt(), lastClosedDrawStartedAt);
   }
 
-  function testNextDrawStartsAt_zeroDrawWithLongDelay() public {
+  function testOpenDrawStartsAt_zeroDrawWithLongDelay() public {
     // current time is halfway through *second* draw
-    vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds + drawPeriodSeconds / 2); // warp halfway through second draw
-    assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
+    vm.warp(lastClosedDrawStartedAt + drawPeriodSeconds + drawPeriodSeconds / 2); // warp halfway through second draw
+    assertEq(prizePool.openDrawStartedAt(), lastClosedDrawStartedAt);
   }
 
-  function testNextDrawStartsAt_nextDraw() public {
-    assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt);
-    completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
+  function testOpenDrawStartsAt_openDraw() public {
+    assertEq(prizePool.openDrawStartedAt(), lastClosedDrawStartedAt);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.openDrawStartedAt(), lastClosedDrawStartedAt + drawPeriodSeconds);
   }
 
-  function testNextDrawIncludesMissedDraws() public {
-    assertEq(prizePool.getNextDrawId(), 1);
-    vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
-    assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
-    assertEq(prizePool.nextDrawEndsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
-    completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.getNextDrawId(), 2);
+  function testOpenDrawIncludesMissedDraws() public {
+    assertEq(prizePool.getOpenDrawId(), 1);
+    vm.warp(lastClosedDrawStartedAt + drawPeriodSeconds * 2);
+    assertEq(prizePool.openDrawStartedAt(), lastClosedDrawStartedAt + drawPeriodSeconds);
+    assertEq(prizePool.openDrawEndsAt(), lastClosedDrawStartedAt + drawPeriodSeconds * 2);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.getOpenDrawId(), 2);
   }
 
-  function testNextDrawIncludesMissedDraws_middleOfDraw() public {
-    assertEq(prizePool.getNextDrawId(), 1);
-    vm.warp(lastCompletedDrawStartedAt + (drawPeriodSeconds * 5) / 2);
-    assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds);
-    assertEq(prizePool.nextDrawEndsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
-    completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.getNextDrawId(), 2);
+  function testOpenDrawIncludesMissedDraws_middleOfDraw() public {
+    assertEq(prizePool.getOpenDrawId(), 1);
+    vm.warp(lastClosedDrawStartedAt + (drawPeriodSeconds * 5) / 2);
+    assertEq(prizePool.openDrawStartedAt(), lastClosedDrawStartedAt + drawPeriodSeconds);
+    assertEq(prizePool.openDrawEndsAt(), lastClosedDrawStartedAt + drawPeriodSeconds * 2);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.getOpenDrawId(), 2);
   }
 
   function testNextDrawIncludesMissedDraws_2Draws() public {
-    assertEq(prizePool.getNextDrawId(), 1);
-    vm.warp(lastCompletedDrawStartedAt + drawPeriodSeconds * 3);
-    assertEq(prizePool.nextDrawStartsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
-    assertEq(prizePool.nextDrawEndsAt(), lastCompletedDrawStartedAt + drawPeriodSeconds * 3);
-    completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.getNextDrawId(), 2);
+    assertEq(prizePool.getOpenDrawId(), 1);
+    vm.warp(lastClosedDrawStartedAt + drawPeriodSeconds * 3);
+    assertEq(prizePool.openDrawStartedAt(), lastClosedDrawStartedAt + drawPeriodSeconds * 2);
+    assertEq(prizePool.openDrawEndsAt(), lastClosedDrawStartedAt + drawPeriodSeconds * 3);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.getOpenDrawId(), 2);
   }
 
-  function testNextDrawIncludesMissedDraws_notFirstDraw() public {
-    completeAndStartNextDraw(winningRandomNumber);
-    uint64 _lastCompletedDrawStartedAt = prizePool.lastCompletedDrawStartedAt();
-    assertEq(prizePool.getNextDrawId(), 2);
-    vm.warp(_lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
-    assertEq(prizePool.nextDrawStartsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds);
-    assertEq(prizePool.nextDrawEndsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
-    completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.getNextDrawId(), 3);
+  function testOpenDrawIncludesMissedDraws_notFirstDraw() public {
+    closeDraw(winningRandomNumber);
+    uint64 _lastClosedDrawStartedAt = prizePool.lastClosedDrawStartedAt();
+    assertEq(prizePool.getOpenDrawId(), 2);
+    vm.warp(_lastClosedDrawStartedAt + drawPeriodSeconds * 2);
+    assertEq(prizePool.openDrawStartedAt(), _lastClosedDrawStartedAt + drawPeriodSeconds);
+    assertEq(prizePool.openDrawEndsAt(), _lastClosedDrawStartedAt + drawPeriodSeconds * 2);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.getOpenDrawId(), 3);
   }
 
-  function testNextDrawIncludesMissedDraws_manyDrawsIn_manyMissed() public {
-    completeAndStartNextDraw(winningRandomNumber);
-    completeAndStartNextDraw(winningRandomNumber);
-    completeAndStartNextDraw(winningRandomNumber);
-    completeAndStartNextDraw(winningRandomNumber);
-    uint64 _lastCompletedDrawStartedAt = prizePool.lastCompletedDrawStartedAt();
-    assertEq(prizePool.getNextDrawId(), 5);
-    vm.warp(_lastCompletedDrawStartedAt + drawPeriodSeconds * 5);
-    assertEq(prizePool.nextDrawStartsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds * 4);
-    assertEq(prizePool.nextDrawEndsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds * 5);
-    completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.getNextDrawId(), 6);
+  function testOpenDrawIncludesMissedDraws_manyDrawsIn_manyMissed() public {
+    closeDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
+    uint64 _lastClosedDrawStartedAt = prizePool.lastClosedDrawStartedAt();
+    assertEq(prizePool.getOpenDrawId(), 5);
+    vm.warp(_lastClosedDrawStartedAt + drawPeriodSeconds * 5);
+    assertEq(prizePool.openDrawStartedAt(), _lastClosedDrawStartedAt + drawPeriodSeconds * 4);
+    assertEq(prizePool.openDrawEndsAt(), _lastClosedDrawStartedAt + drawPeriodSeconds * 5);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.getOpenDrawId(), 6);
   }
 
-  function testNextDrawIncludesMissedDraws_notFirstDraw_middleOfDraw() public {
-    completeAndStartNextDraw(winningRandomNumber);
-    uint64 _lastCompletedDrawStartedAt = prizePool.lastCompletedDrawStartedAt();
-    assertEq(prizePool.getNextDrawId(), 2);
-    vm.warp(_lastCompletedDrawStartedAt + (drawPeriodSeconds * 5) / 2);
-    assertEq(prizePool.nextDrawStartsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds);
-    assertEq(prizePool.nextDrawEndsAt(), _lastCompletedDrawStartedAt + drawPeriodSeconds * 2);
-    completeAndStartNextDraw(winningRandomNumber);
-    assertEq(prizePool.getNextDrawId(), 3);
+  function testOpenDrawIncludesMissedDraws_notFirstDraw_middleOfDraw() public {
+    closeDraw(winningRandomNumber);
+    uint64 _lastClosedDrawStartedAt = prizePool.lastClosedDrawStartedAt();
+    assertEq(prizePool.getOpenDrawId(), 2);
+    vm.warp(_lastClosedDrawStartedAt + (drawPeriodSeconds * 5) / 2);
+    assertEq(prizePool.openDrawStartedAt(), _lastClosedDrawStartedAt + drawPeriodSeconds);
+    assertEq(prizePool.openDrawEndsAt(), _lastClosedDrawStartedAt + drawPeriodSeconds * 2);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.getOpenDrawId(), 3);
   }
 
   function testGetVaultUserBalanceAndTotalSupplyTwab() public {
-    completeAndStartNextDraw(winningRandomNumber);
+    closeDraw(winningRandomNumber);
     mockTwab(
       msg.sender,
-      prizePool.lastCompletedDrawEndedAt() - 365 * drawPeriodSeconds,
-      prizePool.lastCompletedDrawEndedAt()
+      prizePool.lastClosedDrawEndedAt() - 365 * drawPeriodSeconds,
+      prizePool.lastClosedDrawEndedAt()
     );
     (uint256 twab, uint256 twabTotalSupply) = prizePool.getVaultUserBalanceAndTotalSupplyTwab(
       address(this),
@@ -1048,9 +1060,9 @@ contract PrizePoolTest is Test {
     prizePool.contributePrizeTokens(to, amountContributed);
   }
 
-  function completeAndStartNextDraw(uint256 _winningRandomNumber) public {
-    vm.warp(prizePool.nextDrawEndsAt());
-    prizePool.completeAndStartNextDraw(_winningRandomNumber);
+  function closeDraw(uint256 _winningRandomNumber) public {
+    vm.warp(prizePool.openDrawEndsAt());
+    prizePool.closeDraw(_winningRandomNumber);
   }
 
   function claimPrize(address sender, uint8 tier, uint32 prizeIndex) public returns (uint256) {
