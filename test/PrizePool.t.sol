@@ -49,7 +49,9 @@ contract PrizePoolTest is Test {
     uint16 indexed drawId,
     uint256 winningRandomNumber,
     uint8 numTiers,
-    uint8 nextNumTiers
+    uint8 nextNumTiers,
+    uint104 reserve,
+    UD34x4 prizeTokensPerShare
   );
 
   /// @notice Emitted when any amount of the reserve is withdrawn.
@@ -68,6 +70,11 @@ contract PrizePoolTest is Test {
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
   event WithdrawClaimRewards(address indexed to, uint256 amount, uint256 available);
+
+  /// @notice Emitted when an address receives new claim rewards
+  /// @param to The address the rewards are given to
+  /// @param amount The amount increased
+  event IncreaseClaimRewards(address indexed to, uint256 amount);
 
   /// @notice Emitted when the drawManager is set
   /// @param drawManager The draw manager
@@ -355,7 +362,8 @@ contract PrizePoolTest is Test {
     vm.expectRevert(
       abi.encodeWithSelector(
         DrawNotFinished.selector,
-        lastCompletedDrawStartedAt + drawPeriodSeconds
+        lastCompletedDrawStartedAt + drawPeriodSeconds,
+        block.timestamp
       )
     );
     prizePool.completeAndStartNextDraw(winningRandomNumber);
@@ -367,7 +375,8 @@ contract PrizePoolTest is Test {
     vm.expectRevert(
       abi.encodeWithSelector(
         DrawNotFinished.selector,
-        lastCompletedDrawStartedAt + drawPeriodSeconds * 2
+        lastCompletedDrawStartedAt + drawPeriodSeconds * 2,
+        block.timestamp
       )
     );
     prizePool.completeAndStartNextDraw(winningRandomNumber);
@@ -380,7 +389,8 @@ contract PrizePoolTest is Test {
     vm.expectRevert(
       abi.encodeWithSelector(
         DrawNotFinished.selector,
-        lastCompletedDrawStartedAt + drawPeriodSeconds * 2
+        lastCompletedDrawStartedAt + drawPeriodSeconds * 2,
+        block.timestamp
       )
     );
     prizePool.completeAndStartNextDraw(winningRandomNumber);
@@ -391,7 +401,8 @@ contract PrizePoolTest is Test {
     vm.expectRevert(
       abi.encodeWithSelector(
         DrawNotFinished.selector,
-        lastCompletedDrawStartedAt + drawPeriodSeconds
+        lastCompletedDrawStartedAt + drawPeriodSeconds,
+        block.timestamp
       )
     );
     prizePool.completeAndStartNextDraw(winningRandomNumber);
@@ -479,7 +490,14 @@ contract PrizePoolTest is Test {
 
     vm.expectEmit();
     // shrink to minimum
-    emit DrawCompleted(2, 4567, startingTiers, 3);
+    emit DrawCompleted(
+      2,
+      4567,
+      startingTiers,
+      3,
+      23718181818181818010,
+      UD34x4.wrap(2718181818181817930000)
+    );
 
     completeAndStartNextDraw(4567);
     // reclaimed tier 2, 3, and canary.  22e18 in total.
@@ -511,7 +529,7 @@ contract PrizePoolTest is Test {
     claimPrize(sender6, 2, 0);
 
     vm.expectEmit();
-    emit DrawCompleted(2, 245, 3, 4);
+    emit DrawCompleted(2, 245, 3, 4, 7997159090909503, UD34x4.wrap(7357954545454530000));
 
     completeAndStartNextDraw(245);
     assertEq(prizePool.numberOfTiers(), 4);
@@ -529,7 +547,7 @@ contract PrizePoolTest is Test {
 
   function testCompleteAndStartNextDraw_emitsEvent() public {
     vm.expectEmit();
-    emit DrawCompleted(1, 12345, 3, 3);
+    emit DrawCompleted(1, 12345, 3, 3, 0, UD34x4.wrap(0));
     completeAndStartNextDraw(12345);
   }
 
@@ -689,6 +707,8 @@ contract PrizePoolTest is Test {
     completeAndStartNextDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     // total prize size is returned
+    vm.expectEmit();
+    emit IncreaseClaimRewards(address(this), 1e18);
     claimPrize(msg.sender, 0, 0, 1e18, address(this));
     // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
     assertEq(prizeToken.balanceOf(msg.sender), 3.5454545454545454e18, "user balance after claim");

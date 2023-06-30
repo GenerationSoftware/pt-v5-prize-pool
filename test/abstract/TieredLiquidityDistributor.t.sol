@@ -57,16 +57,20 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testConsumeLiquidity_and_empty_reserve() public {
     distributor.nextDraw(3, 220e18); // reserve should be 10e18
+    uint256 reserve = distributor.reserve();
     distributor.consumeLiquidity(1, 110e18); // consume full liq for tier 1 and reserve
     assertEq(distributor.remainingTierLiquidity(1), 0);
     assertEq(distributor.reserve(), 0);
+    assertLt(distributor.reserve(), reserve);
   }
 
   function testConsumeLiquidity_and_partial_reserve() public {
     distributor.nextDraw(3, 220e18); // reserve should be 10e18
+    uint256 reserve = distributor.reserve();
     distributor.consumeLiquidity(1, 105e18); // consume full liq for tier 1 and reserve
     assertEq(distributor.remainingTierLiquidity(1), 0);
     assertEq(distributor.reserve(), 5e18);
+    assertLt(distributor.reserve(), reserve);
   }
 
   function testConsumeLiquidity_insufficient() public {
