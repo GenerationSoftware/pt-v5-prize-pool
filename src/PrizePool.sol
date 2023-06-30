@@ -65,7 +65,8 @@ error RandomNumberIsZero();
 
 /// @notice Emitted when the draw cannot be completed since it has not finished
 /// @param drawEndsAt The timestamp in seconds at which the draw ends
-error DrawNotFinished(uint64 drawEndsAt);
+/// @param errorTimestamp The timestamp in seconds at which the error occured
+error DrawNotFinished(uint64 drawEndsAt, uint64 errorTimestamp);
 
 /// @notice Emitted when prize index is greater or equal to the max prize count for the tier
 /// @param invalidPrizeIndex The invalid prize index
@@ -148,17 +149,25 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param winningRandomNumber The winning random number for the completed draw
   /// @param numTiers The number of prize tiers in the completed draw
   /// @param nextNumTiers The number of tiers for the next draw
+  /// @param reserve The resulting reserve available for the next draw
+  /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
   event DrawCompleted(
     uint16 indexed drawId,
     uint256 winningRandomNumber,
     uint8 numTiers,
-    uint8 nextNumTiers
+    uint8 nextNumTiers,
+    uint104 reserve,
+    UD34x4 prizeTokensPerShare
   );
 
   /// @notice Emitted when any amount of the reserve is withdrawn.
   /// @param to The address the assets are transferred to
   /// @param amount The amount of assets transferred
   event WithdrawReserve(address indexed to, uint256 amount);
+
+  /// @notice Emitted when the reserve is consumed due to insufficient prize liquidity.
+  /// @param amount The amount to decrease by
+  event ReserveConsumed(uint256 amount);
 
   /// @notice Emitted when a vault contributes prize tokens to the pool.
   /// @param vault The address of the vault that is contributing tokens
@@ -171,6 +180,11 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
   event WithdrawClaimRewards(address indexed to, uint256 amount, uint256 available);
+
+  /// @notice Emitted when an address receives new claim rewards
+  /// @param to The address the rewards are given to
+  /// @param amount The amount increased
+  event IncreaseClaimRewards(address indexed to, uint256 amount);
 
   /// @notice Emitted when the drawManager is set
   /// @param drawManager The draw manager
@@ -478,7 +492,7 @@ contract PrizePool is TieredLiquidityDistributor {
       revert RandomNumberIsZero();
     }
     if (block.timestamp < _nextDrawEndsAt()) {
-      revert DrawNotFinished(_nextDrawEndsAt());
+      revert DrawNotFinished(_nextDrawEndsAt(), uint64(block.timestamp));
     }
 
     uint8 _numTiers = numberOfTiers;
@@ -499,7 +513,14 @@ contract PrizePool is TieredLiquidityDistributor {
     _lastCompletedDrawStartedAt = nextDrawStartsAt_;
     _lastCompletedDrawAwardedAt = uint64(block.timestamp);
 
-    emit DrawCompleted(lastCompletedDrawId, winningRandomNumber_, _numTiers, _nextNumberOfTiers);
+    emit DrawCompleted(
+      lastCompletedDrawId,
+      winningRandomNumber_,
+      _numTiers,
+      _nextNumberOfTiers,
+      _reserve,
+      prizeTokenPerShare
+    );
 
     return lastCompletedDrawId;
   }
@@ -614,13 +635,21 @@ contract PrizePool is TieredLiquidityDistributor {
       largestTierClaimed = _tier;
     }
 
+    // `amount` is a snapshot of the reserve before consuming liquidity
+    uint256 amount = _reserve;
     _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize);
 
+    if (amount != _reserve) {
+      emit ReserveConsumed(amount - _reserve);
+    }
+
     if (_fee != 0) {
+      emit IncreaseClaimRewards(_feeRecipient, _fee);
       claimerRewards[_feeRecipient] += _fee;
     }
 
-    uint256 payout = tierLiquidity.prizeSize - _fee;
+    // `amount` is now the payout amount
+    amount = tierLiquidity.prizeSize - _fee;
 
     emit ClaimedPrize(
       msg.sender,
@@ -629,12 +658,12 @@ contract PrizePool is TieredLiquidityDistributor {
       lastCompletedDrawId,
       _tier,
       _prizeIndex,
-      uint152(payout),
+      uint152(amount),
       _fee,
       _feeRecipient
     );
 
-    _transfer(_prizeRecipient, payout);
+    _transfer(_prizeRecipient, amount);
 
     return tierLiquidity.prizeSize;
   }
