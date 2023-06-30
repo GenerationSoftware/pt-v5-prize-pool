@@ -93,7 +93,6 @@ contract PrizePoolTest is Test {
       prizeToken,
       twabController,
       drawManager,
-      uint16(365),
       drawPeriodSeconds,
       lastCompletedDrawStartedAt,
       initialNumberOfTiers, // minimum number of tiers
@@ -449,7 +448,6 @@ contract PrizePoolTest is Test {
       prizeToken,
       twabController,
       address(this),
-      uint16(365),
       drawPeriodSeconds,
       lastCompletedDrawStartedAt,
       startingTiers, // higher number of tiers

@@ -7,20 +7,11 @@ import { TieredLiquidityDistributor, Tier, fromUD34x4toUD60x18, fromUD60x18 } fr
 
 contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   constructor(
-    uint16 _grandPrizePeriodDraws,
     uint8 _numberOfTiers,
     uint8 _tierShares,
     uint8 _canaryShares,
     uint8 _reserveShares
-  )
-    TieredLiquidityDistributor(
-      _grandPrizePeriodDraws,
-      _numberOfTiers,
-      _tierShares,
-      _canaryShares,
-      _reserveShares
-    )
-  {}
+  ) TieredLiquidityDistributor(_numberOfTiers, _tierShares, _canaryShares, _reserveShares) {}
 
   function nextDraw(uint8 _nextNumTiers, uint96 liquidity) external {
     _nextDraw(_nextNumTiers, liquidity);

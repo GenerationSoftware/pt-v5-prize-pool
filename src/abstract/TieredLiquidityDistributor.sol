@@ -31,20 +31,6 @@ error InsufficientLiquidity(uint104 requestedLiquidity);
 contract TieredLiquidityDistributor {
   uint8 internal constant MINIMUM_NUMBER_OF_TIERS = 3;
 
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_12_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS;
-  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS;
-
   UD60x18 internal immutable CANARY_PRIZE_COUNT_FOR_2_TIERS;
   UD60x18 internal immutable CANARY_PRIZE_COUNT_FOR_3_TIERS;
   UD60x18 internal immutable CANARY_PRIZE_COUNT_FOR_4_TIERS;
@@ -59,145 +45,164 @@ contract TieredLiquidityDistributor {
   UD60x18 internal immutable CANARY_PRIZE_COUNT_FOR_13_TIERS;
   UD60x18 internal immutable CANARY_PRIZE_COUNT_FOR_14_TIERS;
 
-  SD59x18 internal immutable TIER_ODDS_0_3;
-  SD59x18 internal immutable TIER_ODDS_1_3;
-  SD59x18 internal immutable TIER_ODDS_2_3;
-  SD59x18 internal immutable TIER_ODDS_0_4;
-  SD59x18 internal immutable TIER_ODDS_1_4;
-  SD59x18 internal immutable TIER_ODDS_2_4;
-  SD59x18 internal immutable TIER_ODDS_3_4;
-  SD59x18 internal immutable TIER_ODDS_0_5;
-  SD59x18 internal immutable TIER_ODDS_1_5;
-  SD59x18 internal immutable TIER_ODDS_2_5;
-  SD59x18 internal immutable TIER_ODDS_3_5;
-  SD59x18 internal immutable TIER_ODDS_4_5;
-  SD59x18 internal immutable TIER_ODDS_0_6;
-  SD59x18 internal immutable TIER_ODDS_1_6;
-  SD59x18 internal immutable TIER_ODDS_2_6;
-  SD59x18 internal immutable TIER_ODDS_3_6;
-  SD59x18 internal immutable TIER_ODDS_4_6;
-  SD59x18 internal immutable TIER_ODDS_5_6;
-  SD59x18 internal immutable TIER_ODDS_0_7;
-  SD59x18 internal immutable TIER_ODDS_1_7;
-  SD59x18 internal immutable TIER_ODDS_2_7;
-  SD59x18 internal immutable TIER_ODDS_3_7;
-  SD59x18 internal immutable TIER_ODDS_4_7;
-  SD59x18 internal immutable TIER_ODDS_5_7;
-  SD59x18 internal immutable TIER_ODDS_6_7;
-  SD59x18 internal immutable TIER_ODDS_0_8;
-  SD59x18 internal immutable TIER_ODDS_1_8;
-  SD59x18 internal immutable TIER_ODDS_2_8;
-  SD59x18 internal immutable TIER_ODDS_3_8;
-  SD59x18 internal immutable TIER_ODDS_4_8;
-  SD59x18 internal immutable TIER_ODDS_5_8;
-  SD59x18 internal immutable TIER_ODDS_6_8;
-  SD59x18 internal immutable TIER_ODDS_7_8;
-  SD59x18 internal immutable TIER_ODDS_0_9;
-  SD59x18 internal immutable TIER_ODDS_1_9;
-  SD59x18 internal immutable TIER_ODDS_2_9;
-  SD59x18 internal immutable TIER_ODDS_3_9;
-  SD59x18 internal immutable TIER_ODDS_4_9;
-  SD59x18 internal immutable TIER_ODDS_5_9;
-  SD59x18 internal immutable TIER_ODDS_6_9;
-  SD59x18 internal immutable TIER_ODDS_7_9;
-  SD59x18 internal immutable TIER_ODDS_8_9;
-  SD59x18 internal immutable TIER_ODDS_0_10;
-  SD59x18 internal immutable TIER_ODDS_1_10;
-  SD59x18 internal immutable TIER_ODDS_2_10;
-  SD59x18 internal immutable TIER_ODDS_3_10;
-  SD59x18 internal immutable TIER_ODDS_4_10;
-  SD59x18 internal immutable TIER_ODDS_5_10;
-  SD59x18 internal immutable TIER_ODDS_6_10;
-  SD59x18 internal immutable TIER_ODDS_7_10;
-  SD59x18 internal immutable TIER_ODDS_8_10;
-  SD59x18 internal immutable TIER_ODDS_9_10;
-  SD59x18 internal immutable TIER_ODDS_0_11;
-  SD59x18 internal immutable TIER_ODDS_1_11;
-  SD59x18 internal immutable TIER_ODDS_2_11;
-  SD59x18 internal immutable TIER_ODDS_3_11;
-  SD59x18 internal immutable TIER_ODDS_4_11;
-  SD59x18 internal immutable TIER_ODDS_5_11;
-  SD59x18 internal immutable TIER_ODDS_6_11;
-  SD59x18 internal immutable TIER_ODDS_7_11;
-  SD59x18 internal immutable TIER_ODDS_8_11;
-  SD59x18 internal immutable TIER_ODDS_9_11;
-  SD59x18 internal immutable TIER_ODDS_10_11;
-  SD59x18 internal immutable TIER_ODDS_0_12;
-  SD59x18 internal immutable TIER_ODDS_1_12;
-  SD59x18 internal immutable TIER_ODDS_2_12;
-  SD59x18 internal immutable TIER_ODDS_3_12;
-  SD59x18 internal immutable TIER_ODDS_4_12;
-  SD59x18 internal immutable TIER_ODDS_5_12;
-  SD59x18 internal immutable TIER_ODDS_6_12;
-  SD59x18 internal immutable TIER_ODDS_7_12;
-  SD59x18 internal immutable TIER_ODDS_8_12;
-  SD59x18 internal immutable TIER_ODDS_9_12;
-  SD59x18 internal immutable TIER_ODDS_10_12;
-  SD59x18 internal immutable TIER_ODDS_11_12;
-  SD59x18 internal immutable TIER_ODDS_0_13;
-  SD59x18 internal immutable TIER_ODDS_1_13;
-  SD59x18 internal immutable TIER_ODDS_2_13;
-  SD59x18 internal immutable TIER_ODDS_3_13;
-  SD59x18 internal immutable TIER_ODDS_4_13;
-  SD59x18 internal immutable TIER_ODDS_5_13;
-  SD59x18 internal immutable TIER_ODDS_6_13;
-  SD59x18 internal immutable TIER_ODDS_7_13;
-  SD59x18 internal immutable TIER_ODDS_8_13;
-  SD59x18 internal immutable TIER_ODDS_9_13;
-  SD59x18 internal immutable TIER_ODDS_10_13;
-  SD59x18 internal immutable TIER_ODDS_11_13;
-  SD59x18 internal immutable TIER_ODDS_12_13;
-  SD59x18 internal immutable TIER_ODDS_0_14;
-  SD59x18 internal immutable TIER_ODDS_1_14;
-  SD59x18 internal immutable TIER_ODDS_2_14;
-  SD59x18 internal immutable TIER_ODDS_3_14;
-  SD59x18 internal immutable TIER_ODDS_4_14;
-  SD59x18 internal immutable TIER_ODDS_5_14;
-  SD59x18 internal immutable TIER_ODDS_6_14;
-  SD59x18 internal immutable TIER_ODDS_7_14;
-  SD59x18 internal immutable TIER_ODDS_8_14;
-  SD59x18 internal immutable TIER_ODDS_9_14;
-  SD59x18 internal immutable TIER_ODDS_10_14;
-  SD59x18 internal immutable TIER_ODDS_11_14;
-  SD59x18 internal immutable TIER_ODDS_12_14;
-  SD59x18 internal immutable TIER_ODDS_13_14;
-  SD59x18 internal immutable TIER_ODDS_0_15;
-  SD59x18 internal immutable TIER_ODDS_1_15;
-  SD59x18 internal immutable TIER_ODDS_2_15;
-  SD59x18 internal immutable TIER_ODDS_3_15;
-  SD59x18 internal immutable TIER_ODDS_4_15;
-  SD59x18 internal immutable TIER_ODDS_5_15;
-  SD59x18 internal immutable TIER_ODDS_6_15;
-  SD59x18 internal immutable TIER_ODDS_7_15;
-  SD59x18 internal immutable TIER_ODDS_8_15;
-  SD59x18 internal immutable TIER_ODDS_9_15;
-  SD59x18 internal immutable TIER_ODDS_10_15;
-  SD59x18 internal immutable TIER_ODDS_11_15;
-  SD59x18 internal immutable TIER_ODDS_12_15;
-  SD59x18 internal immutable TIER_ODDS_13_15;
-  SD59x18 internal immutable TIER_ODDS_14_15;
-  SD59x18 internal immutable TIER_ODDS_0_16;
-  SD59x18 internal immutable TIER_ODDS_1_16;
-  SD59x18 internal immutable TIER_ODDS_2_16;
-  SD59x18 internal immutable TIER_ODDS_3_16;
-  SD59x18 internal immutable TIER_ODDS_4_16;
-  SD59x18 internal immutable TIER_ODDS_5_16;
-  SD59x18 internal immutable TIER_ODDS_6_16;
-  SD59x18 internal immutable TIER_ODDS_7_16;
-  SD59x18 internal immutable TIER_ODDS_8_16;
-  SD59x18 internal immutable TIER_ODDS_9_16;
-  SD59x18 internal immutable TIER_ODDS_10_16;
-  SD59x18 internal immutable TIER_ODDS_11_16;
-  SD59x18 internal immutable TIER_ODDS_12_16;
-  SD59x18 internal immutable TIER_ODDS_13_16;
-  SD59x18 internal immutable TIER_ODDS_14_16;
-  SD59x18 internal immutable TIER_ODDS_15_16;
+  //////////////////////// START GENERATED CONSTANTS ////////////////////////
+  // Constants are precomputed using the script/generateConstants.s.sol script.
+
+  /// @notice The number of draws that should statistically occur between grand prizes.
+  uint16 internal constant GRAND_PRIZE_PERIOD_DRAWS = 365;
+
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS = 4;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS = 16;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS = 66;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS = 270;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS = 1108;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS = 4517;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS = 18358;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS = 74435;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS = 301239;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS = 1217266;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_12_TIERS = 4912619;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS = 19805536;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS = 79777187;
+
+  SD59x18 internal constant TIER_ODDS_0_3 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_3 = SD59x18.wrap(52342392259021369);
+  SD59x18 internal constant TIER_ODDS_2_3 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_4 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_4 = SD59x18.wrap(19579642462506911);
+  SD59x18 internal constant TIER_ODDS_2_4 = SD59x18.wrap(139927275620255366);
+  SD59x18 internal constant TIER_ODDS_3_4 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_5 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_5 = SD59x18.wrap(11975133168707466);
+  SD59x18 internal constant TIER_ODDS_2_5 = SD59x18.wrap(52342392259021369);
+  SD59x18 internal constant TIER_ODDS_3_5 = SD59x18.wrap(228784597949733865);
+  SD59x18 internal constant TIER_ODDS_4_5 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_6 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_6 = SD59x18.wrap(8915910667410451);
+  SD59x18 internal constant TIER_ODDS_2_6 = SD59x18.wrap(29015114005673871);
+  SD59x18 internal constant TIER_ODDS_3_6 = SD59x18.wrap(94424100034951094);
+  SD59x18 internal constant TIER_ODDS_4_6 = SD59x18.wrap(307285046878222004);
+  SD59x18 internal constant TIER_ODDS_5_6 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_7 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_7 = SD59x18.wrap(7324128348251604);
+  SD59x18 internal constant TIER_ODDS_2_7 = SD59x18.wrap(19579642462506911);
+  SD59x18 internal constant TIER_ODDS_3_7 = SD59x18.wrap(52342392259021369);
+  SD59x18 internal constant TIER_ODDS_4_7 = SD59x18.wrap(139927275620255366);
+  SD59x18 internal constant TIER_ODDS_5_7 = SD59x18.wrap(374068544013333694);
+  SD59x18 internal constant TIER_ODDS_6_7 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_8 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_8 = SD59x18.wrap(6364275529026907);
+  SD59x18 internal constant TIER_ODDS_2_8 = SD59x18.wrap(14783961098420314);
+  SD59x18 internal constant TIER_ODDS_3_8 = SD59x18.wrap(34342558671878193);
+  SD59x18 internal constant TIER_ODDS_4_8 = SD59x18.wrap(79776409602255901);
+  SD59x18 internal constant TIER_ODDS_5_8 = SD59x18.wrap(185317453770221528);
+  SD59x18 internal constant TIER_ODDS_6_8 = SD59x18.wrap(430485137687959592);
+  SD59x18 internal constant TIER_ODDS_7_8 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_9 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_9 = SD59x18.wrap(5727877794074876);
+  SD59x18 internal constant TIER_ODDS_2_9 = SD59x18.wrap(11975133168707466);
+  SD59x18 internal constant TIER_ODDS_3_9 = SD59x18.wrap(25036116265717087);
+  SD59x18 internal constant TIER_ODDS_4_9 = SD59x18.wrap(52342392259021369);
+  SD59x18 internal constant TIER_ODDS_5_9 = SD59x18.wrap(109430951602859902);
+  SD59x18 internal constant TIER_ODDS_6_9 = SD59x18.wrap(228784597949733865);
+  SD59x18 internal constant TIER_ODDS_7_9 = SD59x18.wrap(478314329651259628);
+  SD59x18 internal constant TIER_ODDS_8_9 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_10 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_10 = SD59x18.wrap(5277233889074595);
+  SD59x18 internal constant TIER_ODDS_2_10 = SD59x18.wrap(10164957094799045);
+  SD59x18 internal constant TIER_ODDS_3_10 = SD59x18.wrap(19579642462506911);
+  SD59x18 internal constant TIER_ODDS_4_10 = SD59x18.wrap(37714118749773489);
+  SD59x18 internal constant TIER_ODDS_5_10 = SD59x18.wrap(72644572330454226);
+  SD59x18 internal constant TIER_ODDS_6_10 = SD59x18.wrap(139927275620255366);
+  SD59x18 internal constant TIER_ODDS_7_10 = SD59x18.wrap(269526570731818992);
+  SD59x18 internal constant TIER_ODDS_8_10 = SD59x18.wrap(519159484871285957);
+  SD59x18 internal constant TIER_ODDS_9_10 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_11 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_11 = SD59x18.wrap(4942383282734483);
+  SD59x18 internal constant TIER_ODDS_2_11 = SD59x18.wrap(8915910667410451);
+  SD59x18 internal constant TIER_ODDS_3_11 = SD59x18.wrap(16084034459031666);
+  SD59x18 internal constant TIER_ODDS_4_11 = SD59x18.wrap(29015114005673871);
+  SD59x18 internal constant TIER_ODDS_5_11 = SD59x18.wrap(52342392259021369);
+  SD59x18 internal constant TIER_ODDS_6_11 = SD59x18.wrap(94424100034951094);
+  SD59x18 internal constant TIER_ODDS_7_11 = SD59x18.wrap(170338234127496669);
+  SD59x18 internal constant TIER_ODDS_8_11 = SD59x18.wrap(307285046878222004);
+  SD59x18 internal constant TIER_ODDS_9_11 = SD59x18.wrap(554332974734700411);
+  SD59x18 internal constant TIER_ODDS_10_11 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_12 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_12 = SD59x18.wrap(4684280039134314);
+  SD59x18 internal constant TIER_ODDS_2_12 = SD59x18.wrap(8009005012036743);
+  SD59x18 internal constant TIER_ODDS_3_12 = SD59x18.wrap(13693494143591795);
+  SD59x18 internal constant TIER_ODDS_4_12 = SD59x18.wrap(23412618868232833);
+  SD59x18 internal constant TIER_ODDS_5_12 = SD59x18.wrap(40030011078337707);
+  SD59x18 internal constant TIER_ODDS_6_12 = SD59x18.wrap(68441800379112721);
+  SD59x18 internal constant TIER_ODDS_7_12 = SD59x18.wrap(117019204165776974);
+  SD59x18 internal constant TIER_ODDS_8_12 = SD59x18.wrap(200075013628233217);
+  SD59x18 internal constant TIER_ODDS_9_12 = SD59x18.wrap(342080698323914461);
+  SD59x18 internal constant TIER_ODDS_10_12 = SD59x18.wrap(584876652230121477);
+  SD59x18 internal constant TIER_ODDS_11_12 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_13 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_13 = SD59x18.wrap(4479520628784180);
+  SD59x18 internal constant TIER_ODDS_2_13 = SD59x18.wrap(7324128348251604);
+  SD59x18 internal constant TIER_ODDS_3_13 = SD59x18.wrap(11975133168707466);
+  SD59x18 internal constant TIER_ODDS_4_13 = SD59x18.wrap(19579642462506911);
+  SD59x18 internal constant TIER_ODDS_5_13 = SD59x18.wrap(32013205494981721);
+  SD59x18 internal constant TIER_ODDS_6_13 = SD59x18.wrap(52342392259021369);
+  SD59x18 internal constant TIER_ODDS_7_13 = SD59x18.wrap(85581121447732876);
+  SD59x18 internal constant TIER_ODDS_8_13 = SD59x18.wrap(139927275620255366);
+  SD59x18 internal constant TIER_ODDS_9_13 = SD59x18.wrap(228784597949733866);
+  SD59x18 internal constant TIER_ODDS_10_13 = SD59x18.wrap(374068544013333694);
+  SD59x18 internal constant TIER_ODDS_11_13 = SD59x18.wrap(611611432212751966);
+  SD59x18 internal constant TIER_ODDS_12_13 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_14 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_14 = SD59x18.wrap(4313269422986724);
+  SD59x18 internal constant TIER_ODDS_2_14 = SD59x18.wrap(6790566987074365);
+  SD59x18 internal constant TIER_ODDS_3_14 = SD59x18.wrap(10690683906783196);
+  SD59x18 internal constant TIER_ODDS_4_14 = SD59x18.wrap(16830807002169641);
+  SD59x18 internal constant TIER_ODDS_5_14 = SD59x18.wrap(26497468900426949);
+  SD59x18 internal constant TIER_ODDS_6_14 = SD59x18.wrap(41716113674084931);
+  SD59x18 internal constant TIER_ODDS_7_14 = SD59x18.wrap(65675485708038160);
+  SD59x18 internal constant TIER_ODDS_8_14 = SD59x18.wrap(103395763485663166);
+  SD59x18 internal constant TIER_ODDS_9_14 = SD59x18.wrap(162780431564813557);
+  SD59x18 internal constant TIER_ODDS_10_14 = SD59x18.wrap(256272288217119098);
+  SD59x18 internal constant TIER_ODDS_11_14 = SD59x18.wrap(403460570024895441);
+  SD59x18 internal constant TIER_ODDS_12_14 = SD59x18.wrap(635185461125249183);
+  SD59x18 internal constant TIER_ODDS_13_14 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_15 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_15 = SD59x18.wrap(4175688124417637);
+  SD59x18 internal constant TIER_ODDS_2_15 = SD59x18.wrap(6364275529026907);
+  SD59x18 internal constant TIER_ODDS_3_15 = SD59x18.wrap(9699958857683993);
+  SD59x18 internal constant TIER_ODDS_4_15 = SD59x18.wrap(14783961098420314);
+  SD59x18 internal constant TIER_ODDS_5_15 = SD59x18.wrap(22532621938542004);
+  SD59x18 internal constant TIER_ODDS_6_15 = SD59x18.wrap(34342558671878193);
+  SD59x18 internal constant TIER_ODDS_7_15 = SD59x18.wrap(52342392259021369);
+  SD59x18 internal constant TIER_ODDS_8_15 = SD59x18.wrap(79776409602255901);
+  SD59x18 internal constant TIER_ODDS_9_15 = SD59x18.wrap(121589313257458259);
+  SD59x18 internal constant TIER_ODDS_10_15 = SD59x18.wrap(185317453770221528);
+  SD59x18 internal constant TIER_ODDS_11_15 = SD59x18.wrap(282447180198804430);
+  SD59x18 internal constant TIER_ODDS_12_15 = SD59x18.wrap(430485137687959592);
+  SD59x18 internal constant TIER_ODDS_13_15 = SD59x18.wrap(656113662171395111);
+  SD59x18 internal constant TIER_ODDS_14_15 = SD59x18.wrap(1000000000000000000);
+  SD59x18 internal constant TIER_ODDS_0_16 = SD59x18.wrap(2739726027397260);
+  SD59x18 internal constant TIER_ODDS_1_16 = SD59x18.wrap(4060005854625059);
+  SD59x18 internal constant TIER_ODDS_2_16 = SD59x18.wrap(6016531351950262);
+  SD59x18 internal constant TIER_ODDS_3_16 = SD59x18.wrap(8915910667410451);
+  SD59x18 internal constant TIER_ODDS_4_16 = SD59x18.wrap(13212507070785166);
+  SD59x18 internal constant TIER_ODDS_5_16 = SD59x18.wrap(19579642462506911);
+  SD59x18 internal constant TIER_ODDS_6_16 = SD59x18.wrap(29015114005673871);
+  SD59x18 internal constant TIER_ODDS_7_16 = SD59x18.wrap(42997559448512061);
+  SD59x18 internal constant TIER_ODDS_8_16 = SD59x18.wrap(63718175229875027);
+  SD59x18 internal constant TIER_ODDS_9_16 = SD59x18.wrap(94424100034951094);
+  SD59x18 internal constant TIER_ODDS_10_16 = SD59x18.wrap(139927275620255366);
+  SD59x18 internal constant TIER_ODDS_11_16 = SD59x18.wrap(207358528757589475);
+  SD59x18 internal constant TIER_ODDS_12_16 = SD59x18.wrap(307285046878222004);
+  SD59x18 internal constant TIER_ODDS_13_16 = SD59x18.wrap(455366367617975795);
+  SD59x18 internal constant TIER_ODDS_14_16 = SD59x18.wrap(674808393262840052);
+  SD59x18 internal constant TIER_ODDS_15_16 = SD59x18.wrap(1000000000000000000);
+
+  //////////////////////// END GENERATED CONSTANTS ////////////////////////
 
   /// @notice The Tier liquidity data
   mapping(uint8 => Tier) internal _tiers;
-
-  /// @notice The number of draws that should statistically occur between grand prizes.
-  uint16 public immutable grandPrizePeriodDraws;
 
   /// @notice The number of shares to allocate to each prize tier
   uint8 public immutable tierShares;
@@ -222,77 +227,16 @@ contract TieredLiquidityDistributor {
 
   /**
    * @notice Constructs a new Prize Pool
-   * @param _grandPrizePeriodDraws The average number of draws between grand prizes. This determines the statistical frequency of grand prizes.
    * @param _numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
    * @param _tierShares The number of shares to allocate to each tier
    * @param _canaryShares The number of shares to allocate to the canary tier.
    * @param _reserveShares The number of shares to allocate to the reserve.
    */
-  constructor(
-    uint16 _grandPrizePeriodDraws,
-    uint8 _numberOfTiers,
-    uint8 _tierShares,
-    uint8 _canaryShares,
-    uint8 _reserveShares
-  ) {
-    grandPrizePeriodDraws = _grandPrizePeriodDraws;
+  constructor(uint8 _numberOfTiers, uint8 _tierShares, uint8 _canaryShares, uint8 _reserveShares) {
     numberOfTiers = _numberOfTiers;
     tierShares = _tierShares;
     canaryShares = _canaryShares;
     reserveShares = _reserveShares;
-
-    ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS = TierCalculationLib.estimatedClaimCount(
-      2,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS = TierCalculationLib.estimatedClaimCount(
-      3,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS = TierCalculationLib.estimatedClaimCount(
-      4,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS = TierCalculationLib.estimatedClaimCount(
-      5,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS = TierCalculationLib.estimatedClaimCount(
-      6,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS = TierCalculationLib.estimatedClaimCount(
-      7,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS = TierCalculationLib.estimatedClaimCount(
-      8,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS = TierCalculationLib.estimatedClaimCount(
-      9,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS = TierCalculationLib.estimatedClaimCount(
-      10,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS = TierCalculationLib.estimatedClaimCount(
-      11,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_12_TIERS = TierCalculationLib.estimatedClaimCount(
-      12,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS = TierCalculationLib.estimatedClaimCount(
-      13,
-      _grandPrizePeriodDraws
-    );
-    ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS = TierCalculationLib.estimatedClaimCount(
-      14,
-      _grandPrizePeriodDraws
-    );
 
     CANARY_PRIZE_COUNT_FOR_2_TIERS = TierCalculationLib.canaryPrizeCount(
       2,
@@ -372,141 +316,6 @@ contract TieredLiquidityDistributor {
       _reserveShares,
       _tierShares
     );
-
-    // Pre-compute the odds for each tier
-    TIER_ODDS_0_3 = TierCalculationLib.getTierOdds(0, 3, _grandPrizePeriodDraws);
-    TIER_ODDS_1_3 = TierCalculationLib.getTierOdds(1, 3, _grandPrizePeriodDraws);
-    TIER_ODDS_2_3 = TierCalculationLib.getTierOdds(2, 3, _grandPrizePeriodDraws);
-    TIER_ODDS_0_4 = TierCalculationLib.getTierOdds(0, 4, _grandPrizePeriodDraws);
-    TIER_ODDS_1_4 = TierCalculationLib.getTierOdds(1, 4, _grandPrizePeriodDraws);
-    TIER_ODDS_2_4 = TierCalculationLib.getTierOdds(2, 4, _grandPrizePeriodDraws);
-    TIER_ODDS_3_4 = TierCalculationLib.getTierOdds(3, 4, _grandPrizePeriodDraws);
-    TIER_ODDS_0_5 = TierCalculationLib.getTierOdds(0, 5, _grandPrizePeriodDraws);
-    TIER_ODDS_1_5 = TierCalculationLib.getTierOdds(1, 5, _grandPrizePeriodDraws);
-    TIER_ODDS_2_5 = TierCalculationLib.getTierOdds(2, 5, _grandPrizePeriodDraws);
-    TIER_ODDS_3_5 = TierCalculationLib.getTierOdds(3, 5, _grandPrizePeriodDraws);
-    TIER_ODDS_4_5 = TierCalculationLib.getTierOdds(4, 5, _grandPrizePeriodDraws);
-    TIER_ODDS_0_6 = TierCalculationLib.getTierOdds(0, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_1_6 = TierCalculationLib.getTierOdds(1, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_2_6 = TierCalculationLib.getTierOdds(2, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_3_6 = TierCalculationLib.getTierOdds(3, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_4_6 = TierCalculationLib.getTierOdds(4, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_5_6 = TierCalculationLib.getTierOdds(5, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_0_7 = TierCalculationLib.getTierOdds(0, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_1_7 = TierCalculationLib.getTierOdds(1, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_2_7 = TierCalculationLib.getTierOdds(2, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_3_7 = TierCalculationLib.getTierOdds(3, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_4_7 = TierCalculationLib.getTierOdds(4, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_5_7 = TierCalculationLib.getTierOdds(5, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_6_7 = TierCalculationLib.getTierOdds(6, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_0_8 = TierCalculationLib.getTierOdds(0, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_1_8 = TierCalculationLib.getTierOdds(1, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_2_8 = TierCalculationLib.getTierOdds(2, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_3_8 = TierCalculationLib.getTierOdds(3, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_4_8 = TierCalculationLib.getTierOdds(4, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_5_8 = TierCalculationLib.getTierOdds(5, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_6_8 = TierCalculationLib.getTierOdds(6, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_7_8 = TierCalculationLib.getTierOdds(7, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_0_9 = TierCalculationLib.getTierOdds(0, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_1_9 = TierCalculationLib.getTierOdds(1, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_2_9 = TierCalculationLib.getTierOdds(2, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_3_9 = TierCalculationLib.getTierOdds(3, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_4_9 = TierCalculationLib.getTierOdds(4, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_5_9 = TierCalculationLib.getTierOdds(5, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_6_9 = TierCalculationLib.getTierOdds(6, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_7_9 = TierCalculationLib.getTierOdds(7, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_8_9 = TierCalculationLib.getTierOdds(8, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_0_10 = TierCalculationLib.getTierOdds(0, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_1_10 = TierCalculationLib.getTierOdds(1, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_2_10 = TierCalculationLib.getTierOdds(2, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_3_10 = TierCalculationLib.getTierOdds(3, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_4_10 = TierCalculationLib.getTierOdds(4, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_5_10 = TierCalculationLib.getTierOdds(5, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_6_10 = TierCalculationLib.getTierOdds(6, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_7_10 = TierCalculationLib.getTierOdds(7, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_8_10 = TierCalculationLib.getTierOdds(8, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_9_10 = TierCalculationLib.getTierOdds(9, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_0_11 = TierCalculationLib.getTierOdds(0, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_1_11 = TierCalculationLib.getTierOdds(1, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_2_11 = TierCalculationLib.getTierOdds(2, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_3_11 = TierCalculationLib.getTierOdds(3, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_4_11 = TierCalculationLib.getTierOdds(4, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_5_11 = TierCalculationLib.getTierOdds(5, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_6_11 = TierCalculationLib.getTierOdds(6, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_7_11 = TierCalculationLib.getTierOdds(7, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_8_11 = TierCalculationLib.getTierOdds(8, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_9_11 = TierCalculationLib.getTierOdds(9, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_10_11 = TierCalculationLib.getTierOdds(10, 11, _grandPrizePeriodDraws);
-    TIER_ODDS_0_12 = TierCalculationLib.getTierOdds(0, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_1_12 = TierCalculationLib.getTierOdds(1, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_2_12 = TierCalculationLib.getTierOdds(2, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_3_12 = TierCalculationLib.getTierOdds(3, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_4_12 = TierCalculationLib.getTierOdds(4, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_5_12 = TierCalculationLib.getTierOdds(5, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_6_12 = TierCalculationLib.getTierOdds(6, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_7_12 = TierCalculationLib.getTierOdds(7, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_8_12 = TierCalculationLib.getTierOdds(8, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_9_12 = TierCalculationLib.getTierOdds(9, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_10_12 = TierCalculationLib.getTierOdds(10, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_11_12 = TierCalculationLib.getTierOdds(11, 12, _grandPrizePeriodDraws);
-    TIER_ODDS_0_13 = TierCalculationLib.getTierOdds(0, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_1_13 = TierCalculationLib.getTierOdds(1, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_2_13 = TierCalculationLib.getTierOdds(2, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_3_13 = TierCalculationLib.getTierOdds(3, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_4_13 = TierCalculationLib.getTierOdds(4, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_5_13 = TierCalculationLib.getTierOdds(5, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_6_13 = TierCalculationLib.getTierOdds(6, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_7_13 = TierCalculationLib.getTierOdds(7, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_8_13 = TierCalculationLib.getTierOdds(8, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_9_13 = TierCalculationLib.getTierOdds(9, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_10_13 = TierCalculationLib.getTierOdds(10, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_11_13 = TierCalculationLib.getTierOdds(11, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_12_13 = TierCalculationLib.getTierOdds(12, 13, _grandPrizePeriodDraws);
-    TIER_ODDS_0_14 = TierCalculationLib.getTierOdds(0, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_1_14 = TierCalculationLib.getTierOdds(1, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_2_14 = TierCalculationLib.getTierOdds(2, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_3_14 = TierCalculationLib.getTierOdds(3, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_4_14 = TierCalculationLib.getTierOdds(4, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_5_14 = TierCalculationLib.getTierOdds(5, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_6_14 = TierCalculationLib.getTierOdds(6, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_7_14 = TierCalculationLib.getTierOdds(7, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_8_14 = TierCalculationLib.getTierOdds(8, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_9_14 = TierCalculationLib.getTierOdds(9, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_10_14 = TierCalculationLib.getTierOdds(10, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_11_14 = TierCalculationLib.getTierOdds(11, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_12_14 = TierCalculationLib.getTierOdds(12, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_13_14 = TierCalculationLib.getTierOdds(13, 14, _grandPrizePeriodDraws);
-    TIER_ODDS_0_15 = TierCalculationLib.getTierOdds(0, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_1_15 = TierCalculationLib.getTierOdds(1, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_2_15 = TierCalculationLib.getTierOdds(2, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_3_15 = TierCalculationLib.getTierOdds(3, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_4_15 = TierCalculationLib.getTierOdds(4, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_5_15 = TierCalculationLib.getTierOdds(5, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_6_15 = TierCalculationLib.getTierOdds(6, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_7_15 = TierCalculationLib.getTierOdds(7, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_8_15 = TierCalculationLib.getTierOdds(8, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_9_15 = TierCalculationLib.getTierOdds(9, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_10_15 = TierCalculationLib.getTierOdds(10, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_11_15 = TierCalculationLib.getTierOdds(11, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_12_15 = TierCalculationLib.getTierOdds(12, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_13_15 = TierCalculationLib.getTierOdds(13, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_14_15 = TierCalculationLib.getTierOdds(14, 15, _grandPrizePeriodDraws);
-    TIER_ODDS_0_16 = TierCalculationLib.getTierOdds(0, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_1_16 = TierCalculationLib.getTierOdds(1, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_2_16 = TierCalculationLib.getTierOdds(2, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_3_16 = TierCalculationLib.getTierOdds(3, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_4_16 = TierCalculationLib.getTierOdds(4, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_5_16 = TierCalculationLib.getTierOdds(5, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_6_16 = TierCalculationLib.getTierOdds(6, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_7_16 = TierCalculationLib.getTierOdds(7, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_8_16 = TierCalculationLib.getTierOdds(8, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_9_16 = TierCalculationLib.getTierOdds(9, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_10_16 = TierCalculationLib.getTierOdds(10, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_11_16 = TierCalculationLib.getTierOdds(11, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_12_16 = TierCalculationLib.getTierOdds(12, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_13_16 = TierCalculationLib.getTierOdds(13, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_14_16 = TierCalculationLib.getTierOdds(14, 16, _grandPrizePeriodDraws);
-    TIER_ODDS_15_16 = TierCalculationLib.getTierOdds(15, 16, _grandPrizePeriodDraws);
 
     if (_numberOfTiers < MINIMUM_NUMBER_OF_TIERS) {
       revert NumberOfTiersLessThanMinimum(_numberOfTiers);
@@ -883,7 +692,7 @@ contract TieredLiquidityDistributor {
   /// @notice Estimates the number of prizes that will be awarded given a number of tiers.
   /// @param numTiers The number of tiers
   /// @return The estimated prize count for the given number of tiers
-  function estimatedPrizeCount(uint8 numTiers) external view returns (uint32) {
+  function estimatedPrizeCount(uint8 numTiers) external pure returns (uint32) {
     return _estimatedPrizeCount(numTiers);
   }
 
@@ -920,7 +729,7 @@ contract TieredLiquidityDistributor {
   /// @notice Estimates the prize count for the given tier
   /// @param numTiers The number of prize tiers
   /// @return The estimated total number of prizes
-  function _estimatedPrizeCount(uint8 numTiers) internal view returns (uint32) {
+  function _estimatedPrizeCount(uint8 numTiers) internal pure returns (uint32) {
     if (numTiers == 3) {
       return ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS;
     } else if (numTiers == 4) {
@@ -989,7 +798,7 @@ contract TieredLiquidityDistributor {
   /// @param _tier The tier to compute odds for
   /// @param _numTiers The number of prize tiers
   /// @return The odds of the tier
-  function getTierOdds(uint8 _tier, uint8 _numTiers) external view returns (SD59x18) {
+  function getTierOdds(uint8 _tier, uint8 _numTiers) external pure returns (SD59x18) {
     return _tierOdds(_tier, _numTiers);
   }
 
@@ -997,7 +806,7 @@ contract TieredLiquidityDistributor {
   /// @param _tier The tier to compute odds for
   /// @param _numTiers The number of prize tiers
   /// @return The odds of the tier
-  function _tierOdds(uint8 _tier, uint8 _numTiers) internal view returns (SD59x18) {
+  function _tierOdds(uint8 _tier, uint8 _numTiers) internal pure returns (SD59x18) {
     if (_numTiers == 3) {
       if (_tier == 0) return TIER_ODDS_0_3;
       else if (_tier == 1) return TIER_ODDS_1_3;
