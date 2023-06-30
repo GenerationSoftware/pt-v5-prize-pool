@@ -18,14 +18,12 @@ contract TieredLiquidityDistributorTest is Test {
   uint8 reserveShares;
 
   function setUp() external {
-    grandPrizePeriodDraws = 10;
     numberOfTiers = 3;
     tierShares = 100;
     canaryShares = 10;
     reserveShares = 10;
 
     distributor = new TieredLiquidityDistributorWrapper(
-      grandPrizePeriodDraws,
       numberOfTiers,
       tierShares,
       canaryShares,
@@ -151,25 +149,30 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testTierOdds_Accuracy() public {
     SD59x18 odds = distributor.getTierOdds(0, 3);
-    assertEq(SD59x18.unwrap(odds), 100000000000000003);
+    assertEq(SD59x18.unwrap(odds), 2739726027397260);
     odds = distributor.getTierOdds(3, 7);
-    assertEq(SD59x18.unwrap(odds), 316227766016837938);
+    assertEq(SD59x18.unwrap(odds), 52342392259021369);
     odds = distributor.getTierOdds(15, 16);
     assertEq(SD59x18.unwrap(odds), 1000000000000000000);
   }
 
-  function testTierOdds_AllComputed() public {
+  function testTierOdds_AllAvailable() public {
     SD59x18 odds;
     for (uint8 numTiers = 3; numTiers <= 16; numTiers++) {
       for (uint8 tier = 0; tier < numTiers; tier++) {
         odds = distributor.getTierOdds(tier, numTiers);
         assertGt(SD59x18.unwrap(odds), 0);
         assertLe(SD59x18.unwrap(odds), 1000000000000000000);
-        assertLe(
-          SD59x18.unwrap(odds),
-          SD59x18.unwrap(TierCalculationLib.getTierOdds(tier, numTiers, grandPrizePeriodDraws))
-        );
       }
+    }
+  }
+
+  function testEstimatedPrizesPerDraw_AllAvailable() public {
+    uint32 prizeCount;
+    for (uint8 numTiers = 3; numTiers <= 15; numTiers++) {
+      prizeCount = distributor.estimatedPrizeCount(numTiers);
+      assertGt(prizeCount, 0);
+      assertLe(prizeCount, 79777187);
     }
   }
 
