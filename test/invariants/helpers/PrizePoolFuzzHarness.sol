@@ -76,6 +76,6 @@ contract PrizePoolFuzzHarness is CommonBase {
   }
 
   function closeDraw() public {
-    prizePool.transitionDraws(uint256(keccak256(abi.encode(block.timestamp))));
+    prizePool.closeDraw(uint256(keccak256(abi.encode(block.timestamp))));
   }
 }

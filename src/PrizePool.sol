@@ -341,7 +341,7 @@ contract PrizePool is TieredLiquidityDistributor {
   ///         Updates the number of tiers, the winning random number and the prize pool reserve.
   /// @param winningRandomNumber_ The winning random number for the current draw
   /// @return The ID of the closed draw
-  function transitionDraws(uint256 winningRandomNumber_) external onlyDrawManager returns (uint16) {
+  function closeDraw(uint256 winningRandomNumber_) external onlyDrawManager returns (uint16) {
     // check winning random number
     if (winningRandomNumber_ == 0) {
       revert RandomNumberIsZero();
@@ -357,7 +357,7 @@ contract PrizePool is TieredLiquidityDistributor {
       _nextNumberOfTiers = _computeNextNumberOfTiers(_numTiers);
     }
 
-    uint64 openDrawStartsAt_ = _openDrawStartsAt();
+    uint64 openDrawStartedAt_ = _openDrawStartedAt();
 
     _nextDraw(_nextNumberOfTiers, uint96(_contributionsForDraw(lastClosedDrawId + 1)));
 
@@ -365,7 +365,7 @@ contract PrizePool is TieredLiquidityDistributor {
     claimCount = 0;
     canaryClaimCount = 0;
     largestTierClaimed = 0;
-    _lastClosedDrawStartedAt = openDrawStartsAt_;
+    _lastClosedDrawStartedAt = openDrawStartedAt_;
     _lastClosedDrawAwardedAt = uint64(block.timestamp);
 
     emit DrawClosed(
@@ -574,17 +574,20 @@ contract PrizePool is TieredLiquidityDistributor {
     return lastClosedDrawId != 0 ? _lastClosedDrawAwardedAt : 0;
   }
 
-  /// @notice Returns whether the open draw has finished
+  /// @notice Returns whether the open draw has finished.
+  /// @return Whether the open draw has finished
   function hasOpenDrawFinished() external view returns (bool) {
     return block.timestamp >= _openDrawEndsAt();
   }
 
-  /// @notice Returns the start time of the draw for the next successful transitionDraws
-  function openDrawStartsAt() external view returns (uint64) {
-    return _openDrawStartsAt();
+  /// @notice Returns the start time of the open draw.
+  /// @return The start time of the open draw
+  function openDrawStartedAt() external view returns (uint64) {
+    return _openDrawStartedAt();
   }
 
-  /// @notice Returns the time at which the next draw ends
+  /// @notice Returns the time at which the open draw ends
+  /// @return The time at which the open draw ends
   function openDrawEndsAt() external view returns (uint64) {
     return _openDrawEndsAt();
   }
@@ -719,8 +722,8 @@ contract PrizePool is TieredLiquidityDistributor {
     return (obs.available + obs.disbursed) - _totalWithdrawn;
   }
 
-  /// @notice Returns the start time of the draw for the next successful closeAndStartNextDraw
-  function _openDrawStartsAt() internal view returns (uint64) {
+  /// @notice Returns the start time of the draw for the next successful closeDraw
+  function _openDrawStartedAt() internal view returns (uint64) {
     return _openDrawEndsAt() - drawPeriodSeconds;
   }
 
