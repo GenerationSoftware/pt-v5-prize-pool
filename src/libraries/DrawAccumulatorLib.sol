@@ -5,20 +5,20 @@ pragma solidity 0.8.17;
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
-/// @notice Emitted when adding balance for draw zero
+/// @notice Emitted when adding balance for draw zero.
 error AddToDrawZero();
 
-/// @notice Emitted when an action can't be done on a closed draw
+/// @notice Emitted when an action can't be done on a closed draw.
 /// @param drawId The ID of the closed draw
 /// @param newestDrawId The newest draw ID
 error DrawClosed(uint16 drawId, uint16 newestDrawId);
 
-/// @notice Emitted when a draw range is not strictly increasing
+/// @notice Emitted when a draw range is not strictly increasing.
 /// @param startDrawId The start draw ID of the range
 /// @param endDrawId The end draw ID of the range
 error InvalidDrawRange(uint16 startDrawId, uint16 endDrawId);
 
-/// @notice Emitted when the end draw ID for a disbursed range is invalid (too old)
+/// @notice Emitted when the end draw ID for a disbursed range is invalid (too old).
 /// @param endDrawId The end draw ID for the range
 error InvalidDisbursedEndDrawId(uint16 endDrawId);
 
@@ -36,17 +36,20 @@ library DrawAccumulatorLib {
   /// @notice The maximum number of observations that can be recorded.
   uint24 internal constant MAX_CARDINALITY = 366;
 
+  /// @notice The metadata for using the ring buffer.
   struct RingBufferInfo {
     uint16 nextIndex;
     uint16 cardinality;
   }
 
+  /// @notice An accumulator for a draw.
   struct Accumulator {
     RingBufferInfo ringBufferInfo;
     uint16[MAX_CARDINALITY] drawRingBuffer;
     mapping(uint256 => Observation) observations;
   }
 
+  /// @notice A pair of uint16s.
   struct Pair32 {
     uint16 first;
     uint16 second;
@@ -132,6 +135,9 @@ library DrawAccumulatorLib {
     return integrateInf(_alpha, _startDrawId - newestDrawId_, newestObservation_.available);
   }
 
+  /// @notice Returns the newest draw id from the accumulator.
+  /// @param accumulator The accumulator to get the newest draw id from
+  /// @return The newest draw id
   function newestDrawId(Accumulator storage accumulator) internal view returns (uint256) {
     return
       accumulator.drawRingBuffer[
@@ -139,7 +145,7 @@ library DrawAccumulatorLib {
       ];
   }
 
-  /// @notice Retrieves the newest observation from the accumulator
+  /// @notice Retrieves the newest observation from the accumulator.
   /// @param accumulator The accumulator to retrieve the newest observation from
   /// @return The newest observation
   function newestObservation(
@@ -330,7 +336,7 @@ library DrawAccumulatorLib {
     return amount;
   }
 
-  /// @notice Computes the first and last indices of observations for the given ring buffer info
+  /// @notice Computes the first and last indices of observations for the given ring buffer info.
   /// @param ringBufferInfo The ring buffer info to compute for
   /// @return A pair of indices, where the first is the oldest index and the second is the newest index
   function computeIndices(
@@ -351,7 +357,7 @@ library DrawAccumulatorLib {
       });
   }
 
-  /// @notice Retrieves the draw ids for the given accumulator observation indices
+  /// @notice Retrieves the draw ids for the given accumulator observation indices.
   /// @param accumulator The accumulator to retrieve from
   /// @param indices The indices to retrieve
   /// @return A pair of draw ids, where the first is the draw id of the pair's first index and the second is the draw id of the pair's second index
@@ -366,7 +372,7 @@ library DrawAccumulatorLib {
       });
   }
 
-  /// @notice Integrates from the given x to infinity for the exponential weighted average
+  /// @notice Integrates from the given x to infinity for the exponential weighted average.
   /// @param _alpha The exponential weighted average smoothing parameter.
   /// @param _x The x value to integrate from.
   /// @param _k The k value to scale the sum (this is the total available balance).
@@ -375,7 +381,7 @@ library DrawAccumulatorLib {
     return uint256(fromSD59x18(computeC(_alpha, _x, _k)));
   }
 
-  /// @notice Integrates from the given start x to end x for the exponential weighted average
+  /// @notice Integrates from the given start x to end x for the exponential weighted average.
   /// @param _alpha The exponential weighted average smoothing parameter.
   /// @param _start The x value to integrate from.
   /// @param _end The x value to integrate to
@@ -392,7 +398,7 @@ library DrawAccumulatorLib {
     return uint256(fromSD59x18(sd(start - end)));
   }
 
-  /// @notice Computes the interim value C for the EWA
+  /// @notice Computes the interim value C for the EWA.
   /// @param _alpha The exponential weighted average smoothing parameter.
   /// @param _x The x value to compute for
   /// @param _k The total available balance

@@ -10,14 +10,14 @@ import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
 import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18, toUD34x4 } from "../libraries/UD34x4.sol";
 import { TierCalculationLib } from "../libraries/TierCalculationLib.sol";
 
-/// @notice Struct that tracks tier liquidity information
+/// @notice Struct that tracks tier liquidity information.
 struct Tier {
   uint16 drawId;
   uint96 prizeSize;
   UD34x4 prizeTokenPerShare;
 }
 
-/// @notice Emitted when the number of tiers is less than the minimum number of tiers
+/// @notice Emitted when the number of tiers is less than the minimum number of tiers.
 /// @param numTiers The invalid number of tiers
 error NumberOfTiersLessThanMinimum(uint8 numTiers);
 
@@ -46,11 +46,12 @@ contract TieredLiquidityDistributor {
   UD60x18 internal immutable CANARY_PRIZE_COUNT_FOR_14_TIERS;
 
   //////////////////////// START GENERATED CONSTANTS ////////////////////////
-  // Constants are precomputed using the script/generateConstants.s.sol script.
+  // The following constants are precomputed using the script/generateConstants.s.sol script.
 
   /// @notice The number of draws that should statistically occur between grand prizes.
   uint16 internal constant GRAND_PRIZE_PERIOD_DRAWS = 365;
 
+  /// @notice The estiamted number of prizes given X tiers.
   uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_2_TIERS = 4;
   uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS = 16;
   uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS = 66;
@@ -65,6 +66,7 @@ contract TieredLiquidityDistributor {
   uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS = 19805536;
   uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS = 79777187;
 
+  /// @notice The odds for each tier and number of tiers pair.
   SD59x18 internal constant TIER_ODDS_0_3 = SD59x18.wrap(2739726027397260);
   SD59x18 internal constant TIER_ODDS_1_3 = SD59x18.wrap(52342392259021369);
   SD59x18 internal constant TIER_ODDS_2_3 = SD59x18.wrap(1000000000000000000);
@@ -201,32 +203,32 @@ contract TieredLiquidityDistributor {
 
   //////////////////////// END GENERATED CONSTANTS ////////////////////////
 
-  /// @notice The Tier liquidity data
+  /// @notice The Tier liquidity data.
   mapping(uint8 => Tier) internal _tiers;
 
-  /// @notice The number of shares to allocate to each prize tier
+  /// @notice The number of shares to allocate to each prize tier.
   uint8 public immutable tierShares;
 
-  /// @notice The number of shares to allocate to the canary tier
+  /// @notice The number of shares to allocate to the canary tier.
   uint8 public immutable canaryShares;
 
-  /// @notice The number of shares to allocate to the reserve
+  /// @notice The number of shares to allocate to the reserve.
   uint8 public immutable reserveShares;
 
-  /// @notice The current number of prize tokens per share
+  /// @notice The current number of prize tokens per share.
   UD34x4 public prizeTokenPerShare;
 
   /// @notice The number of tiers for the last completed draw. The last tier is the canary tier.
   uint8 public numberOfTiers;
 
-  /// @notice The draw id of the last completed draw
+  /// @notice The draw id of the last completed draw.
   uint16 internal lastCompletedDrawId;
 
-  /// @notice The amount of available reserve
+  /// @notice The amount of available reserve.
   uint104 internal _reserve;
 
   /**
-   * @notice Constructs a new Prize Pool
+   * @notice Constructs a new Prize Pool.
    * @param _numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
    * @param _tierShares The number of shares to allocate to each tier
    * @param _canaryShares The number of shares to allocate to the canary tier.
@@ -322,7 +324,7 @@ contract TieredLiquidityDistributor {
     }
   }
 
-  /// @notice Adjusts the number of tiers and distributes new liquidity
+  /// @notice Adjusts the number of tiers and distributes new liquidity.
   /// @param _nextNumberOfTiers The new number of tiers. Must be greater than minimum
   /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
   function _nextDraw(uint8 _nextNumberOfTiers, uint96 _prizeTokenLiquidity) internal {
@@ -436,21 +438,21 @@ contract TieredLiquidityDistributor {
     );
   }
 
-  /// @notice Returns the prize size for the given tier
+  /// @notice Returns the prize size for the given tier.
   /// @param _tier The tier to retrieve
   /// @return The prize size for the tier
   function getTierPrizeSize(uint8 _tier) external view returns (uint96) {
     return _getTier(_tier, numberOfTiers).prizeSize;
   }
 
-  /// @notice Returns the estimated number of prizes for the given tier
+  /// @notice Returns the estimated number of prizes for the given tier.
   /// @param _tier The tier to retrieve
   /// @return The estimated number of prizes
   function getTierPrizeCount(uint8 _tier) external view returns (uint32) {
     return _getTierPrizeCount(_tier, numberOfTiers);
   }
 
-  /// @notice Returns the estimated number of prizes for the given tier and number of tiers
+  /// @notice Returns the estimated number of prizes for the given tier and number of tiers.
   /// @param _tier The tier to retrieve
   /// @param _numberOfTiers The number of tiers, should match the current number of tiers
   /// @return The estimated number of prizes
@@ -458,7 +460,7 @@ contract TieredLiquidityDistributor {
     return _getTierPrizeCount(_tier, _numberOfTiers);
   }
 
-  /// @notice Returns the number of available prizes for the given tier
+  /// @notice Returns the number of available prizes for the given tier.
   /// @param _tier The tier to retrieve
   /// @param _numberOfTiers The number of tiers, should match the current number of tiers
   /// @return The number of available prizes
@@ -469,7 +471,7 @@ contract TieredLiquidityDistributor {
         : uint32(TierCalculationLib.prizeCount(_tier));
   }
 
-  /// @notice Retrieves an up-to-date Tier struct for the given tier
+  /// @notice Retrieves an up-to-date Tier struct for the given tier.
   /// @param _tier The tier to retrieve
   /// @param _numberOfTiers The number of tiers, should match the current. Passed explicitly as an optimization
   /// @return An up-to-date Tier struct; if the prize is outdated then it is recomputed based on available liquidity and the draw id updated.
@@ -490,13 +492,13 @@ contract TieredLiquidityDistributor {
     return tier;
   }
 
-  /// @notice Computes the total shares in the system. That is `(number of tiers * tier shares) + canary shares + reserve shares`
+  /// @notice Computes the total shares in the system. That is `(number of tiers * tier shares) + canary shares + reserve shares`.
   /// @return The total shares
   function getTotalShares() external view returns (uint256) {
     return _getTotalShares(numberOfTiers);
   }
 
-  /// @notice Computes the total shares in the system given the number of tiers. That is `(number of tiers * tier shares) + canary shares + reserve shares`
+  /// @notice Computes the total shares in the system given the number of tiers. That is `(number of tiers * tier shares) + canary shares + reserve shares`.
   /// @param _numberOfTiers The number of tiers to calculate the total shares for
   /// @return The total shares
   function _getTotalShares(uint8 _numberOfTiers) internal view returns (uint256) {
@@ -507,7 +509,7 @@ contract TieredLiquidityDistributor {
       uint256(reserveShares);
   }
 
-  /// @notice Computes the number of shares for the given tier. If the tier is the canary tier, then the canary shares are returned.  Normal tier shares otherwise.
+  /// @notice Computes the number of shares for the given tier. If the tier is the canary tier, then the canary shares are returned. Normal tier shares otherwise.
   /// @param _tier The tier to request share for
   /// @param _numTiers The number of tiers. Passed explicitly as an optimization
   /// @return The number of shares for the given tier
@@ -552,7 +554,7 @@ contract TieredLiquidityDistributor {
     return _tierStruct;
   }
 
-  /// @notice Computes the prize size of the given tier
+  /// @notice Computes the prize size of the given tier.
   /// @param _tier The tier to compute the prize size of
   /// @param _numberOfTiers The current number of tiers
   /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
@@ -586,7 +588,7 @@ contract TieredLiquidityDistributor {
     return prizeSize;
   }
 
-  /// @notice Computes the prize size with the given parameters
+  /// @notice Computes the prize size with the given parameters.
   /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
   /// @param _prizeTokenPerShare The global prizeTokenPerShare
   /// @param _fractionalPrizeCount The prize count as UD60x18
@@ -610,7 +612,7 @@ contract TieredLiquidityDistributor {
     return _tier == _numberOfTiers - 1;
   }
 
-  /// @notice Reclaims liquidity from tiers, starting at the highest tier
+  /// @notice Reclaims liquidity from tiers, starting at the highest tier.
   /// @param _numberOfTiers The existing number of tiers
   /// @param _nextNumberOfTiers The next number of tiers. Must be less than _numberOfTiers
   /// @return The total reclaimed liquidity
@@ -645,7 +647,7 @@ contract TieredLiquidityDistributor {
     return fromUD60x18(reclaimedLiquidity);
   }
 
-  /// @notice Computes the remaining liquidity available to a tier
+  /// @notice Computes the remaining liquidity available to a tier.
   /// @param _tier The tier to compute the liquidity for
   /// @return The remaining liquidity
   function getTierRemainingLiquidity(uint8 _tier) external view returns (uint256) {
@@ -660,7 +662,7 @@ contract TieredLiquidityDistributor {
       );
   }
 
-  /// @notice Computes the remaining tier liquidity
+  /// @notice Computes the remaining tier liquidity.
   /// @param _shares The number of shares that the tier has (can be tierShares or canaryShares)
   /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
   /// @param _prizeTokenPerShare The global prizeTokenPerShare
@@ -683,7 +685,7 @@ contract TieredLiquidityDistributor {
     return lastCompletedDrawId + 1;
   }
 
-  /// @notice Estimates the number of prizes that will be awarded
+  /// @notice Estimates the number of prizes that will be awarded.
   /// @return The estimated prize count
   function estimatedPrizeCount() external view returns (uint32) {
     return _estimatedPrizeCount(numberOfTiers);
@@ -703,12 +705,15 @@ contract TieredLiquidityDistributor {
     return _canaryPrizeCountFractional(numTiers);
   }
 
-  /// @notice Computes the number of canary prizes for the last completed draw
+  /// @notice Computes the number of canary prizes for the last completed draw.
+  /// @return The number of canary prizes
   function canaryPrizeCount() external view returns (uint32) {
     return _canaryPrizeCount(numberOfTiers);
   }
 
   /// @notice Computes the number of canary prizes for the last completed draw
+  /// @param _numberOfTiers The number of tiers
+  /// @return The number of canary prizes
   function _canaryPrizeCount(uint8 _numberOfTiers) internal view returns (uint32) {
     return uint32(fromUD60x18(_canaryPrizeCountFractional(_numberOfTiers).floor()));
   }
@@ -720,13 +725,13 @@ contract TieredLiquidityDistributor {
     return _canaryPrizeCount(_numTiers);
   }
 
-  /// @notice Returns the balance of the reserve
+  /// @notice Returns the balance of the reserve.
   /// @return The amount of tokens that have been reserved.
   function reserve() external view returns (uint256) {
     return _reserve;
   }
 
-  /// @notice Estimates the prize count for the given tier
+  /// @notice Estimates the prize count for the given tier.
   /// @param numTiers The number of prize tiers
   /// @return The estimated total number of prizes
   function _estimatedPrizeCount(uint8 numTiers) internal pure returns (uint32) {
@@ -794,7 +799,7 @@ contract TieredLiquidityDistributor {
     return ud(0);
   }
 
-  /// @notice Computes the odds for a tier given the number of tiers
+  /// @notice Computes the odds for a tier given the number of tiers.
   /// @param _tier The tier to compute odds for
   /// @param _numTiers The number of prize tiers
   /// @return The odds of the tier
@@ -802,7 +807,7 @@ contract TieredLiquidityDistributor {
     return _tierOdds(_tier, _numTiers);
   }
 
-  /// @notice Computes the odds for a tier given the number of tiers
+  /// @notice Computes the odds for a tier given the number of tiers.
   /// @param _tier The tier to compute odds for
   /// @param _numTiers The number of prize tiers
   /// @return The odds of the tier

@@ -20,6 +20,7 @@ contract GenerateConstants is Script {
     );
     console.log("\n");
 
+    console.log("/// @notice The estiamted number of prizes given X tiers.");
     uint8 MIN_TIERS = 2;
     uint8 MAX_TIERS = 14;
     // Precompute the prizes per draw
@@ -32,6 +33,7 @@ contract GenerateConstants is Script {
     }
 
     console.log("\n");
+    console.log("/// @notice The odds for each tier and number of tiers pair.");
     MIN_TIERS = 3;
     MAX_TIERS = 16;
     // Precompute the odds for each tier

@@ -9,7 +9,7 @@ import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
 /// @author PoolTogether Inc. Team
 /// @notice Provides helper functions to assist in calculating tier prize counts, frequency, and odds.
 library TierCalculationLib {
-  /// @notice Calculates the odds of a tier occurring
+  /// @notice Calculates the odds of a tier occurring.
   /// @param _tier The tier to calculate odds for
   /// @param _numberOfTiers The total number of tiers
   /// @param _grandPrizePeriod The number of draws between grand prizes
@@ -26,14 +26,14 @@ library TierCalculationLib {
     return E.pow(_k.mul(sd(int8(_tier) - (int8(_numberOfTiers) - 1))));
   }
 
-  /// @notice Estimates the number of draws between a tier occurring
+  /// @notice Estimates the number of draws between a tier occurring.
   /// @param _tierOdds The odds for the tier to calculate the frequency of
   /// @return The estimated number of draws between the tier occurring
   function estimatePrizeFrequencyInDraws(SD59x18 _tierOdds) internal pure returns (uint256) {
     return uint256(fromSD59x18(sd(1e18).div(_tierOdds).ceil()));
   }
 
-  /// @notice Computes the number of prizes for a given tier
+  /// @notice Computes the number of prizes for a given tier.
   /// @param _tier The tier to compute for
   /// @return The number of prizes
   function prizeCount(uint8 _tier) internal pure returns (uint256) {
@@ -63,7 +63,7 @@ library TierCalculationLib {
     return multiplier.mul(toUD60x18(prizeCount(_numberOfTiers)));
   }
 
-  /// @notice Determines if a user won a prize tier
+  /// @notice Determines if a user won a prize tier.
   /// @param _userSpecificRandomNumber The random number to use as entropy
   /// @param _userTwab The user's time weighted average balance
   /// @param _vaultTwabTotalSupply The vault's time weighted average total supply
@@ -95,7 +95,7 @@ library TierCalculationLib {
     return constrainedRandomNumber < winningZone;
   }
 
-  /// @notice Calculates a pseudo-random number that is unique to the user, tier, and winning random number
+  /// @notice Calculates a pseudo-random number that is unique to the user, tier, and winning random number.
   /// @param _user The user
   /// @param _tier The tier
   /// @param _prizeIndex The particular prize index they are checking
