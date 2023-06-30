@@ -749,7 +749,7 @@ contract PrizePool is TieredLiquidityDistributor {
     if (_lastCompletedDrawId == 0) {
       revert NoCompletedDraw();
     }
-    if (_tier > _numberOfTiers) {
+    if (_tier >= _numberOfTiers) {
       revert InvalidTier(_tier, _numberOfTiers);
     }
 
