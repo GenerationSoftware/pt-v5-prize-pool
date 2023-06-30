@@ -382,24 +382,24 @@ contract PrizePool is TieredLiquidityDistributor {
   }
 
   /**
-        @dev Claims a prize for a given winner and tier.
-        This function takes in an address _winner, a uint8 _tier, a uint96 _fee, and an
-        address _feeRecipient. It checks if _winner is actually the winner of the _tier for the calling vault.
-        If so, it calculates the prize size and transfers it to the winner. If not, it reverts with an error message.
-        The function then checks the claim record of _winner to see if they have already claimed the prize for the
-        current draw. If not, it updates the claim record with the claimed tier and emits a ClaimedPrize event with
-        information about the claim.
-        Note that this function can modify the state of the contract by updating the claim record, changing the largest
-        tier claimed and the claim count, and transferring prize tokens. The function is marked as external which
-        means that it can be called from outside the contract.
-        @param _tier The tier of the prize to be claimed.
-        @param _winner The address of the eligible winner
-        @param _prizeIndex The prize to claim for the winner. Must be less than the prize count for the tier.
-        @param _prizeRecipient The recipient of the prize
-        @param _fee The fee associated with claiming the prize.
-        @param _feeRecipient The address to receive the fee.
-        @return Total prize amount claimed (payout and fees combined).
-    */
+   * @dev Claims a prize for a given winner and tier.
+   * This function takes in an address _winner, a uint8 _tier, a uint96 _fee, and an
+   * address _feeRecipient. It checks if _winner is actually the winner of the _tier for the calling vault.
+   * If so, it calculates the prize size and transfers it to the winner. If not, it reverts with an error message.
+   * The function then checks the claim record of _winner to see if they have already claimed the prize for the
+   * current draw. If not, it updates the claim record with the claimed tier and emits a ClaimedPrize event with
+   * information about the claim.
+   * Note that this function can modify the state of the contract by updating the claim record, changing the largest
+   * tier claimed and the claim count, and transferring prize tokens. The function is marked as external which
+   * means that it can be called from outside the contract.
+   * @param _tier The tier of the prize to be claimed.
+   * @param _winner The address of the eligible winner
+   * @param _prizeIndex The prize to claim for the winner. Must be less than the prize count for the tier.
+   * @param _prizeRecipient The recipient of the prize
+   * @param _fee The fee associated with claiming the prize.
+   * @param _feeRecipient The address to receive the fee.
+   * @return Total prize amount claimed (payout and fees combined).
+   */
   function claimPrize(
     address _winner,
     uint8 _tier,
@@ -668,7 +668,6 @@ contract PrizePool is TieredLiquidityDistributor {
   ) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
     endTimestamp = _lastCompletedDrawStartedAt + drawPeriodSeconds;
 
-    // endTimestamp - (drawDuration * drawPeriodSeconds)
     startTimestamp = uint64(
       endTimestamp -
         TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)) *
