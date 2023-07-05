@@ -6,9 +6,6 @@
 	path = lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
 	branch = release-v4.9
-[submodule "lib/v5-twab-controller"]
-	path = lib/v5-twab-controller
-	url = https://github.com/pooltogether/v5-twab-controller
 [submodule "lib/prb-math"]
 	branch = v3
 	path = lib/prb-math
@@ -19,3 +16,6 @@
 [submodule "lib/owner-manager-contracts"]
 	path = lib/owner-manager-contracts
 	url = https://github.com/pooltogether/owner-manager-contracts
+[submodule "lib/pt-v5-twab-controller"]
+	path = lib/pt-v5-twab-controller
+	url = https://github.com/GenerationSoftware/pt-v5-twab-controller
