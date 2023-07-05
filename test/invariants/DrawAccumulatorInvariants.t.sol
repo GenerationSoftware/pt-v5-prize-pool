@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
 import { DrawAccumulatorFuzzHarness } from "./helpers/DrawAccumulatorFuzzHarness.sol";
-import { Observation } from "src/libraries/DrawAccumulatorLib.sol";
+import { Observation } from "../../src/libraries/DrawAccumulatorLib.sol";
 import { SD59x18, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
 contract DrawAccumulatorInvariants is Test {

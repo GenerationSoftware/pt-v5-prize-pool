@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { DrawAccumulatorLib, AddToDrawZero, DrawClosed, InvalidDrawRange, InvalidDisbursedEndDrawId } from "src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, AddToDrawZero, DrawClosed, InvalidDrawRange, InvalidDisbursedEndDrawId } from "../../src/libraries/DrawAccumulatorLib.sol";
 import { DrawAccumulatorLibWrapper } from "test/wrappers/DrawAccumulatorLibWrapper.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 

@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/console2.sol";
 
-import { DrawAccumulatorLib, Observation } from "src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, Observation } from "../../../src/libraries/DrawAccumulatorLib.sol";
 import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 
 contract DrawAccumulatorFuzzHarness {

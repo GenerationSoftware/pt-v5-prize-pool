@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/console2.sol";
 
-import { PrizePool, ConstructorParams } from "src/PrizePool.sol";
+import { PrizePool, ConstructorParams } from "../../../src/PrizePool.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";

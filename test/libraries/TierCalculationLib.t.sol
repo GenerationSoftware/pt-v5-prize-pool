@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { TierCalculationLib } from "src/libraries/TierCalculationLib.sol";
+import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { TierCalculationLibWrapper } from "test/wrappers/TierCalculationLibWrapper.sol";
 import { SD59x18, sd, unwrap, toSD59x18 } from "prb-math/SD59x18.sol";
 import { UD60x18, ud } from "prb-math/UD60x18.sol";

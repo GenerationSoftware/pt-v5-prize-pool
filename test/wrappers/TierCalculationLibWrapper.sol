@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { TierCalculationLib } from "src/libraries/TierCalculationLib.sol";
+import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { UD60x18 } from "prb-math/UD60x18.sol";
 
 // Note: Need to store the results from the library in a variable to be picked up by forge coverage

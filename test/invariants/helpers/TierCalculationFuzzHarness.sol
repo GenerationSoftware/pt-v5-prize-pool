@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/console2.sol";
 
-import { TierCalculationLib } from "src/libraries/TierCalculationLib.sol";
+import { TierCalculationLib } from "../../../src/libraries/TierCalculationLib.sol";
 import { SD59x18, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
 import { CommonBase } from "forge-std/Base.sol";
 

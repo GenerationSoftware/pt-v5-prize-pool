@@ -4,9 +4,9 @@ pragma solidity 0.8.17;
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
-import { TierCalculationLib } from "src/libraries/TierCalculationLib.sol";
+import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { TieredLiquidityDistributorWrapper } from "test/abstract/helper/TieredLiquidityDistributorWrapper.sol";
-import { UD60x18, NumberOfTiersLessThanMinimum, InsufficientLiquidity, fromUD34x4toUD60x18, toUD60x18, fromUD60x18, SD59x18, fromSD59x18 } from "src/abstract/TieredLiquidityDistributor.sol";
+import { UD60x18, NumberOfTiersLessThanMinimum, InsufficientLiquidity, fromUD34x4toUD60x18, toUD60x18, fromUD60x18, SD59x18, fromSD59x18 } from "../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorTest is Test {
   TieredLiquidityDistributorWrapper public distributor;

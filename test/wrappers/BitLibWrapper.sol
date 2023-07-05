@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { BitLib } from "src/libraries/BitLib.sol";
+import { BitLib } from "../../src/libraries/BitLib.sol";
 
 // Note: Need to store the results from the library in a variable to be picked up by forge coverage
 // See: https://github.com/foundry-rs/foundry/pull/3128#issuecomment-1241245086
