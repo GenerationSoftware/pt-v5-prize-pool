@@ -3,6 +3,6 @@ prb-math/=lib/prb-math/src/
 openzeppelin=lib/openzeppelin-contracts/contracts/
 src/=src/
 test/=test/
-v5-twab-controller/=lib/v5-twab-controller/src/
+v5-twab-controller/=lib/pt-v5-twab-controller/src/
 ring-buffer-lib/=lib/ring-buffer-lib/src/
 owner-manager-contracts/=lib/owner-manager-contracts/contracts/

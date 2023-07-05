@@ -88,10 +88,10 @@ contract PrizePoolTest is Test {
     vm.warp(startTimestamp);
 
     prizeToken = new ERC20Mintable("PoolTogether POOL token", "POOL");
-    twabController = new TwabController();
+    drawPeriodSeconds = 1 days;
+    twabController = new TwabController(drawPeriodSeconds, uint32(block.timestamp));
 
     lastClosedDrawStartedAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
-    drawPeriodSeconds = 1 days;
     initialNumberOfTiers = 3;
 
     address drawManager = address(this);
