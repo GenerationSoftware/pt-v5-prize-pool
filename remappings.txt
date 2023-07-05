@@ -1,8 +1,10 @@
 forge-std/=lib/forge-std/src/
+
 prb-math/=lib/prb-math/src/
 openzeppelin=lib/openzeppelin-contracts/contracts/
+v5-twab-controller/=lib/pt-v5-twab-controller/src/
+ring-buffer-lib/=lib/pt-v5-twab-controller/lib/ring-buffer-lib/src/
+owner-manager-contracts/=lib/owner-manager-contracts/contracts/
+
 src/=src/
 test/=test/
-v5-twab-controller/=lib/pt-v5-twab-controller/src/
-ring-buffer-lib/=lib/ring-buffer-lib/src/
-owner-manager-contracts/=lib/owner-manager-contracts/contracts/

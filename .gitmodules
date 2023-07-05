@@ -10,9 +10,6 @@
 	branch = v3
 	path = lib/prb-math
 	url = https://github.com/PaulRBerg/prb-math
-[submodule "lib/ring-buffer-lib"]
-	path = lib/ring-buffer-lib
-	url = https://github.com/pooltogether/ring-buffer-lib
 [submodule "lib/owner-manager-contracts"]
 	path = lib/owner-manager-contracts
 	url = https://github.com/pooltogether/owner-manager-contracts
