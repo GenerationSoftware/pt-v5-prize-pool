@@ -35,7 +35,7 @@ contract GenerateConstants is Script {
     console.log("\n");
     console.log("/// @notice The odds for each tier and number of tiers pair.");
     MIN_TIERS = 3;
-    MAX_TIERS = 16;
+    MAX_TIERS = 15;
     // Precompute the odds for each tier
     for (uint8 numTiers = MIN_TIERS; numTiers <= MAX_TIERS; numTiers++) {
       for (uint8 tier = 0; tier < numTiers; tier++) {

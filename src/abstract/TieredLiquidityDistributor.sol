@@ -935,23 +935,6 @@ contract TieredLiquidityDistributor {
       else if (_tier == 12) return TIER_ODDS_12_15;
       else if (_tier == 13) return TIER_ODDS_13_15;
       else if (_tier == 14) return TIER_ODDS_14_15;
-    } else if (_numTiers == 16) {
-      if (_tier == 0) return TIER_ODDS_0_16;
-      else if (_tier == 1) return TIER_ODDS_1_16;
-      else if (_tier == 2) return TIER_ODDS_2_16;
-      else if (_tier == 3) return TIER_ODDS_3_16;
-      else if (_tier == 4) return TIER_ODDS_4_16;
-      else if (_tier == 5) return TIER_ODDS_5_16;
-      else if (_tier == 6) return TIER_ODDS_6_16;
-      else if (_tier == 7) return TIER_ODDS_7_16;
-      else if (_tier == 8) return TIER_ODDS_8_16;
-      else if (_tier == 9) return TIER_ODDS_9_16;
-      else if (_tier == 10) return TIER_ODDS_10_16;
-      else if (_tier == 11) return TIER_ODDS_11_16;
-      else if (_tier == 12) return TIER_ODDS_12_16;
-      else if (_tier == 13) return TIER_ODDS_13_16;
-      else if (_tier == 14) return TIER_ODDS_14_16;
-      else if (_tier == 15) return TIER_ODDS_15_16;
     }
     return sd(0);
   }
