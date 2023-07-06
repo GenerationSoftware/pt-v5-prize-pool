@@ -198,8 +198,8 @@ contract PrizePool is TieredLiquidityDistributor {
   mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulator;
 
   /// @notice Records the claim record for a winner.
-  /// @dev account => drawId => tier => prizeIndex => claimed
-  mapping(address => mapping(uint16 => mapping(uint8 => mapping(uint32 => bool))))
+  /// @dev vault => account => drawId => tier => prizeIndex => claimed
+  mapping(address => mapping(address => mapping(uint16 => mapping(uint8 => mapping(uint32 => bool)))))
     internal claimedPrizes;
 
   /// @notice Tracks the total fees accrued to each claimer.
@@ -426,11 +426,11 @@ contract PrizePool is TieredLiquidityDistributor {
       revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
     }
 
-    if (claimedPrizes[_winner][lastClosedDrawId][_tier][_prizeIndex]) {
+    if (claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex]) {
       revert AlreadyClaimedPrize(msg.sender, _winner, _tier, _prizeIndex, _prizeRecipient);
     }
 
-    claimedPrizes[_winner][lastClosedDrawId][_tier][_prizeIndex] = true;
+    claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex] = true;
 
     if (_isCanaryTier(_tier, numberOfTiers)) {
       canaryClaimCount++;
@@ -618,15 +618,18 @@ contract PrizePool is TieredLiquidityDistributor {
   }
 
   /// @notice Returns whether the winner has claimed the tier for the last closed draw
+  /// @param _vault The vault to check
   /// @param _winner The account to check
   /// @param _tier The tier to check
+  /// @param _prizeIndex The prize index to check
   /// @return True if the winner claimed the tier for the current draw, false otherwise.
   function wasClaimed(
+    address _vault,
     address _winner,
     uint8 _tier,
     uint32 _prizeIndex
   ) external view returns (bool) {
-    return claimedPrizes[_winner][lastClosedDrawId][_tier][_prizeIndex];
+    return claimedPrizes[_vault][_winner][lastClosedDrawId][_tier][_prizeIndex];
   }
 
   /**

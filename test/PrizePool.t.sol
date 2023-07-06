@@ -21,6 +21,7 @@ contract PrizePoolTest is Test {
   ERC20Mintable public prizeToken;
 
   address public vault;
+  address public vault2;
 
   TwabController public twabController;
 
@@ -95,6 +96,8 @@ contract PrizePoolTest is Test {
     initialNumberOfTiers = 3;
 
     address drawManager = address(this);
+    vault = address(this);
+    vault2 = address(0x1234);
 
     params = ConstructorParams(
       prizeToken,
@@ -113,8 +116,6 @@ contract PrizePoolTest is Test {
     vm.expectEmit();
     emit DrawManagerSet(drawManager);
     prizePool = new PrizePool(params);
-
-    vault = address(this);
   }
 
   function testConstructor_SmoothingGTEOne() public {
@@ -656,7 +657,8 @@ contract PrizePoolTest is Test {
   }
 
   function testWasClaimed_not() public {
-    assertEq(prizePool.wasClaimed(msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
   }
 
   function testWasClaimed_single() public {
@@ -664,7 +666,8 @@ contract PrizePoolTest is Test {
     closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
-    assertEq(prizePool.wasClaimed(msg.sender, 0, 0), true);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), true);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
   }
 
   function testWasClaimed_old_draw() public {
@@ -672,9 +675,11 @@ contract PrizePoolTest is Test {
     closeDraw(winningRandomNumber);
     mockTwab(msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
-    assertEq(prizePool.wasClaimed(msg.sender, 0, 0), true);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), true);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
     closeDraw(winningRandomNumber);
-    assertEq(prizePool.wasClaimed(msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
   }
 
   function testClaimPrize_single() public {
