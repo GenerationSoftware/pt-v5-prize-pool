@@ -57,7 +57,7 @@ error ContributionGTDeltaBalance(uint256 amount, uint256 available);
 
 /// @notice Emitted when a user attempts to increase the reserve amount by more than their balance.
 /// @param user The user attempting to increase the reserve
-/// @param balance The users current balance
+/// @param balance The user's current balance
 /// @param amount The amount that the reserve is being increased by
 error InsufficientPrizeTokenBalance(address user, uint256 balance, uint256 amount);
 
