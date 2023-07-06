@@ -134,7 +134,7 @@ contract PrizePoolTest is Test {
     assertEq(SD59x18.unwrap(odds), 2739726027397260);
     odds = prizePool.getTierOdds(3, 7);
     assertEq(SD59x18.unwrap(odds), 52342392259021369);
-    odds = prizePool.getTierOdds(15, 16);
+    odds = prizePool.getTierOdds(14, 15);
     assertEq(SD59x18.unwrap(odds), 1000000000000000000);
   }
 
@@ -823,6 +823,11 @@ contract PrizePoolTest is Test {
       )
     );
     claimPrize(msg.sender, 0, 0);
+  }
+
+  function testNextNumberOfTiers_max() public {
+    params.numberOfTiers = 15; // max
+    prizePool = new PrizePool(params);
   }
 
   function testClaimPrize_secondTier_claimTwice() public {

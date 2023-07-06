@@ -729,6 +729,14 @@ contract PrizePool is TieredLiquidityDistributor {
     return _getVaultPortion(_vault, _startDrawId, _endDrawId, smoothing.intoSD59x18());
   }
 
+  /**
+   * @notice Computes and returns the next number of tiers based on the current prize claim counts. This number may change throughout the draw
+   * @return The next number of tiers
+   */
+  function nextNumberOfTiers() external view returns (uint8) {
+    return _computeNextNumberOfTiers(numberOfTiers);
+  }
+
   /* ============ Internal Functions ============ */
 
   /// @notice Computes how many tokens have been accounted for
@@ -774,20 +782,20 @@ contract PrizePool is TieredLiquidityDistributor {
       : MINIMUM_NUMBER_OF_TIERS;
 
     // check to see if we need to expand the number of tiers
-    if (_nextNumberOfTiers >= _numTiers) {
-      if (
-        canaryClaimCount >=
-        fromUD60x18(
-          intoUD60x18(_claimExpansionThreshold).mul(_canaryPrizeCountFractional(_numTiers).floor())
-        ) &&
-        claimCount >=
-        fromUD60x18(
-          intoUD60x18(_claimExpansionThreshold).mul(toUD60x18(_estimatedPrizeCount(_numTiers)))
-        )
-      ) {
-        // increase the number of tiers to include a new tier
-        _nextNumberOfTiers = _numTiers + 1;
-      }
+    if (
+      _nextNumberOfTiers >= _numTiers &&
+      _numTiers < MAXIMUM_NUMBER_OF_TIERS &&
+      canaryClaimCount >=
+      fromUD60x18(
+        intoUD60x18(_claimExpansionThreshold).mul(_canaryPrizeCountFractional(_numTiers).floor())
+      ) &&
+      claimCount >=
+      fromUD60x18(
+        intoUD60x18(_claimExpansionThreshold).mul(toUD60x18(_estimatedPrizeCount(_numTiers)))
+      )
+    ) {
+      // increase the number of tiers to include a new tier
+      _nextNumberOfTiers = _numTiers + 1;
     }
 
     return _nextNumberOfTiers;
