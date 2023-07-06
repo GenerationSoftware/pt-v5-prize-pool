@@ -16,3 +16,6 @@
 [submodule "lib/pt-v5-twab-controller"]
 	path = lib/pt-v5-twab-controller
 	url = https://github.com/GenerationSoftware/pt-v5-twab-controller
+[submodule "lib/ring-buffer-lib"]
+	path = lib/ring-buffer-lib
+	url = https://github.com/GenerationSoftware/ring-buffer-lib
