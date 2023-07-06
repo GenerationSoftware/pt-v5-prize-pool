@@ -80,6 +80,11 @@ contract PrizePoolTest is Test {
   /// @param drawManager The draw manager
   event DrawManagerSet(address indexed drawManager);
 
+  /// @notice Emitted when the reserve is manually increased.
+  /// @param user The user who increased the reserve
+  /// @param amount The amount of assets transferred
+  event IncreaseReserve(address user, uint256 amount);
+
   /**********************************************************************************/
 
   ConstructorParams params;
@@ -153,6 +158,45 @@ contract PrizePoolTest is Test {
   );
 
   /**********************************************************************************/
+  function testIncreaseReserve() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.reserve(), 454545454545454660);
+
+    // increase reserve
+    vm.startPrank(sender1);
+    prizeToken.mint(sender1, 100e18);
+    prizeToken.approve(address(prizePool), 100e18);
+    
+    vm.expectEmit();
+    emit IncreaseReserve(sender1, 100e18);
+    prizePool.increaseReserve(100e18);
+
+    assertEq(prizePool.reserve(), 100454545454545454660);
+  }
+
+  function testFailIncreaseReserve() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.reserve(), 454545454545454660);
+
+    // increase reserve by more than balance
+    vm.startPrank(sender1);
+    prizeToken.mint(sender1, 1e18);
+    prizeToken.approve(address(prizePool), 100e18);
+    prizePool.increaseReserve(100e18);
+  }
+
+  function testIncreaseReserve_Max() public {
+    vm.startPrank(sender1);
+    prizeToken.mint(sender1, type(uint104).max);
+    prizeToken.approve(address(prizePool), type(uint104).max);
+    assertEq(prizePool.reserve(), 0);
+    // increase reserve by max amount
+    prizePool.increaseReserve(type(uint104).max);
+    assertEq(prizePool.reserve(), type(uint104).max);
+  }
+
   function testReserve_withRemainder() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
