@@ -12,7 +12,7 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerAlreadySet, CallerNotDrawManager, InsufficientPrizeTokenBalance } from "../src/PrizePool.sol";
+import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerAlreadySet, CallerNotDrawManager } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -79,6 +79,11 @@ contract PrizePoolTest is Test {
   /// @notice Emitted when the drawManager is set
   /// @param drawManager The draw manager
   event DrawManagerSet(address indexed drawManager);
+
+  /// @notice Emitted when the reserve is manually increased.
+  /// @param user The user who increased the reserve
+  /// @param amount The amount of assets transferred
+  event IncreaseReserve(address user, uint256 amount);
 
   /**********************************************************************************/
 
@@ -162,6 +167,9 @@ contract PrizePoolTest is Test {
     vm.startPrank(sender1);
     prizeToken.mint(sender1, 100e18);
     prizeToken.approve(address(prizePool), 100e18);
+    
+    vm.expectEmit();
+    emit IncreaseReserve(sender1, 100e18);
     prizePool.increaseReserve(100e18);
 
     assertEq(prizePool.reserve(), 100454545454545454660);

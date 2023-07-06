@@ -55,12 +55,6 @@ error SmoothingGTEOne(int64 smoothing);
 /// @param available The available un-accounted balance that can be claimed as a contribution
 error ContributionGTDeltaBalance(uint256 amount, uint256 available);
 
-/// @notice Emitted when a user attempts to increase the reserve amount by more than their balance.
-/// @param user The user attempting to increase the reserve
-/// @param balance The user's current balance
-/// @param amount The amount that the reserve is being increased by
-error InsufficientPrizeTokenBalance(address user, uint256 balance, uint256 amount);
-
 /// @notice Emitted when the withdraw amount is greater than the available reserve.
 /// @param amount The amount being withdrawn
 /// @param reserve The total reserve available for withdrawal
@@ -174,8 +168,9 @@ contract PrizePool is TieredLiquidityDistributor {
   event WithdrawReserve(address indexed to, uint256 amount);
 
   /// @notice Emitted when the reserve is manually increased.
+  /// @param user The user who increased the reserve
   /// @param amount The amount of assets transferred
-  event IncreaseReserve(uint256 amount);
+  event IncreaseReserve(address user, uint256 amount);
 
   /// @notice Emitted when the reserve is consumed due to insufficient prize liquidity.
   /// @param amount The amount to decrease by
@@ -508,7 +503,7 @@ contract PrizePool is TieredLiquidityDistributor {
   function increaseReserve(uint104 _amount) external {
     _reserve += _amount;
     prizeToken.safeTransferFrom(msg.sender, address(this), _amount);
-    emit IncreaseReserve(_amount);
+    emit IncreaseReserve(msg.sender, _amount);
   }
 
   /* ============ External Read Functions ============ */
