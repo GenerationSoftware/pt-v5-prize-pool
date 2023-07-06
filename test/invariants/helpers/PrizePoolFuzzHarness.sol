@@ -67,7 +67,7 @@ contract PrizePoolFuzzHarness is CommonBase {
       for (uint32 p = 0; p < prizePool.getTierPrizeCount(i); i++) {
         if (
           prizePool.isWinner(address(this), address(this), i, p) &&
-          !prizePool.wasClaimed(address(this), i, p)
+          !prizePool.wasClaimed(address(this), address(this), i, p)
         ) {
           claimed += prizePool.claimPrize(address(this), i, p, address(this), 0, address(0));
         }

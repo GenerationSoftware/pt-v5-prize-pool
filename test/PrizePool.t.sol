@@ -21,6 +21,7 @@ contract PrizePoolTest is Test {
   ERC20Mintable public prizeToken;
 
   address public vault;
+  address public vault2;
 
   TwabController public twabController;
 
@@ -100,6 +101,8 @@ contract PrizePoolTest is Test {
     initialNumberOfTiers = 3;
 
     address drawManager = address(this);
+    vault = address(this);
+    vault2 = address(0x1234);
 
     params = ConstructorParams(
       prizeToken,
@@ -118,8 +121,6 @@ contract PrizePoolTest is Test {
     vm.expectEmit();
     emit DrawManagerSet(drawManager);
     prizePool = new PrizePool(params);
-
-    vault = address(this);
   }
 
   function testConstructor_SmoothingGTEOne() public {
@@ -308,7 +309,7 @@ contract PrizePoolTest is Test {
   function testAccountedBalance_oneClaim() public {
     contribute(100e18);
     closeDraw(1);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
     assertEq(prizePool.accountedBalance(), 95.4545454545454546e18);
   }
@@ -316,7 +317,7 @@ contract PrizePoolTest is Test {
   function testAccountedBalance_oneClaim_andMoreContrib() public {
     contribute(100e18);
     closeDraw(1);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
     contribute(10e18);
     assertEq(prizePool.accountedBalance(), 105.4545454545454546e18);
@@ -325,7 +326,7 @@ contract PrizePoolTest is Test {
   function testAccountedBalance_twoClaims() public {
     contribute(100e18);
     closeDraw(1);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
     // 10e18 - 4.5454545454545454e18 = 5.4545454545454546e18
     closeDraw(1);
@@ -333,7 +334,7 @@ contract PrizePoolTest is Test {
     // 9e18*100/220 = 4.0909090909090909e18
     assertEq(prizePool.accountedBalance(), 95.4545454545454546e18, "accounted balance");
 
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
   }
 
@@ -529,7 +530,7 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.reserve(), 1e18, "reserve after first draw");
 
     // now claim only grand prize
-    mockTwab(address(this), 0);
+    mockTwab(address(this), address(this), 0);
     claimPrize(address(this), 0, 0);
 
     vm.expectEmit();
@@ -555,21 +556,21 @@ contract PrizePoolTest is Test {
   function testCloseAndOpenNextDraw_expandingTiers() public {
     contribute(1e18);
     closeDraw(1234);
-    mockTwab(address(this), 0);
+    mockTwab(address(this), address(this), 0);
     claimPrize(address(this), 0, 0);
-    mockTwab(sender1, 1);
+    mockTwab(address(this), sender1, 1);
     claimPrize(sender1, 1, 0);
-    mockTwab(sender2, 1);
+    mockTwab(address(this), sender2, 1);
     claimPrize(sender2, 1, 0);
-    mockTwab(sender3, 1);
+    mockTwab(address(this), sender3, 1);
     claimPrize(sender3, 1, 0);
-    mockTwab(sender4, 1);
+    mockTwab(address(this), sender4, 1);
     claimPrize(sender4, 1, 0);
 
     // canary tiers
-    mockTwab(sender5, 2);
+    mockTwab(address(this), sender5, 2);
     claimPrize(sender5, 2, 0);
-    mockTwab(sender6, 2);
+    mockTwab(address(this), sender6, 2);
     claimPrize(sender6, 2, 0);
 
     vm.expectEmit();
@@ -585,7 +586,7 @@ contract PrizePoolTest is Test {
     closeDraw(1234);
     closeDraw(554);
 
-    mockTwab(sender5, 1);
+    mockTwab(address(this), sender5, 1);
     assertTrue(claimPrize(sender5, 1, 0) > 0, "has prize");
   }
 
@@ -618,7 +619,7 @@ contract PrizePoolTest is Test {
     uint256 liquidity = 4.5454545454545454e18;
     assertEq(prizePool.getTierRemainingLiquidity(1), liquidity, "second tier");
 
-    mockTwab(sender1, 1);
+    mockTwab(address(this), sender1, 1);
     uint256 prize = 1.13636363636363635e18;
     assertEq(claimPrize(sender1, 1, 0), prize, "second tier prize 1");
 
@@ -680,45 +681,75 @@ contract PrizePoolTest is Test {
   function testIsWinnerDailyPrize() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 1);
+    mockTwab(address(this), msg.sender, 1);
     assertEq(prizePool.isWinner(address(this), msg.sender, 1, 0), true);
   }
 
   function testIsWinnerGrandPrize() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     assertEq(prizePool.isWinner(address(this), msg.sender, 0, 0), true);
   }
 
   function testIsWinner_emitsInvalidPrizeIndex() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 1);
+    mockTwab(address(this), msg.sender, 1);
     vm.expectRevert(abi.encodeWithSelector(InvalidPrizeIndex.selector, 4, 4, 1));
     prizePool.isWinner(address(this), msg.sender, 1, 4);
   }
 
   function testWasClaimed_not() public {
-    assertEq(prizePool.wasClaimed(msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
   }
 
   function testWasClaimed_single() public {
-    contribute(100e18);
+    vm.prank(vault);
+    contribute(100e18, vault);
+    prizeToken.mint(address(prizePool), 100e18);
+
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
-    claimPrize(msg.sender, 0, 0);
-    assertEq(prizePool.wasClaimed(msg.sender, 0, 0), true);
+
+    mockTwab(vault, msg.sender, 1);
+    vm.prank(vault);
+    claimPrize(msg.sender, 1, 0);
+
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 1, 0), true);
+  }
+
+  function testWasClaimed_single_twoVaults() public {
+    vm.prank(vault);
+    contribute(100e18, vault);
+    prizeToken.mint(address(prizePool), 100e18);
+
+    vm.prank(vault2);
+    prizePool.contributePrizeTokens(vault2, 100e18);
+
+    closeDraw(winningRandomNumber);
+
+    mockTwab(vault, msg.sender, 1);
+    vm.prank(vault);
+    claimPrize(msg.sender, 1, 0);
+    mockTwab(vault2, msg.sender, 1);
+    vm.prank(vault2);
+    claimPrize(msg.sender, 1, 0);
+
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 1, 0), true);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, 1, 0), true);
   }
 
   function testWasClaimed_old_draw() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     claimPrize(msg.sender, 0, 0);
-    assertEq(prizePool.wasClaimed(msg.sender, 0, 0), true);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), true);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
     closeDraw(winningRandomNumber);
-    assertEq(prizePool.wasClaimed(msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
   }
 
   function testClaimPrize_single() public {
@@ -726,7 +757,7 @@ contract PrizePoolTest is Test {
     closeDraw(winningRandomNumber);
     address winner = makeAddr("winner");
     address recipient = makeAddr("recipient");
-    mockTwab(winner, 1);
+    mockTwab(address(this), winner, 1);
 
     vm.expectEmit();
     emit ClaimedPrize(
@@ -749,7 +780,7 @@ contract PrizePoolTest is Test {
   function testClaimPrize_withFee() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     // total prize size is returned
     vm.expectEmit();
     emit IncreaseClaimRewards(address(this), 1e18);
@@ -770,7 +801,7 @@ contract PrizePoolTest is Test {
   function testClaimPrize_feeTooLarge() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     vm.expectRevert(abi.encodeWithSelector(FeeTooLarge.selector, 10e18, 4.5454545454545454e18));
     claimPrize(msg.sender, 0, 0, 10e18, address(0));
   }
@@ -778,7 +809,7 @@ contract PrizePoolTest is Test {
   function testClaimPrize_grandPrize_claimTwice() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     assertEq(claimPrize(msg.sender, 0, 0), 4.5454545454545454e18, "prize size");
     // second claim is zero
     vm.expectRevert(
@@ -797,17 +828,17 @@ contract PrizePoolTest is Test {
   function testClaimPrize_secondTier_claimTwice() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 1);
+    mockTwab(address(this), msg.sender, 1);
     assertEq(claimPrize(msg.sender, 1, 0), 1.13636363636363635e18, "first claim");
     // second claim is same
-    mockTwab(sender2, 1);
+    mockTwab(address(this), sender2, 1);
     assertEq(claimPrize(sender2, 1, 0), 1.13636363636363635e18, "second claim");
   }
 
   function testClaimCanaryPrize() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(sender1, 2);
+    mockTwab(address(this), sender1, 2);
     claimPrize(sender1, 2, 0);
     assertEq(prizePool.claimCount(), 0);
     assertEq(prizePool.canaryClaimCount(), 1);
@@ -816,7 +847,7 @@ contract PrizePoolTest is Test {
   function testClaimPrizePartial() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(sender1, 2);
+    mockTwab(address(this), sender1, 2);
     claimPrize(sender1, 2, 0);
     assertEq(prizePool.claimCount(), 0);
     assertEq(prizePool.canaryClaimCount(), 1);
@@ -826,7 +857,7 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.totalWithdrawn(), 0);
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     uint256 prize = 4.5454545454545454e18;
     assertEq(claimPrize(msg.sender, 0, 0), prize, "prize size");
     assertEq(prizePool.totalWithdrawn(), prize, "total claimed prize");
@@ -886,7 +917,7 @@ contract PrizePoolTest is Test {
   function testWithdrawClaimRewards_sufficient() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
     claimPrize(msg.sender, 0, 0, 1e18, address(this));
     prizePool.withdrawClaimRewards(address(this), 1e18);
     assertEq(prizeToken.balanceOf(address(this)), 1e18);
@@ -900,7 +931,7 @@ contract PrizePoolTest is Test {
   function testWithdrawClaimRewards_emitsEvent() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(msg.sender, 0);
+    mockTwab(address(this), msg.sender, 0);
 
     prizePool.claimPrize(msg.sender, 0, 0, msg.sender, 1e18, address(this));
 
@@ -998,6 +1029,7 @@ contract PrizePoolTest is Test {
   function testGetVaultUserBalanceAndTotalSupplyTwab() public {
     closeDraw(winningRandomNumber);
     mockTwab(
+      address(this),
       msg.sender,
       prizePool.lastClosedDrawEndedAt() - 365 * drawPeriodSeconds,
       prizePool.lastClosedDrawEndedAt()
@@ -1123,19 +1155,13 @@ contract PrizePoolTest is Test {
     return prizePool.claimPrize(sender, tier, prizeIndex, sender, fee, feeRecipient);
   }
 
-  function mockTwab(address _account, uint256 startTime, uint256 endTime) public {
-    mockGetAverageBalanceBetween(
-      address(this),
-      _account,
-      uint32(startTime),
-      uint32(endTime),
-      366e30
-    );
-    mockGetAverageTotalSupplyBetween(address(this), uint32(startTime), uint32(endTime), 1e30);
+  function mockTwab(address _vault, address _account, uint256 startTime, uint256 endTime) public {
+    mockGetAverageBalanceBetween(_vault, _account, uint32(startTime), uint32(endTime), 366e30);
+    mockGetAverageTotalSupplyBetween(_vault, uint32(startTime), uint32(endTime), 1e30);
   }
 
-  function mockTwab(address _account, uint8 _tier) public {
+  function mockTwab(address _vault, address _account, uint8 _tier) public {
     (uint64 startTime, uint64 endTime) = prizePool.calculateTierTwabTimestamps(_tier);
-    mockTwab(_account, startTime, endTime);
+    mockTwab(_vault, _account, startTime, endTime);
   }
 }
