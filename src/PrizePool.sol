@@ -13,7 +13,6 @@ import { TwabController } from "v5-twab-controller/TwabController.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
 import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
-import { BitLib } from "./libraries/BitLib.sol";
 
 /// @notice Emitted when someone tries to set the draw manager.
 error DrawManagerAlreadySet();
