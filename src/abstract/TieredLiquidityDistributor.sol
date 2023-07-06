@@ -30,6 +30,7 @@ error InsufficientLiquidity(uint104 requestedLiquidity);
 /// @notice A contract that distributes liquidity according to PoolTogether V5 distribution rules.
 contract TieredLiquidityDistributor {
   uint8 internal constant MINIMUM_NUMBER_OF_TIERS = 3;
+  uint8 internal constant MAXIMUM_NUMBER_OF_TIERS = 15;
 
   UD60x18 internal immutable CANARY_PRIZE_COUNT_FOR_2_TIERS;
   UD60x18 internal immutable CANARY_PRIZE_COUNT_FOR_3_TIERS;
