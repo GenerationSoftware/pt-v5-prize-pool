@@ -12,7 +12,7 @@ import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "v5-twab-controller/TwabController.sol";
 
-import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerAlreadySet, CallerNotDrawManager } from "../src/PrizePool.sol";
+import { PrizePool, ConstructorParams, InsufficientRewardsError, AlreadyClaimedPrize, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerAlreadySet, CallerNotDrawManager, InsufficientPrizeTokenBalance } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -153,6 +153,42 @@ contract PrizePoolTest is Test {
   );
 
   /**********************************************************************************/
+  function testIncreaseReserve() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.reserve(), 454545454545454660);
+
+    // increase reserve
+    vm.startPrank(sender1);
+    prizeToken.mint(sender1, 100e18);
+    prizeToken.approve(address(prizePool), 100e18);
+    prizePool.increaseReserve(100e18);
+
+    assertEq(prizePool.reserve(), 100454545454545454660);
+  }
+
+  function testFailIncreaseReserve() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.reserve(), 454545454545454660);
+
+    // increase reserve by more than balance
+    vm.startPrank(sender1);
+    prizeToken.mint(sender1, 1e18);
+    prizeToken.approve(address(prizePool), 100e18);
+    prizePool.increaseReserve(100e18);
+  }
+
+  function testIncreaseReserve_Max() public {
+    vm.startPrank(sender1);
+    prizeToken.mint(sender1, type(uint104).max);
+    prizeToken.approve(address(prizePool), type(uint104).max);
+    assertEq(prizePool.reserve(), 0);
+    // increase reserve by max amount
+    prizePool.increaseReserve(type(uint104).max);
+    assertEq(prizePool.reserve(), type(uint104).max);
+  }
+
   function testReserve_withRemainder() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
