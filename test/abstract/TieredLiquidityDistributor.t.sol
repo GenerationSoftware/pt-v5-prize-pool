@@ -6,7 +6,7 @@ import "forge-std/console2.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { TieredLiquidityDistributorWrapper } from "test/abstract/helper/TieredLiquidityDistributorWrapper.sol";
-import { UD60x18, NumberOfTiersLessThanMinimum, InsufficientLiquidity, fromUD34x4toUD60x18, toUD60x18, fromUD60x18, SD59x18, fromSD59x18 } from "../../src/abstract/TieredLiquidityDistributor.sol";
+import { UD60x18, NumberOfTiersLessThanMinimum, NumberOfTiersGreaterThanMaximum, InsufficientLiquidity, fromUD34x4toUD60x18, toUD60x18, fromUD60x18, SD59x18, fromSD59x18 } from "../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorTest is Test {
   TieredLiquidityDistributorWrapper public distributor;
@@ -34,6 +34,26 @@ contract TieredLiquidityDistributorTest is Test {
   function testNextDraw_invalid_num_tiers() public {
     vm.expectRevert(abi.encodeWithSelector(NumberOfTiersLessThanMinimum.selector, 1));
     distributor.nextDraw(1, 100);
+  }
+
+  function testConstructor_numberOfTiersTooLarge() public {
+    vm.expectRevert(abi.encodeWithSelector(NumberOfTiersGreaterThanMaximum.selector, 16));
+    new TieredLiquidityDistributorWrapper(
+      16,
+      tierShares,
+      canaryShares,
+      reserveShares
+    );
+  }
+
+  function testConstructor_numberOfTiersTooSmall() public {
+    vm.expectRevert(abi.encodeWithSelector(NumberOfTiersLessThanMinimum.selector, 1));
+    new TieredLiquidityDistributorWrapper(
+      1,
+      tierShares,
+      canaryShares,
+      reserveShares
+    );
   }
 
   function testRemainingTierLiquidity() public {
@@ -156,17 +176,17 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(SD59x18.unwrap(odds), 2739726027397260);
     odds = distributor.getTierOdds(3, 7);
     assertEq(SD59x18.unwrap(odds), 52342392259021369);
-    odds = distributor.getTierOdds(15, 16);
-    assertEq(SD59x18.unwrap(odds), 1000000000000000000);
+    odds = distributor.getTierOdds(14, 15);
+    assertEq(SD59x18.unwrap(odds), 1000000000000000000, "checking accuracy for last tier");
   }
 
   function testTierOdds_AllAvailable() public {
     SD59x18 odds;
-    for (uint8 numTiers = 3; numTiers <= 16; numTiers++) {
+    for (uint8 numTiers = 3; numTiers < 16; numTiers++) {
       for (uint8 tier = 0; tier < numTiers; tier++) {
         odds = distributor.getTierOdds(tier, numTiers);
         assertGt(SD59x18.unwrap(odds), 0);
-        assertLe(SD59x18.unwrap(odds), 1000000000000000000);
+        assertLe(SD59x18.unwrap(odds), 1000000000000000000, "checking accuracy for highest available");
       }
     }
   }

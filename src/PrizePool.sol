@@ -713,6 +713,14 @@ contract PrizePool is TieredLiquidityDistributor {
     return _getVaultPortion(_vault, _startDrawId, _endDrawId, smoothing.intoSD59x18());
   }
 
+  /**
+   * @notice Computes and returns the next number of tiers based on the current prize claim counts. This number may change throughout the draw
+   * @return The next number of tiers
+   */
+  function nextNumberOfTiers() external view returns (uint8) {
+    return _computeNextNumberOfTiers(numberOfTiers);
+  }
+
   /* ============ Internal Functions ============ */
 
   /// @notice Computes how many tokens have been accounted for

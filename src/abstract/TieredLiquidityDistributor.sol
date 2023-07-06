@@ -21,6 +21,10 @@ struct Tier {
 /// @param numTiers The invalid number of tiers
 error NumberOfTiersLessThanMinimum(uint8 numTiers);
 
+/// @notice Emitted when the number of tiers is greater than the max tiers
+/// @param numTiers The invalid number of tiers
+error NumberOfTiersGreaterThanMaximum(uint8 numTiers);
+
 /// @notice Emitted when there is insufficient liquidity to consume.
 /// @param requestedLiquidity The requested amount of liquidity
 error InsufficientLiquidity(uint104 requestedLiquidity);
@@ -185,22 +189,6 @@ contract TieredLiquidityDistributor {
   SD59x18 internal constant TIER_ODDS_12_15 = SD59x18.wrap(430485137687959592);
   SD59x18 internal constant TIER_ODDS_13_15 = SD59x18.wrap(656113662171395111);
   SD59x18 internal constant TIER_ODDS_14_15 = SD59x18.wrap(1000000000000000000);
-  SD59x18 internal constant TIER_ODDS_0_16 = SD59x18.wrap(2739726027397260);
-  SD59x18 internal constant TIER_ODDS_1_16 = SD59x18.wrap(4060005854625059);
-  SD59x18 internal constant TIER_ODDS_2_16 = SD59x18.wrap(6016531351950262);
-  SD59x18 internal constant TIER_ODDS_3_16 = SD59x18.wrap(8915910667410451);
-  SD59x18 internal constant TIER_ODDS_4_16 = SD59x18.wrap(13212507070785166);
-  SD59x18 internal constant TIER_ODDS_5_16 = SD59x18.wrap(19579642462506911);
-  SD59x18 internal constant TIER_ODDS_6_16 = SD59x18.wrap(29015114005673871);
-  SD59x18 internal constant TIER_ODDS_7_16 = SD59x18.wrap(42997559448512061);
-  SD59x18 internal constant TIER_ODDS_8_16 = SD59x18.wrap(63718175229875027);
-  SD59x18 internal constant TIER_ODDS_9_16 = SD59x18.wrap(94424100034951094);
-  SD59x18 internal constant TIER_ODDS_10_16 = SD59x18.wrap(139927275620255366);
-  SD59x18 internal constant TIER_ODDS_11_16 = SD59x18.wrap(207358528757589475);
-  SD59x18 internal constant TIER_ODDS_12_16 = SD59x18.wrap(307285046878222004);
-  SD59x18 internal constant TIER_ODDS_13_16 = SD59x18.wrap(455366367617975795);
-  SD59x18 internal constant TIER_ODDS_14_16 = SD59x18.wrap(674808393262840052);
-  SD59x18 internal constant TIER_ODDS_15_16 = SD59x18.wrap(1000000000000000000);
 
   //////////////////////// END GENERATED CONSTANTS ////////////////////////
 
@@ -322,6 +310,9 @@ contract TieredLiquidityDistributor {
 
     if (_numberOfTiers < MINIMUM_NUMBER_OF_TIERS) {
       revert NumberOfTiersLessThanMinimum(_numberOfTiers);
+    }
+    if (_numberOfTiers > MAXIMUM_NUMBER_OF_TIERS) {
+      revert NumberOfTiersGreaterThanMaximum(_numberOfTiers);
     }
   }
 
