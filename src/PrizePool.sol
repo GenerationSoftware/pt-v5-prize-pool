@@ -154,13 +154,15 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param nextNumTiers The number of tiers for the next draw
   /// @param reserve The resulting reserve available for the next draw
   /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
+  /// @param drawStartedAt The start timestamp of the draw
   event DrawClosed(
     uint16 indexed drawId,
     uint256 winningRandomNumber,
     uint8 numTiers,
     uint8 nextNumTiers,
     uint104 reserve,
-    UD34x4 prizeTokensPerShare
+    UD34x4 prizeTokensPerShare,
+    uint64 drawStartedAt
   );
 
   /// @notice Emitted when any amount of the reserve is withdrawn.
@@ -376,7 +378,8 @@ contract PrizePool is TieredLiquidityDistributor {
       _numTiers,
       _nextNumberOfTiers,
       _reserve,
-      prizeTokenPerShare
+      prizeTokenPerShare,
+      _lastClosedDrawStartedAt
     );
 
     return lastClosedDrawId;

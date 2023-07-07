@@ -42,17 +42,21 @@ contract PrizePoolTest is Test {
    * Events copied from PrizePool.sol
    **********************************************************************************/
   /// @notice Emitted when a draw is closed.
-  /// @param drawId The ID of the draw that was claimed
+  /// @param drawId The ID of the draw that was closed
   /// @param winningRandomNumber The winning random number for the closed draw
   /// @param numTiers The number of prize tiers in the closed draw
   /// @param nextNumTiers The number of tiers for the next draw
+  /// @param reserve The resulting reserve available for the next draw
+  /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
+  /// @param drawStartedAt The start timestamp of the draw
   event DrawClosed(
     uint16 indexed drawId,
     uint256 winningRandomNumber,
     uint8 numTiers,
     uint8 nextNumTiers,
     uint104 reserve,
-    UD34x4 prizeTokensPerShare
+    UD34x4 prizeTokensPerShare,
+    uint64 drawStartedAt
   );
 
   /// @notice Emitted when any amount of the reserve is withdrawn.
@@ -541,7 +545,8 @@ contract PrizePoolTest is Test {
       startingTiers,
       3,
       23718181818181818010,
-      UD34x4.wrap(2718181818181817930000)
+      UD34x4.wrap(2718181818181817930000),
+      prizePool.lastClosedDrawEndedAt()
     );
 
     closeDraw(4567);
@@ -574,7 +579,7 @@ contract PrizePoolTest is Test {
     claimPrize(sender6, 2, 0);
 
     vm.expectEmit();
-    emit DrawClosed(2, 245, 3, 4, 7997159090909503, UD34x4.wrap(7357954545454530000));
+    emit DrawClosed(2, 245, 3, 4, 7997159090909503, UD34x4.wrap(7357954545454530000), prizePool.lastClosedDrawEndedAt());
 
     closeDraw(245);
     assertEq(prizePool.numberOfTiers(), 4);
@@ -592,7 +597,7 @@ contract PrizePoolTest is Test {
 
   function testCloseAndOpenNextDraw_emitsEvent() public {
     vm.expectEmit();
-    emit DrawClosed(1, 12345, 3, 3, 0, UD34x4.wrap(0));
+    emit DrawClosed(1, 12345, 3, 3, 0, UD34x4.wrap(0), lastClosedDrawStartedAt);
     closeDraw(12345);
   }
 
