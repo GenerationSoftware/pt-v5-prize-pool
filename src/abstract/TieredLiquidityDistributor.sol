@@ -33,6 +33,15 @@ error InsufficientLiquidity(uint104 requestedLiquidity);
 /// @author PoolTogether Inc.
 /// @notice A contract that distributes liquidity according to PoolTogether V5 distribution rules.
 contract TieredLiquidityDistributor {
+
+  /* ============ Events ============ */
+
+  /// @notice Emitted when the reserve is consumed due to insufficient prize liquidity.
+  /// @param amount The amount to decrease by
+  event ReserveConsumed(uint256 amount);
+
+  /* ============ Constants ============ */
+
   uint8 internal constant MINIMUM_NUMBER_OF_TIERS = 3;
   uint8 internal constant MAXIMUM_NUMBER_OF_TIERS = 15;
 
@@ -527,6 +536,7 @@ contract TieredLiquidityDistributor {
         revert InsufficientLiquidity(_liquidity);
       }
       _reserve -= excess;
+      emit ReserveConsumed(excess);
       _tierStruct.prizeTokenPerShare = prizeTokenPerShare;
     } else {
       UD34x4 delta = fromUD60x18toUD34x4(toUD60x18(_liquidity).div(toUD60x18(_shares)));
@@ -550,7 +560,6 @@ contract TieredLiquidityDistributor {
     UD60x18 _tierPrizeTokenPerShare,
     UD60x18 _prizeTokenPerShare
   ) internal view returns (uint256) {
-    assert(_tier < _numberOfTiers);
     uint256 prizeSize;
     if (_prizeTokenPerShare.gt(_tierPrizeTokenPerShare)) {
       if (_isCanaryTier(_tier, _numberOfTiers)) {

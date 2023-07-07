@@ -191,6 +191,20 @@ contract TieredLiquidityDistributorTest is Test {
     }
   }
 
+  function testGetTierPrizeCount() public {
+    assertEq(distributor.getTierPrizeCount(0, 3), 1);
+    assertEq(distributor.getTierPrizeCount(1, 3), 4);
+    assertEq(distributor.getTierPrizeCount(2, 3), 2); // canary tier
+  }
+
+  function testTierOdds_zero_when_outside_bounds() public {
+    SD59x18 odds;
+    for (uint8 numTiers = 3; numTiers < 16; numTiers++) {
+      odds = distributor.getTierOdds(numTiers, numTiers);
+      assertGt(SD59x18.unwrap(odds), 0);
+    }
+  }
+
   function testEstimatedPrizesPerDraw_AllAvailable() public {
     uint32 prizeCount;
     for (uint8 numTiers = 3; numTiers <= 15; numTiers++) {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
+import "forge-std/console2.sol";
+
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
@@ -170,10 +172,6 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param user The user who increased the reserve
   /// @param amount The amount of assets transferred
   event IncreaseReserve(address user, uint256 amount);
-
-  /// @notice Emitted when the reserve is consumed due to insufficient prize liquidity.
-  /// @param amount The amount to decrease by
-  event ReserveConsumed(uint256 amount);
 
   /// @notice Emitted when a vault contributes prize tokens to the pool.
   /// @param vault The address of the vault that is contributing tokens
@@ -447,12 +445,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     // `amount` is a snapshot of the reserve before consuming liquidity
-    uint256 amount = _reserve;
     _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize);
-
-    if (amount != _reserve) {
-      emit ReserveConsumed(amount - _reserve);
-    }
 
     if (_fee != 0) {
       emit IncreaseClaimRewards(_feeRecipient, _fee);
@@ -460,7 +453,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     // `amount` is now the payout amount
-    amount = tierLiquidity.prizeSize - _fee;
+    uint256 amount = tierLiquidity.prizeSize - _fee;
 
     emit ClaimedPrize(
       msg.sender,
@@ -684,12 +677,15 @@ contract PrizePool is TieredLiquidityDistributor {
   function calculateTierTwabTimestamps(
     uint8 _tier
   ) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
+    uint8 _numberOfTiers = numberOfTiers;
+    _checkValidTier(_tier, _numberOfTiers);
     endTimestamp = _lastClosedDrawStartedAt + drawPeriodSeconds;
+    SD59x18 tierOdds = _tierOdds(_tier, _numberOfTiers);
+    uint256 durationInSeconds = TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds) * drawPeriodSeconds;
 
     startTimestamp = uint64(
       endTimestamp -
-        TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)) *
-        drawPeriodSeconds
+        durationInSeconds
     );
   }
 
@@ -751,6 +747,12 @@ contract PrizePool is TieredLiquidityDistributor {
     return _openDrawEndsAt() - drawPeriodSeconds;
   }
 
+  function _checkValidTier(uint8 _tier, uint8 _numTiers) internal pure {
+    if (_tier >= _numTiers) {
+      revert InvalidTier(_tier, _numTiers);
+    }
+  }
+
   /// @notice Returns the time at which the open draw ends.
   function _openDrawEndsAt() internal view returns (uint64) {
     // If this is the first draw, we treat _lastClosedDrawStartedAt as the start of this draw
@@ -781,10 +783,13 @@ contract PrizePool is TieredLiquidityDistributor {
       ? _nextNumberOfTiers
       : MINIMUM_NUMBER_OF_TIERS;
 
+    if (_nextNumberOfTiers >= MAXIMUM_NUMBER_OF_TIERS) {
+      return MAXIMUM_NUMBER_OF_TIERS;
+    }
+
     // check to see if we need to expand the number of tiers
     if (
       _nextNumberOfTiers >= _numTiers &&
-      _numTiers < MAXIMUM_NUMBER_OF_TIERS &&
       canaryClaimCount >=
       fromUD60x18(
         intoUD60x18(_claimExpansionThreshold).mul(_canaryPrizeCountFractional(_numTiers).floor())
@@ -888,9 +893,7 @@ contract PrizePool is TieredLiquidityDistributor {
     if (_lastClosedDrawId == 0) {
       revert NoClosedDraw();
     }
-    if (_tier >= _numberOfTiers) {
-      revert InvalidTier(_tier, _numberOfTiers);
-    }
+    _checkValidTier(_tier, _numberOfTiers);
 
     tierOdds = _tierOdds(_tier, numberOfTiers);
     drawDuration = uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));

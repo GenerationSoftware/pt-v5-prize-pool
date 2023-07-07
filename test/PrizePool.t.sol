@@ -826,8 +826,15 @@ contract PrizePoolTest is Test {
   }
 
   function testNextNumberOfTiers_max() public {
+    vm.warp(startTimestamp);
     params.numberOfTiers = 15; // max
+    params.claimExpansionThreshold = ud2x18(0);
     prizePool = new PrizePool(params);
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    mockTwab(address(this), sender1, 14);
+    claimPrize(sender1, 14, 0);
+    assertEq(prizePool.nextNumberOfTiers(), 15);
   }
 
   function testClaimPrize_secondTier_claimTwice() public {
