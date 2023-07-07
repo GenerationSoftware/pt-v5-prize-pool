@@ -201,7 +201,7 @@ contract TieredLiquidityDistributorTest is Test {
     SD59x18 odds;
     for (uint8 numTiers = 3; numTiers < 16; numTiers++) {
       odds = distributor.getTierOdds(numTiers, numTiers);
-      assertGt(SD59x18.unwrap(odds), 0);
+      assertEq(SD59x18.unwrap(odds), 0);
     }
   }
 

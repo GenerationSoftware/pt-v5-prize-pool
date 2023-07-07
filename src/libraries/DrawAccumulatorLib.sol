@@ -45,7 +45,7 @@ library DrawAccumulatorLib {
   /// @notice An accumulator for a draw.
   struct Accumulator {
     RingBufferInfo ringBufferInfo;
-    uint16[MAX_CARDINALITY] drawRingBuffer;
+    uint16[366] drawRingBuffer;
     mapping(uint256 => Observation) observations;
   }
 
@@ -418,7 +418,7 @@ library DrawAccumulatorLib {
   /// @return afterOrAtIndex The index of the observation occurring at or after the target draw id
   /// @return afterOrAtDrawId The draw id of the observation occurring at or after the target draw id
   function binarySearch(
-    uint16[MAX_CARDINALITY] storage _drawRingBuffer,
+    uint16[366] storage _drawRingBuffer,
     uint16 _oldestIndex,
     uint16 _newestIndex,
     uint16 _cardinality,
