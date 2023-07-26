@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/console2.sol";
 
-import { TieredLiquidityDistributor, Tier, fromUD60x18, toUD60x18, fromUD34x4toUD60x18 } from "../../../src/abstract/TieredLiquidityDistributor.sol";
+import {
+  TieredLiquidityDistributor,
+  Tier,
+  fromUD34x4toUD60x18,
+  convert
+} from "../../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
   uint256 public totalAdded;
@@ -27,7 +32,7 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
     uint256 availableLiquidity;
     for (uint8 i = 0; i < numberOfTiers; i++) {
       Tier memory tier = _getTier(i, numberOfTiers);
-      availableLiquidity += fromUD60x18(
+      availableLiquidity += convert(
         _getTierRemainingLiquidity(
           _computeShares(i, numberOfTiers),
           fromUD34x4toUD60x18(tier.prizeTokenPerShare),
@@ -47,7 +52,7 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
     Tier memory tier_ = _getTier(tier, numberOfTiers);
     uint8 shares = _computeShares(tier, numberOfTiers);
     uint112 liq = uint112(
-      fromUD60x18(
+      convert(
         _getTierRemainingLiquidity(
           shares,
           fromUD34x4toUD60x18(tier_.prizeTokenPerShare),

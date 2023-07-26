@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/console2.sol";
 
-import { PrizePool, ConstructorParams } from "../../../src/PrizePool.sol";
-import { TwabController } from "v5-twab-controller/TwabController.sol";
-import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
+import { CommonBase } from "forge-std/Base.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18 } from "prb-math/SD1x18.sol";
-import { CommonBase } from "forge-std/Base.sol";
+import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
+
+import { PrizePool, ConstructorParams } from "../../../src/PrizePool.sol";
+import { ERC20Mintable } from "../../mocks/ERC20Mintable.sol";
 
 contract PrizePoolFuzzHarness is CommonBase {
   PrizePool public prizePool;

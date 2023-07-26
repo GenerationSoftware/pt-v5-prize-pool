@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { UD60x18 } from "prb-math/UD60x18.sol";

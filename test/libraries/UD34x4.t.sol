@@ -1,10 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
-import { UD60x18, toUD60x18 } from "prb-math/UD60x18.sol";
-import { UD34x4, toUD34x4, fromUD34x4, intoUD60x18, fromUD60x18, uUNIT, PRBMath_UD34x4_Convert_Overflow, PRBMath_UD34x4_fromUD60x18_Convert_Overflow, uMAX_UD34x4 } from "../../src/libraries/UD34x4.sol";
+import { UD60x18, convert } from "prb-math/UD60x18.sol";
+import {
+  UD34x4,
+  toUD34x4,
+  fromUD34x4,
+  intoUD60x18,
+  fromUD60x18,
+  uUNIT,
+  PRBMath_UD34x4_Convert_Overflow,
+  PRBMath_UD34x4_fromUD60x18_Convert_Overflow,
+  uMAX_UD34x4
+} from "../../src/libraries/UD34x4.sol";
 
 contract UD34x4Test is Test {
   function testToUD34x4_withUintMax() public {
@@ -37,7 +47,7 @@ contract UD34x4Test is Test {
   }
 
   function testFromUD60x18_overflow() public {
-    UD60x18 x = toUD60x18(uMAX_UD34x4);
+    UD60x18 x = convert(uMAX_UD34x4);
     vm.expectRevert(
       abi.encodeWithSelector(PRBMath_UD34x4_fromUD60x18_Convert_Overflow.selector, x.unwrap())
     );

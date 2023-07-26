@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
-import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
+import { E, SD59x18, sd, unwrap, convert } from "prb-math/SD59x18.sol";
 
 /// @notice Emitted when adding balance for draw zero.
 error AddToDrawZero();
@@ -378,7 +378,7 @@ library DrawAccumulatorLib {
   /// @param _k The k value to scale the sum (this is the total available balance).
   /// @return The integration from x to inf of the EWA for the given parameters.
   function integrateInf(SD59x18 _alpha, uint _x, uint _k) internal pure returns (uint256) {
-    return uint256(fromSD59x18(computeC(_alpha, _x, _k)));
+    return uint256(convert(computeC(_alpha, _x, _k)));
   }
 
   /// @notice Integrates from the given start x to end x for the exponential weighted average.
@@ -395,7 +395,7 @@ library DrawAccumulatorLib {
   ) internal pure returns (uint256) {
     int start = unwrap(computeC(_alpha, _start, _k));
     int end = unwrap(computeC(_alpha, _end, _k));
-    return uint256(fromSD59x18(sd(start - end)));
+    return uint256(convert(sd(start - end)));
   }
 
   /// @notice Computes the interim value C for the EWA.
@@ -404,7 +404,7 @@ library DrawAccumulatorLib {
   /// @param _k The total available balance
   /// @return The value C
   function computeC(SD59x18 _alpha, uint _x, uint _k) internal pure returns (SD59x18) {
-    return toSD59x18(int(_k)).mul(_alpha.pow(toSD59x18(int256(_x))));
+    return convert(int(_k)).mul(_alpha.pow(convert(int256(_x))));
   }
 
   /// @notice Binary searches an array of draw ids for the given target draw id.

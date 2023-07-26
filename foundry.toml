@@ -2,7 +2,7 @@
 src = 'src'
 out = 'out'
 libs = ['lib']
-solc = "0.8.17"
+solc = "0.8.19"
 gas_limit = "18446744073709551615" # u64::MAX
 gas_reports_ignore = ["ERC20Mintable", "TwabController"]
 block_gas_limit = "18446744073709551615" # u64::MAX

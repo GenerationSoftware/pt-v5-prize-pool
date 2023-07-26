@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
-import { E, SD59x18, sd, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
-import { UD60x18, ud, toUD60x18, fromUD60x18, intoSD59x18 } from "prb-math/UD60x18.sol";
+import { E, SD59x18, sd } from "prb-math/SD59x18.sol";
+import { UD60x18, ud, convert, intoSD59x18 } from "prb-math/UD60x18.sol";
 import { UD2x18, intoUD60x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
 
@@ -411,7 +411,7 @@ contract TieredLiquidityDistributor {
   ) internal view returns (uint16 closedDrawId, uint104 newReserve, UD60x18 newPrizeTokenPerShare) {
     closedDrawId = lastClosedDrawId + 1;
     uint256 totalShares = _getTotalShares(_nextNumberOfTiers);
-    UD60x18 deltaPrizeTokensPerShare = (toUD60x18(_prizeTokenLiquidity).div(toUD60x18(totalShares)))
+    UD60x18 deltaPrizeTokensPerShare = (convert(_prizeTokenLiquidity).div(convert(totalShares)))
       .floor();
 
     newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
@@ -421,11 +421,11 @@ contract TieredLiquidityDistributor {
       _nextNumberOfTiers,
       _currentPrizeTokenPerShare
     );
-    uint computedLiquidity = fromUD60x18(deltaPrizeTokensPerShare.mul(toUD60x18(totalShares)));
+    uint computedLiquidity = convert(deltaPrizeTokensPerShare.mul(convert(totalShares)));
     uint remainder = (_prizeTokenLiquidity - computedLiquidity);
 
     newReserve = uint104(
-      fromUD60x18(deltaPrizeTokensPerShare.mul(toUD60x18(reserveShares))) + // reserve portion
+      convert(deltaPrizeTokensPerShare.mul(convert(reserveShares))) + // reserve portion
         reclaimed + // reclaimed liquidity from tiers
         remainder // remainder
     );
@@ -522,7 +522,7 @@ contract TieredLiquidityDistributor {
   ) internal returns (Tier memory) {
     uint8 _shares = _computeShares(_tier, numberOfTiers);
     uint104 remainingLiquidity = uint104(
-      fromUD60x18(
+      convert(
         _getTierRemainingLiquidity(
           _shares,
           fromUD34x4toUD60x18(_tierStruct.prizeTokenPerShare),
@@ -539,7 +539,7 @@ contract TieredLiquidityDistributor {
       emit ReserveConsumed(excess);
       _tierStruct.prizeTokenPerShare = prizeTokenPerShare;
     } else {
-      UD34x4 delta = fromUD60x18toUD34x4(toUD60x18(_liquidity).div(toUD60x18(_shares)));
+      UD34x4 delta = fromUD60x18toUD34x4(convert(_liquidity).div(convert(_shares)));
       _tierStruct.prizeTokenPerShare = UD34x4.wrap(
         UD34x4.unwrap(_tierStruct.prizeTokenPerShare) + UD34x4.unwrap(delta)
       );
@@ -573,7 +573,7 @@ contract TieredLiquidityDistributor {
         prizeSize = _computePrizeSize(
           _tierPrizeTokenPerShare,
           _prizeTokenPerShare,
-          toUD60x18(TierCalculationLib.prizeCount(_tier)),
+          convert(TierCalculationLib.prizeCount(_tier)),
           tierShares
         );
       }
@@ -594,8 +594,8 @@ contract TieredLiquidityDistributor {
     uint8 _shares
   ) internal pure returns (uint256) {
     return
-      fromUD60x18(
-        _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(toUD60x18(_shares)).div(
+      convert(
+        _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(_shares)).div(
           _fractionalPrizeCount
         )
       );
@@ -637,7 +637,7 @@ contract TieredLiquidityDistributor {
       );
       reclaimedLiquidity = reclaimedLiquidity.add(liq);
     }
-    return fromUD60x18(reclaimedLiquidity);
+    return convert(reclaimedLiquidity);
   }
 
   /// @notice Computes the remaining liquidity available to a tier.
@@ -646,7 +646,7 @@ contract TieredLiquidityDistributor {
   function getTierRemainingLiquidity(uint8 _tier) external view returns (uint256) {
     uint8 _numTiers = numberOfTiers;
     return
-      fromUD60x18(
+      convert(
         _getTierRemainingLiquidity(
           _computeShares(_tier, _numTiers),
           fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare),
@@ -669,7 +669,7 @@ contract TieredLiquidityDistributor {
       return ud(0);
     }
     UD60x18 delta = _prizeTokenPerShare.sub(_tierPrizeTokenPerShare);
-    return delta.mul(toUD60x18(_shares));
+    return delta.mul(convert(_shares));
   }
 
   /// @notice Retrieves the id of the next draw to be closed.
@@ -708,7 +708,7 @@ contract TieredLiquidityDistributor {
   /// @param _numberOfTiers The number of tiers
   /// @return The number of canary prizes
   function _canaryPrizeCount(uint8 _numberOfTiers) internal view returns (uint32) {
-    return uint32(fromUD60x18(_canaryPrizeCountFractional(_numberOfTiers).floor()));
+    return uint32(convert(_canaryPrizeCountFractional(_numberOfTiers).floor()));
   }
 
   /// @notice Computes the number of canary prizes given the number of tiers.

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
-import { TierCalculationLibWrapper } from "test/wrappers/TierCalculationLibWrapper.sol";
-import { SD59x18, sd, unwrap, toSD59x18 } from "prb-math/SD59x18.sol";
+import { TierCalculationLibWrapper } from "../wrappers/TierCalculationLibWrapper.sol";
+import { SD59x18, sd, unwrap, convert } from "prb-math/SD59x18.sol";
 import { UD60x18, ud } from "prb-math/UD60x18.sol";
 
 contract TierCalculationLibTest is Test {
@@ -116,7 +116,7 @@ contract TierCalculationLibTest is Test {
     SD59x18 tierOdds = TierCalculationLib.getTierOdds(tier, numberOfTiers, grandPrizePeriod);
     // console2.log("tierOdds", SD59x18.unwrap(tierOdds));
     uint32 prizeCount = uint32(TierCalculationLib.prizeCount(tier));
-    SD59x18 vaultContribution = toSD59x18(int256(1));
+    SD59x18 vaultContribution = convert(int256(1));
     // console2.log("vaultContribution", SD59x18.unwrap(vaultContribution));
 
     uint wins;
@@ -145,7 +145,7 @@ contract TierCalculationLibTest is Test {
     SD59x18 tierOdds = TierCalculationLib.getTierOdds(tier, numberOfTiers, grandPrizePeriod);
     // console2.log("tierOdds", SD59x18.unwrap(tierOdds));
     uint32 prizeCount = uint32(TierCalculationLib.prizeCount(tier));
-    SD59x18 vaultContribution = toSD59x18(int256(1));
+    SD59x18 vaultContribution = convert(int256(1));
     // console2.log("vaultContribution", SD59x18.unwrap(vaultContribution));
 
     uint wins;

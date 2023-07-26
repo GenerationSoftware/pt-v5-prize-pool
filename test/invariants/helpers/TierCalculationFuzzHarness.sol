@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/console2.sol";
 
 import { TierCalculationLib } from "../../../src/libraries/TierCalculationLib.sol";
-import { SD59x18, unwrap, toSD59x18, fromSD59x18 } from "prb-math/SD59x18.sol";
+import { SD59x18, unwrap, convert } from "prb-math/SD59x18.sol";
 import { CommonBase } from "forge-std/Base.sol";
 
 contract TierCalculationFuzzHarness is CommonBase {
   uint8 public immutable grandPrizePeriod = 10;
   uint128 immutable eachUserBalance = 100e18;
-  SD59x18 immutable vaultPortion = toSD59x18(1);
+  SD59x18 immutable vaultPortion = convert(1);
   uint8 immutable _userCount = 20;
   uint8 public immutable numberOfTiers = 5;
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
-import { E, SD59x18, sd, unwrap, toSD59x18, fromSD59x18, ceil } from "prb-math/SD59x18.sol";
-import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
+import { E, SD59x18, sd, unwrap, convert, ceil } from "prb-math/SD59x18.sol";
+import { UD60x18, convert as convertUD60x18 } from "prb-math/UD60x18.sol";
 
 /// @title Tier Calculation Library
 /// @author PoolTogether Inc. Team
@@ -30,7 +30,7 @@ library TierCalculationLib {
   /// @param _tierOdds The odds for the tier to calculate the frequency of
   /// @return The estimated number of draws between the tier occurring
   function estimatePrizeFrequencyInDraws(SD59x18 _tierOdds) internal pure returns (uint256) {
-    return uint256(fromSD59x18(sd(1e18).div(_tierOdds).ceil()));
+    return uint256(convert(sd(1e18).div(_tierOdds).ceil()));
   }
 
   /// @notice Computes the number of prizes for a given tier.
@@ -59,8 +59,8 @@ library TierCalculationLib {
       ((_numberOfTiers + 1) * uint256(_tierShares) + _canaryShares + _reserveShares);
     uint256 denominator = uint256(_tierShares) *
       ((_numberOfTiers) * uint256(_tierShares) + _canaryShares + _reserveShares);
-    UD60x18 multiplier = toUD60x18(numerator).div(toUD60x18(denominator));
-    return multiplier.mul(toUD60x18(prizeCount(_numberOfTiers)));
+    UD60x18 multiplier = convertUD60x18(numerator).div(convertUD60x18(denominator));
+    return multiplier.mul(convertUD60x18(prizeCount(_numberOfTiers)));
   }
 
   /// @notice Determines if a user won a prize tier.
@@ -122,7 +122,7 @@ library TierCalculationLib {
   ) internal pure returns (uint256) {
     return
       uint256(
-        fromSD59x18(toSD59x18(int256(_userTwab)).mul(_tierOdds).mul(_vaultContributionFraction))
+        convert(convert(int256(_userTwab)).mul(_tierOdds).mul(_vaultContributionFraction))
       );
   }
 

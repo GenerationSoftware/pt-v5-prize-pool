@@ -7,7 +7,7 @@
 	url = https://github.com/openzeppelin/openzeppelin-contracts
 	branch = release-v4.9
 [submodule "lib/prb-math"]
-	branch = v3
+	branch = v4
 	path = lib/prb-math
 	url = https://github.com/PaulRBerg/prb-math
 [submodule "lib/owner-manager-contracts"]

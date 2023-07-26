@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
-import { TieredLiquidityDistributorWrapper } from "test/abstract/helper/TieredLiquidityDistributorWrapper.sol";
-import { UD60x18, NumberOfTiersLessThanMinimum, NumberOfTiersGreaterThanMaximum, InsufficientLiquidity, fromUD34x4toUD60x18, toUD60x18, fromUD60x18, SD59x18, fromSD59x18 } from "../../src/abstract/TieredLiquidityDistributor.sol";
+import { TieredLiquidityDistributorWrapper } from "./helper/TieredLiquidityDistributorWrapper.sol";
+import { UD60x18,
+  NumberOfTiersLessThanMinimum,
+  NumberOfTiersGreaterThanMaximum,
+  InsufficientLiquidity,
+  fromUD34x4toUD60x18,
+  convert,
+  SD59x18
+} from "../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorTest is Test {
   TieredLiquidityDistributorWrapper public distributor;
@@ -157,8 +164,8 @@ contract TieredLiquidityDistributorTest is Test {
     distributor.nextDraw(15, amount);
 
     UD60x18 prizeTokenPerShare = fromUD34x4toUD60x18(distributor.prizeTokenPerShare());
-    uint256 total = fromUD60x18(
-      prizeTokenPerShare.mul(toUD60x18(distributor.getTotalShares() - distributor.reserveShares()))
+    uint256 total = convert(
+      prizeTokenPerShare.mul(convert(distributor.getTotalShares() - distributor.reserveShares()))
     ) + distributor.reserve();
     assertEq(total, amount, "prize token per share against total shares");
 
