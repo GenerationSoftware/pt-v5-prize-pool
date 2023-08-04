@@ -144,6 +144,11 @@ contract PrizePoolTest is Test {
     prizePool = new PrizePool(params);
   }
 
+  function testConstructor() public {
+    assertEq(prizePool.firstDrawStartsAt(), lastClosedDrawStartedAt);
+    assertEq(prizePool.drawPeriodSeconds(), drawPeriodSeconds);
+  }
+
   function testConstructor_SmoothingGTEOne() public {
     params.smoothing = sd1x18(1.0e18); // smoothing
     vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
