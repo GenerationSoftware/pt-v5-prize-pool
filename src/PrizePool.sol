@@ -227,6 +227,8 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Percentage of prizes that must be claimed to bump the number of tiers.
   UD2x18 public immutable claimExpansionThreshold;
 
+  uint64 public immutable firstDrawStartsAt;
+
   /// @notice The exponential weighted average of all vault contributions.
   DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
@@ -274,6 +276,7 @@ contract PrizePool is TieredLiquidityDistributor {
     claimExpansionThreshold = params.claimExpansionThreshold;
     drawPeriodSeconds = params.drawPeriodSeconds;
     _lastClosedDrawStartedAt = params.firstDrawStartsAt;
+    firstDrawStartsAt = params.firstDrawStartsAt;
 
     drawManager = params.drawManager;
     if (params.drawManager != address(0)) {
