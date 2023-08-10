@@ -134,7 +134,7 @@ contract PrizePool is TieredLiquidityDistributor {
     address indexed vault,
     address indexed winner,
     address indexed recipient,
-    uint16 drawId,
+    uint24 drawId,
     uint8 tier,
     uint32 prizeIndex,
     uint152 payout,
@@ -151,7 +151,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
   /// @param drawStartedAt The start timestamp of the draw
   event DrawClosed(
-    uint16 indexed drawId,
+    uint24 indexed drawId,
     uint256 winningRandomNumber,
     uint8 numTiers,
     uint8 nextNumTiers,
@@ -174,7 +174,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param vault The address of the vault that is contributing tokens
   /// @param drawId The ID of the first draw that the tokens will be applied to
   /// @param amount The amount of tokens contributed
-  event ContributePrizeTokens(address indexed vault, uint16 indexed drawId, uint256 amount);
+  event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
 
   /// @notice Emitted when an address withdraws their prize claim rewards.
   /// @param to The address the rewards are sent to
@@ -198,7 +198,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /// @notice Records the claim record for a winner.
   /// @dev vault => account => drawId => tier => prizeIndex => claimed
-  mapping(address => mapping(address => mapping(uint16 => mapping(uint8 => mapping(uint32 => bool)))))
+  mapping(address => mapping(address => mapping(uint24 => mapping(uint8 => mapping(uint32 => bool)))))
     internal claimedPrizes;
 
   /// @notice Tracks the total fees accrued to each claimer.
@@ -322,7 +322,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Allows the Manager to withdraw tokens from the reserve.
   /// @param _to The address to send the tokens to
   /// @param _amount The amount of tokens to withdraw
-  function withdrawReserve(address _to, uint104 _amount) external onlyDrawManager {
+  function withdrawReserve(address _to, uint96 _amount) external onlyDrawManager {
     if (_amount > _reserve) {
       revert InsufficientReserve(_amount, _reserve);
     }
@@ -335,7 +335,7 @@ contract PrizePool is TieredLiquidityDistributor {
   ///         Updates the number of tiers, the winning random number and the prize pool reserve.
   /// @param winningRandomNumber_ The winning random number for the current draw
   /// @return The ID of the closed draw
-  function closeDraw(uint256 winningRandomNumber_) external onlyDrawManager returns (uint16) {
+  function closeDraw(uint256 winningRandomNumber_) external onlyDrawManager returns (uint24) {
     // check winning random number
     if (winningRandomNumber_ == 0) {
       revert RandomNumberIsZero();
@@ -353,7 +353,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
     uint64 openDrawStartedAt_ = _openDrawStartedAt();
 
-    _nextDraw(_nextNumberOfTiers, SafeCast.toUint96(_contributionsForDraw(lastClosedDrawId + 1)));
+    _nextDraw(_nextNumberOfTiers, _contributionsForDraw(lastClosedDrawId + 1));
 
     _winningRandomNumber = winningRandomNumber_;
     claimCount = 0;
@@ -406,7 +406,7 @@ contract PrizePool is TieredLiquidityDistributor {
       revert FeeTooLarge(_fee, tierLiquidity.prizeSize);
     }
 
-    (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint16 _drawDuration) = _computeVaultTierDetails(
+    (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint24 _drawDuration) = _computeVaultTierDetails(
       msg.sender,
       _tier,
       numberOfTiers,
@@ -477,7 +477,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Allows anyone to deposit directly into the Prize Pool reserve.
   /// @dev Ensure caller has sufficient balance and has approved the Prize Pool to transfer the tokens
   /// @param _amount The amount of tokens to increase the reserve by
-  function contributeReserve(uint104 _amount) external {
+  function contributeReserve(uint96 _amount) external {
     _reserve += _amount;
     directlyContributedReserve += _amount;
     prizeToken.safeTransferFrom(msg.sender, address(this), _amount);
@@ -598,7 +598,7 @@ contract PrizePool is TieredLiquidityDistributor {
     (, uint104 newReserve, ) = _computeNewDistributions(
       _numTiers,
       _nextNumberOfTiers,
-      SafeCast.toUint96(_contributionsForDraw(lastClosedDrawId + 1))
+      _contributionsForDraw(lastClosedDrawId + 1)
     );
 
     return newReserve;
@@ -646,7 +646,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint8 _tier,
     uint32 _prizeIndex
   ) external view returns (bool) {
-    (SD59x18 vaultPortion, SD59x18 tierOdds, uint16 drawDuration) = _computeVaultTierDetails(
+    (SD59x18 vaultPortion, SD59x18 tierOdds, uint24 drawDuration) = _computeVaultTierDetails(
       _vault,
       _tier,
       numberOfTiers,
@@ -705,8 +705,8 @@ contract PrizePool is TieredLiquidityDistributor {
    */
   function getVaultPortion(
     address _vault,
-    uint16 _startDrawId,
-    uint16 _endDrawId
+    uint24 _startDrawId,
+    uint24 _endDrawId
   ) external view returns (SD59x18) {
     return _getVaultPortion(_vault, _startDrawId, _endDrawId, smoothing.intoSD59x18());
   }
@@ -780,7 +780,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Computes the tokens to be disbursed from the accumulator for a given draw.
   /// @param _drawId The ID of the draw to compute the disbursement for.
   /// @return The amount of tokens contributed to the accumulator for the given draw.
-  function _contributionsForDraw(uint16 _drawId) internal view returns (uint256) {
+  function _contributionsForDraw(uint24 _drawId) internal view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
         totalAccumulator,
@@ -814,7 +814,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint32 _prizeIndex,
     SD59x18 _vaultPortion,
     SD59x18 _tierOdds,
-    uint16 _drawDuration
+    uint24 _drawDuration
   ) internal view returns (bool) {
     uint32 tierPrizeCount = uint32(TierCalculationLib.prizeCount(_tier));
 
@@ -858,18 +858,18 @@ contract PrizePool is TieredLiquidityDistributor {
     address _vault,
     uint8 _tier,
     uint8 _numberOfTiers,
-    uint16 _lastClosedDrawId
-  ) internal view returns (SD59x18 vaultPortion, SD59x18 tierOdds, uint16 drawDuration) {
+    uint24 _lastClosedDrawId
+  ) internal view returns (SD59x18 vaultPortion, SD59x18 tierOdds, uint24 drawDuration) {
     if (_lastClosedDrawId == 0) {
       revert NoClosedDraw();
     }
     _checkValidTier(_tier, _numberOfTiers);
 
     tierOdds = _tierOdds(_tier, numberOfTiers);
-    drawDuration = uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
+    drawDuration = uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
     vaultPortion = _getVaultPortion(
       _vault,
-      uint16(drawDuration > _lastClosedDrawId ? 0 : _lastClosedDrawId - drawDuration + 1),
+      SafeCast.toUint24(drawDuration > _lastClosedDrawId ? 0 : _lastClosedDrawId - drawDuration + 1),
       _lastClosedDrawId,
       smoothing.intoSD59x18()
     );
@@ -911,8 +911,8 @@ contract PrizePool is TieredLiquidityDistributor {
    */
   function _getVaultPortion(
     address _vault,
-    uint16 _startDrawId,
-    uint16 _endDrawId,
+    uint24 _startDrawId,
+    uint24 _endDrawId,
     SD59x18 _smoothing
   ) internal view returns (SD59x18) {
     uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(

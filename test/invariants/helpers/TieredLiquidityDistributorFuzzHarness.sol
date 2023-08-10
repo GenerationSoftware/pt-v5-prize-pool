@@ -16,7 +16,7 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
 
   constructor() TieredLiquidityDistributor(3, 100, 10) {}
 
-  function nextDraw(uint8 _nextNumTiers, uint96 liquidity) external {
+  function nextDraw(uint8 _nextNumTiers, uint256 liquidity) external {
     uint8 nextNumTiers = _nextNumTiers / 16; // map to [0, 15]
     nextNumTiers = nextNumTiers < 3 ? 3 : nextNumTiers; // ensure min tiers
     totalAdded += liquidity;
@@ -51,7 +51,7 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
 
     Tier memory tier_ = _getTier(tier, numberOfTiers);
     uint8 shares = tierShares;
-    uint112 liq = uint112(
+    uint104 liq = uint104(
       convert(
         _getTierRemainingLiquidity(
           shares,
@@ -67,6 +67,6 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
     }
 
     totalConsumed += liq;
-    tier_ = _consumeLiquidity(tier_, tier, uint104(liq));
+    tier_ = _consumeLiquidity(tier_, tier, liq);
   }
 }

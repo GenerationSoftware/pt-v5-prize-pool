@@ -238,9 +238,9 @@ contract DrawAccumulatorLibTest is Test {
     fillDrawRingBuffer([1, 3, 0, 0, 0]);
     (
       uint16 beforeOrAtIndex,
-      uint16 beforeOrAtDrawId,
+      uint24 beforeOrAtDrawId,
       uint16 afterOrAtIndex,
-      uint16 afterOrAtDrawId
+      uint24 afterOrAtDrawId
     ) = wrapper.binarySearch(0, 2, 2, 1);
     assertEq(beforeOrAtIndex, 0);
     assertEq(beforeOrAtDrawId, 1);
@@ -252,9 +252,9 @@ contract DrawAccumulatorLibTest is Test {
     fillDrawRingBuffer([1, 2, 3, 4, 5]);
     (
       uint16 beforeOrAtIndex,
-      uint16 beforeOrAtDrawId,
+      uint24 beforeOrAtDrawId,
       uint16 afterOrAtIndex,
-      uint16 afterOrAtDrawId
+      uint24 afterOrAtDrawId
     ) = wrapper.binarySearch(0, 4, 5, 3);
     assertEq(beforeOrAtIndex, 2);
     assertEq(beforeOrAtDrawId, 3);
@@ -266,9 +266,9 @@ contract DrawAccumulatorLibTest is Test {
     fillDrawRingBuffer([1, 2, 3, 4, 5]);
     (
       uint16 beforeOrAtIndex,
-      uint16 beforeOrAtDrawId,
+      uint24 beforeOrAtDrawId,
       uint16 afterOrAtIndex,
-      uint16 afterOrAtDrawId
+      uint24 afterOrAtDrawId
     ) = wrapper.binarySearch(0, 4, 5, 1);
     assertEq(beforeOrAtIndex, 0);
     assertEq(beforeOrAtDrawId, 1);
@@ -280,9 +280,9 @@ contract DrawAccumulatorLibTest is Test {
     fillDrawRingBuffer([1, 2, 3, 4, 5]);
     (
       uint16 beforeOrAtIndex,
-      uint16 beforeOrAtDrawId,
+      uint24 beforeOrAtDrawId,
       uint16 afterOrAtIndex,
-      uint16 afterOrAtDrawId
+      uint24 afterOrAtDrawId
     ) = wrapper.binarySearch(0, 4, 5, 5);
     assertEq(beforeOrAtIndex, 3);
     assertEq(beforeOrAtDrawId, 4);
@@ -294,9 +294,9 @@ contract DrawAccumulatorLibTest is Test {
     fillDrawRingBuffer([2, 4, 5, 6, 7]);
     (
       uint16 beforeOrAtIndex,
-      uint16 beforeOrAtDrawId,
+      uint24 beforeOrAtDrawId,
       uint16 afterOrAtIndex,
-      uint16 afterOrAtDrawId
+      uint24 afterOrAtDrawId
     ) = wrapper.binarySearch(0, 4, 5, 3);
     assertEq(beforeOrAtIndex, 0);
     assertEq(beforeOrAtDrawId, 2);

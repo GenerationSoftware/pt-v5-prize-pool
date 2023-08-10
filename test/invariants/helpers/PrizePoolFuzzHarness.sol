@@ -56,7 +56,7 @@ contract PrizePoolFuzzHarness is CommonBase {
   function withdrawReserve(uint64 amount) public {
     withdrawn += amount;
     vm.assume(amount <= prizePool.reserve());
-    prizePool.withdrawReserve(address(msg.sender), uint104(amount));
+    prizePool.withdrawReserve(address(msg.sender), amount);
   }
 
   function claimPrizes() public {
