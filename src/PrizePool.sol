@@ -906,7 +906,7 @@ contract PrizePool is TieredLiquidityDistributor {
     vaultPortion = _getVaultPortion(
       _vault,
       uint16(drawDuration > _lastClosedDrawId ? 0 : _lastClosedDrawId - drawDuration + 1),
-      _lastClosedDrawId + 1,
+      _lastClosedDrawId,
       smoothing.intoSD59x18()
     );
   }
