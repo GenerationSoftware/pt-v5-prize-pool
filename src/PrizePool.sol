@@ -859,6 +859,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     uint256 userSpecificRandomNumber = TierCalculationLib.calculatePseudoRandomNumber(
+      _vault,
       _user,
       _tier,
       _prizeIndex,
