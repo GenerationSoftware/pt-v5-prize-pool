@@ -859,9 +859,17 @@ contract PrizePoolTest is Test {
     prizePool = new PrizePool(params);
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    mockTwab(address(this), sender1, 14);
-    claimPrize(sender1, 14, 0);
+    mockTwab(address(this), sender1, 13); // claim the largest non-canary prize
+    claimPrize(sender1, 13, 0);
     assertEq(prizePool.nextNumberOfTiers(), 15);
+  }
+
+  function testNextNumberOfTiers_oneCanaryClaimDoesNotAffectNum() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    mockTwab(address(this), sender1, 2);
+    claimPrize(sender1, 2, 0);
+    assertEq(prizePool.nextNumberOfTiers(), 3);
   }
 
   function testClaimPrize_secondTier_claimTwice() public {

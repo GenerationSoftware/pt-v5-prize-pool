@@ -443,11 +443,10 @@ contract PrizePool is TieredLiquidityDistributor {
     if (_isCanaryTier(_tier, numberOfTiers)) {
       canaryClaimCount++;
     } else {
+      if (largestTierClaimed < _tier) {
+        largestTierClaimed = _tier;
+      }
       claimCount++;
-    }
-
-    if (largestTierClaimed < _tier) {
-      largestTierClaimed = _tier;
     }
 
     // `amount` is a snapshot of the reserve before consuming liquidity
