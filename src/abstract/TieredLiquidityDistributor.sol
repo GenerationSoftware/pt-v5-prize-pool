@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.19;
 
+import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { E, SD59x18, sd } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, convert, intoSD59x18 } from "prb-math/UD60x18.sol";
 import { UD2x18, intoUD60x18 } from "prb-math/UD2x18.sol";
@@ -362,9 +363,7 @@ contract TieredLiquidityDistributor {
       _tiers[i] = Tier({
         drawId: closedDrawId,
         prizeTokenPerShare: prizeTokenPerShare,
-        prizeSize: uint96(
-          _computePrizeSize(i, _nextNumberOfTiers, _prizeTokenPerShare, newPrizeTokenPerShare)
-        )
+        prizeSize: _computePrizeSize(i, _nextNumberOfTiers, _prizeTokenPerShare, newPrizeTokenPerShare)
       });
     }
 
@@ -473,13 +472,11 @@ contract TieredLiquidityDistributor {
     uint16 _lastClosedDrawId = lastClosedDrawId;
     if (tier.drawId != _lastClosedDrawId) {
       tier.drawId = _lastClosedDrawId;
-      tier.prizeSize = uint96(
-        _computePrizeSize(
-          _tier,
-          _numberOfTiers,
-          fromUD34x4toUD60x18(tier.prizeTokenPerShare),
-          fromUD34x4toUD60x18(prizeTokenPerShare)
-        )
+      tier.prizeSize = _computePrizeSize(
+        _tier,
+        _numberOfTiers,
+        fromUD34x4toUD60x18(tier.prizeTokenPerShare),
+        fromUD34x4toUD60x18(prizeTokenPerShare)
       );
     }
     return tier;
@@ -559,7 +556,7 @@ contract TieredLiquidityDistributor {
     uint8 _numberOfTiers,
     UD60x18 _tierPrizeTokenPerShare,
     UD60x18 _prizeTokenPerShare
-  ) internal view returns (uint256) {
+  ) internal view returns (uint96) {
     uint256 prizeSize;
     if (_prizeTokenPerShare.gt(_tierPrizeTokenPerShare)) {
       if (_isCanaryTier(_tier, _numberOfTiers)) {
@@ -578,7 +575,11 @@ contract TieredLiquidityDistributor {
         );
       }
     }
-    return prizeSize;
+    if (prizeSize > type(uint96).max) {
+      return type(uint96).max;
+    } else {
+      return uint96(prizeSize);
+    }
   }
 
   /// @notice Computes the prize size with the given parameters.

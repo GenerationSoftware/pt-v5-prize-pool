@@ -115,6 +115,14 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierPrizeSize(0), 100e18);
   }
 
+  function testGetTierPrizeSize_overflow() public {
+    distributor.nextDraw(3, type(uint96).max);
+    distributor.nextDraw(4, type(uint96).max);
+    distributor.nextDraw(5, type(uint96).max);
+
+    assertEq(distributor.getTierPrizeSize(0), type(uint96).max);
+  }
+
   function testGetRemainingTierLiquidity() public {
     distributor.nextDraw(3, 220e18);
     assertEq(distributor.getTierRemainingLiquidity(0), 100e18);
@@ -203,6 +211,8 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierPrizeCount(1, 3), 4);
     assertEq(distributor.getTierPrizeCount(2, 3), 2); // canary tier
   }
+
+
 
   function testTierOdds_zero_when_outside_bounds() public {
     SD59x18 odds;
