@@ -72,8 +72,8 @@ library TierCalculationLib {
   /// @return True if the user won the tier, false otherwise
   function isWinner(
     uint256 _userSpecificRandomNumber,
-    uint128 _userTwab,
-    uint128 _vaultTwabTotalSupply,
+    uint256 _userTwab,
+    uint256 _vaultTwabTotalSupply,
     SD59x18 _vaultContributionFraction,
     SD59x18 _tierOdds
   ) internal pure returns (bool) {
