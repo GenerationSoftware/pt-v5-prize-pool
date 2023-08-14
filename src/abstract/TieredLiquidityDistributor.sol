@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
 import { E, SD59x18, sd } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, convert, intoSD59x18 } from "prb-math/UD60x18.sol";
 import { UD2x18, intoUD60x18 } from "prb-math/UD2x18.sol";
@@ -321,19 +319,12 @@ contract TieredLiquidityDistributor {
       _currentPrizeTokenPerShare
     );
 
-    // console2.log("_computeNewDistributions reclaimedLiquidity", reclaimedLiquidity);
-    // console2.log("_computeNewDistributions _prizeTokenLiquidity", _prizeTokenLiquidity);
-
     uint totalNewLiquidity = _prizeTokenLiquidity + reclaimedLiquidity;
-    // console2.log("totalNewLiquidity", totalNewLiquidity);
     uint256 nextTotalShares = _getTotalShares(_nextNumberOfTiers);
     UD60x18 deltaPrizeTokensPerShare = (convert(totalNewLiquidity).div(convert(nextTotalShares))).floor();
     uint roundedNewLiquidity = convert(deltaPrizeTokensPerShare.mul(convert(nextTotalShares)));
-    // console2.log("roundedNewLiquidity", roundedNewLiquidity);
     uint newLiquidityRemainder = (totalNewLiquidity - roundedNewLiquidity);
-    // console2.log("newLiquidityRemainder", newLiquidityRemainder);
     
-
     newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
 
     newReserve = uint104(

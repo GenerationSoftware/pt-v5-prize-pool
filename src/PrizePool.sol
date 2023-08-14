@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { E, SD59x18, sd } from "prb-math/SD59x18.sol";
@@ -401,7 +399,6 @@ contract PrizePool is TieredLiquidityDistributor {
     Tier memory tierLiquidity = _getTier(_tier, numberOfTiers);
 
     if (_fee > tierLiquidity.prizeSize) {
-      console2.log("max fee: ", tierLiquidity.prizeSize);
       revert FeeTooLarge(_fee, tierLiquidity.prizeSize);
     }
 
