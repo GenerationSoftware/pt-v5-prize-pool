@@ -97,9 +97,7 @@ error CallerNotDrawManager(address caller, address drawManager);
  * @param firstDrawStartsAt The timestamp at which the first draw will start.
  * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
  * @param tierShares The number of shares to allocate to each tier
- * @param canaryShares The number of shares to allocate to the canary tier.
  * @param reserveShares The number of shares to allocate to the reserve.
- * @param claimExpansionThreshold The percentage of prizes that must be claimed to bump the number of tiers. This threshold is used for both standard prizes and canary prizes.
  * @param smoothing The amount of smoothing to apply to vault contributions. Must be less than 1. A value of 0 is no smoothing, while greater values smooth until approaching infinity
  */
 struct ConstructorParams {
@@ -110,9 +108,7 @@ struct ConstructorParams {
   uint64 firstDrawStartsAt;
   uint8 numberOfTiers;
   uint8 tierShares;
-  uint8 canaryShares;
   uint8 reserveShares;
-  UD2x18 claimExpansionThreshold;
   SD1x18 smoothing;
 }
 
@@ -224,9 +220,6 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice The number of seconds between draws.
   uint32 public immutable drawPeriodSeconds;
 
-  /// @notice Percentage of prizes that must be claimed to bump the number of tiers.
-  UD2x18 public immutable claimExpansionThreshold;
-
   uint64 public immutable firstDrawStartsAt;
 
   /// @notice The exponential weighted average of all vault contributions.
@@ -240,12 +233,6 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /// @notice The number of prize claims for the last closed draw.
   uint32 public claimCount;
-
-  /// @notice The number of canary prize claims for the last closed draw.
-  uint32 public canaryClaimCount;
-
-  /// @notice The largest tier claimed so far for the last closed draw.
-  uint8 public largestTierClaimed;
 
   /// @notice The timestamp at which the last closed draw started.
   uint64 internal _lastClosedDrawStartedAt;
@@ -263,7 +250,6 @@ contract PrizePool is TieredLiquidityDistributor {
     TieredLiquidityDistributor(
       params.numberOfTiers,
       params.tierShares,
-      params.canaryShares,
       params.reserveShares
     )
   {
@@ -273,7 +259,6 @@ contract PrizePool is TieredLiquidityDistributor {
     prizeToken = params.prizeToken;
     twabController = params.twabController;
     smoothing = params.smoothing;
-    claimExpansionThreshold = params.claimExpansionThreshold;
     drawPeriodSeconds = params.drawPeriodSeconds;
     _lastClosedDrawStartedAt = params.firstDrawStartsAt;
     firstDrawStartsAt = params.firstDrawStartsAt;
@@ -361,7 +346,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint8 _nextNumberOfTiers = _numTiers;
 
     if (lastClosedDrawId != 0) {
-      _nextNumberOfTiers = _computeNextNumberOfTiers(_numTiers);
+      _nextNumberOfTiers = _computeNextNumberOfTiers(claimCount);
     }
 
     uint64 openDrawStartedAt_ = _openDrawStartedAt();
@@ -370,8 +355,6 @@ contract PrizePool is TieredLiquidityDistributor {
 
     _winningRandomNumber = winningRandomNumber_;
     claimCount = 0;
-    canaryClaimCount = 0;
-    largestTierClaimed = 0;
     _lastClosedDrawStartedAt = openDrawStartedAt_;
     _lastClosedDrawAwardedAt = uint64(block.timestamp);
 
@@ -418,6 +401,7 @@ contract PrizePool is TieredLiquidityDistributor {
     Tier memory tierLiquidity = _getTier(_tier, numberOfTiers);
 
     if (_fee > tierLiquidity.prizeSize) {
+      console2.log("max fee: ", tierLiquidity.prizeSize);
       revert FeeTooLarge(_fee, tierLiquidity.prizeSize);
     }
 
@@ -440,15 +424,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
     claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex] = true;
 
-    if (_isCanaryTier(_tier, numberOfTiers)) {
-      canaryClaimCount++;
-    } else {
-      claimCount++;
-    }
-
-    if (largestTierClaimed < _tier) {
-      largestTierClaimed = _tier;
-    }
+    claimCount++;
 
     // `amount` is a snapshot of the reserve before consuming liquidity
     _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize);
@@ -612,7 +588,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint8 _nextNumberOfTiers = _numTiers;
 
     if (lastClosedDrawId != 0) {
-      _nextNumberOfTiers = _computeNextNumberOfTiers(_numTiers);
+      _nextNumberOfTiers = _computeNextNumberOfTiers(claimCount);
     }
 
     (, uint104 newReserve, ) = _computeNewDistributions(
@@ -735,8 +711,8 @@ contract PrizePool is TieredLiquidityDistributor {
    * @notice Computes and returns the next number of tiers based on the current prize claim counts. This number may change throughout the draw
    * @return The next number of tiers
    */
-  function nextNumberOfTiers() external view returns (uint8) {
-    return _computeNextNumberOfTiers(numberOfTiers);
+  function estimateNextNumberOfTiers() external view returns (uint8) {
+    return _computeNextNumberOfTiers(claimCount);
   }
 
   /* ============ Internal Functions ============ */
@@ -779,37 +755,13 @@ contract PrizePool is TieredLiquidityDistributor {
   }
 
   /// @notice Calculates the number of tiers for the next draw
-  /// @param _numTiers The current number of tiers
   /// @return The number of tiers for the next draw
-  function _computeNextNumberOfTiers(uint8 _numTiers) internal view returns (uint8) {
-    UD2x18 _claimExpansionThreshold = claimExpansionThreshold;
+  function _computeNextNumberOfTiers(uint32 _claimCount) internal view returns (uint8) {
+    return _findHighestNumberOfTiersWithEstimatedPrizesLt(_claimCount*2);
+  }
 
-    uint8 _nextNumberOfTiers = largestTierClaimed + 2; // canary tier, then length
-    _nextNumberOfTiers = _nextNumberOfTiers > MINIMUM_NUMBER_OF_TIERS
-      ? _nextNumberOfTiers
-      : MINIMUM_NUMBER_OF_TIERS;
-
-    if (_nextNumberOfTiers >= MAXIMUM_NUMBER_OF_TIERS) {
-      return MAXIMUM_NUMBER_OF_TIERS;
-    }
-
-    // check to see if we need to expand the number of tiers
-    if (
-      _nextNumberOfTiers >= _numTiers &&
-      canaryClaimCount >=
-      convert(
-        intoUD60x18(_claimExpansionThreshold).mul(_canaryPrizeCountFractional(_numTiers).floor())
-      ) &&
-      claimCount >=
-      convert(
-        intoUD60x18(_claimExpansionThreshold).mul(convert(_estimatedPrizeCount(_numTiers)))
-      )
-    ) {
-      // increase the number of tiers to include a new tier
-      _nextNumberOfTiers = _numTiers + 1;
-    }
-
-    return _nextNumberOfTiers;
+  function computeNextNumberOfTiers(uint32 _claimCount) external view returns (uint8) {
+    return _computeNextNumberOfTiers(_claimCount);
   }
 
   /// @notice Computes the tokens to be disbursed from the accumulator for a given draw.
@@ -851,8 +803,7 @@ contract PrizePool is TieredLiquidityDistributor {
     SD59x18 _tierOdds,
     uint16 _drawDuration
   ) internal view returns (bool) {
-    uint8 _numberOfTiers = numberOfTiers;
-    uint32 tierPrizeCount = _getTierPrizeCount(_tier, _numberOfTiers);
+    uint32 tierPrizeCount = uint32(TierCalculationLib.prizeCount(_tier));
 
     if (_prizeIndex >= tierPrizeCount) {
       revert InvalidPrizeIndex(_prizeIndex, tierPrizeCount, _tier);

@@ -25,9 +25,7 @@ contract PrizePoolFuzzHarness is CommonBase {
     uint64 nextDrawStartsAt = uint64(block.timestamp);
     uint8 numberOfTiers = 3;
     uint8 tierShares = 100;
-    uint8 canaryShares = 10;
     uint8 reserveShares = 10;
-    UD2x18 claimExpansionThreshold = UD2x18.wrap(0.9e18);
     SD1x18 smoothing = SD1x18.wrap(0.9e18);
 
     token = new ERC20Mintable("name", "SYMBOL");
@@ -43,9 +41,7 @@ contract PrizePoolFuzzHarness is CommonBase {
       nextDrawStartsAt,
       numberOfTiers,
       tierShares,
-      canaryShares,
       reserveShares,
-      claimExpansionThreshold,
       smoothing
     );
     prizePool = new PrizePool(params);

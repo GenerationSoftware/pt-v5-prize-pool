@@ -9,9 +9,8 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   constructor(
     uint8 _numberOfTiers,
     uint8 _tierShares,
-    uint8 _canaryShares,
     uint8 _reserveShares
-  ) TieredLiquidityDistributor(_numberOfTiers, _tierShares, _canaryShares, _reserveShares) {}
+  ) TieredLiquidityDistributor(_numberOfTiers, _tierShares, _reserveShares) {}
 
   function nextDraw(uint8 _nextNumTiers, uint96 liquidity) external {
     _nextDraw(_nextNumTiers, liquidity);
@@ -23,7 +22,7 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   }
 
   function remainingTierLiquidity(uint8 _tier) external view returns (uint112) {
-    uint8 shares = _computeShares(_tier, numberOfTiers);
+    uint8 shares = tierShares;
     Tier memory tier = _getTier(_tier, numberOfTiers);
     return
       uint112(
@@ -35,6 +34,11 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
           )
         )
       );
+  }
+
+  function findHighestNumberOfTiersWithEstimatedPrizesLt(uint32 _prizeCount) external view returns (uint8) {
+    uint8 result = _findHighestNumberOfTiersWithEstimatedPrizesLt(_prizeCount);
+    return result;
   }
 
   function getTierLiquidityToReclaim(uint8 _nextNumberOfTiers) external view returns (uint256) {
