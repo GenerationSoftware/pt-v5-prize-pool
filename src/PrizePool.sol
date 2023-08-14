@@ -223,14 +223,14 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice The exponential weighted average of all vault contributions.
   DrawAccumulatorLib.Accumulator internal totalAccumulator;
 
-  /// @notice The total amount of prize tokens that have been claimed for all time.
-  uint256 internal _totalWithdrawn;
-
   /// @notice The winner random number for the last closed draw.
   uint256 internal _winningRandomNumber;
 
   /// @notice The number of prize claims for the last closed draw.
   uint32 public claimCount;
+
+  /// @notice The total amount of prize tokens that have been claimed for all time.
+  uint168 internal _totalWithdrawn;
 
   /// @notice The timestamp at which the last closed draw started.
   uint64 internal _lastClosedDrawStartedAt;
@@ -421,8 +421,6 @@ contract PrizePool is TieredLiquidityDistributor {
 
     claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex] = true;
 
-    claimCount++;
-
     // `amount` is a snapshot of the reserve before consuming liquidity
     _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize);
 
@@ -433,6 +431,10 @@ contract PrizePool is TieredLiquidityDistributor {
 
     // `amount` is now the payout amount
     uint256 amount = tierLiquidity.prizeSize - _fee;
+
+    // co-locate to save gas
+    claimCount++;
+    _totalWithdrawn = uint168(_totalWithdrawn + amount);
 
     emit ClaimedPrize(
       msg.sender,
@@ -446,7 +448,7 @@ contract PrizePool is TieredLiquidityDistributor {
       _feeRecipient
     );
 
-    _transfer(_prizeRecipient, amount);
+    prizeToken.safeTransfer(_prizeRecipient, amount);
 
     return tierLiquidity.prizeSize;
   }
@@ -753,11 +755,11 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /// @notice Calculates the number of tiers for the next draw
   /// @return The number of tiers for the next draw
-  function _computeNextNumberOfTiers(uint32 _claimCount) internal view returns (uint8) {
+  function _computeNextNumberOfTiers(uint32 _claimCount) internal pure returns (uint8) {
     return _findHighestNumberOfTiersWithEstimatedPrizesLt(_claimCount*2);
   }
 
-  function computeNextNumberOfTiers(uint32 _claimCount) external view returns (uint8) {
+  function computeNextNumberOfTiers(uint32 _claimCount) external pure returns (uint8) {
     return _computeNextNumberOfTiers(_claimCount);
   }
 
@@ -780,7 +782,7 @@ contract PrizePool is TieredLiquidityDistributor {
    * @param _amount The amount to transfer
    */
   function _transfer(address _to, uint256 _amount) internal {
-    _totalWithdrawn += _amount;
+    _totalWithdrawn = uint168(_totalWithdrawn + _amount);
     prizeToken.safeTransfer(_to, _amount);
   }
 

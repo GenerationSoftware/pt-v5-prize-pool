@@ -343,7 +343,7 @@ contract TieredLiquidityDistributor {
   /// @notice Returns the estimated number of prizes for the given tier.
   /// @param _tier The tier to retrieve
   /// @return The estimated number of prizes
-  function getTierPrizeCount(uint8 _tier) external view returns (uint32) {
+  function getTierPrizeCount(uint8 _tier) external pure returns (uint32) {
     return uint32(TierCalculationLib.prizeCount(_tier));
   }
 
@@ -600,7 +600,7 @@ contract TieredLiquidityDistributor {
     return 0;
   }
 
-  function _findHighestNumberOfTiersWithEstimatedPrizesLt(uint32 _prizeCount) internal view returns (uint8) {
+  function _findHighestNumberOfTiersWithEstimatedPrizesLt(uint32 _prizeCount) internal pure returns (uint8) {
     if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS) {
       return 3;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS) {

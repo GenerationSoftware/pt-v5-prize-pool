@@ -614,8 +614,6 @@ contract PrizePoolTest is Test {
       claimPrize(sender2, 2, i);
     }
 
-    uint reserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
-
     closeDraw(245);
     assertEq(prizePool.numberOfTiers(), 4);
   }
