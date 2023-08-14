@@ -65,6 +65,7 @@ contract TieredLiquidityDistributor {
   uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_12_TIERS = 4912619;
   uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS = 19805536;
   uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS = 79777187;
+  uint32 internal constant ESTIMATED_PRIZES_PER_DRAW_FOR_15_TIERS = 321105952;
 
   /// @notice The odds for each tier and number of tiers pair.
   SD59x18 internal constant TIER_ODDS_0_3 = SD59x18.wrap(2739726027397260);
@@ -600,30 +601,32 @@ contract TieredLiquidityDistributor {
     return 0;
   }
 
-  function _findHighestNumberOfTiersWithEstimatedPrizesLt(uint32 _prizeCount) internal pure returns (uint8) {
+  function _estimateTierUsingPrizeCountPerDraw(uint32 _prizeCount) internal pure returns (uint8) {
     if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS) {
-      return 3;
+      return 2;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS) {
-      return 4;
+      return 3;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS) {
-      return 5;
+      return 4;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS) {
-      return 6;
+      return 5;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS) {
-      return 7;
+      return 6;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS) {
-      return 8;
+      return 7;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS) {
-      return 9;
+      return 8;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS) {
-      return 10;
+      return 9;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS) {
-      return 11;
+      return 10;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_12_TIERS) {
-      return 12;
+      return 11;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_13_TIERS) {
-      return 13;
+      return 12;
     } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_14_TIERS) {
+      return 13;
+    } else if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_15_TIERS) {
       return 14;
     }
     return 15;

@@ -59,9 +59,8 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testFindHighestNumberOfTiersWithEstimatedPrizesLt() public {
-    for (uint8 i = 3; i < 16; i++) {
-      // check i-1, because we don't count canary
-      uint claimCount = TierCalculationLib.estimatedClaimCount(i-1, 365);
+    for (uint8 i = 2; i < 16; i++) {
+      uint claimCount = TierCalculationLib.estimatedClaimCount(i, 365);
       assertEq(
         distributor.findHighestNumberOfTiersWithEstimatedPrizesLt(uint32(claimCount)),
         i,

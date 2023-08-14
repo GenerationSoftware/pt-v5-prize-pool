@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "forge-std/console2.sol";
+
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { E, SD59x18, sd } from "prb-math/SD59x18.sol";
@@ -756,7 +758,10 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Calculates the number of tiers for the next draw
   /// @return The number of tiers for the next draw
   function _computeNextNumberOfTiers(uint32 _claimCount) internal pure returns (uint8) {
-    return _findHighestNumberOfTiersWithEstimatedPrizesLt(_claimCount*2);
+    // claimCount is expected to be the estimated number of claims for the current prize tier.
+    // We add 1 to the claim count for the canary tier
+    uint8 numTiers = _estimateTierUsingPrizeCountPerDraw(_claimCount) + 1;
+    return numTiers > MAXIMUM_NUMBER_OF_TIERS ? MAXIMUM_NUMBER_OF_TIERS : numTiers; // add new canary tier
   }
 
   function computeNextNumberOfTiers(uint32 _claimCount) external pure returns (uint8) {

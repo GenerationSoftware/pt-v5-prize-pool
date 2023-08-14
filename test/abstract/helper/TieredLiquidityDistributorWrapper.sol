@@ -37,7 +37,7 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   }
 
   function findHighestNumberOfTiersWithEstimatedPrizesLt(uint32 _prizeCount) external view returns (uint8) {
-    uint8 result = _findHighestNumberOfTiersWithEstimatedPrizesLt(_prizeCount);
+    uint8 result = _estimateTierUsingPrizeCountPerDraw(_prizeCount);
     return result;
   }
 
