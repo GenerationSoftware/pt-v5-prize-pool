@@ -576,6 +576,9 @@ contract PrizePoolTest is Test {
     prizePool = new PrizePool(prizePoolParams);
 
     contribute(510e18);
+
+    assertEq(prizePool.estimateNextNumberOfTiers(), 3, "will reduce to 3");
+
     closeDraw(1234);
 
     assertEq(prizePool.reserve(), 1e18, "reserve after first draw");
