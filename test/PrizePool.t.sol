@@ -733,6 +733,14 @@ contract PrizePoolTest is Test {
     prizePool.isWinner(address(this), msg.sender, 1, 4);
   }
 
+  function testIsWinner_doesNotChange() public {
+    closeDraw(winningRandomNumber);
+    mockTwab(address(this), msg.sender, 1);
+    assertFalse(prizePool.isWinner(address(this), msg.sender, 1, 0), "not a winner");
+    contribute(100e18);
+    assertFalse(prizePool.isWinner(address(this), msg.sender, 1, 0), "still not a winner");
+  }
+
   function testWasClaimed_not() public {
     assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
     assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
