@@ -58,16 +58,16 @@ contract TieredLiquidityDistributorTest is Test {
     );
   }
 
-  function testFindHighestNumberOfTiersWithEstimatedPrizesLt() public {
+  function testestimateTierUsingPrizeCountPerDraw() public {
     for (uint8 i = 2; i < 16; i++) {
       uint claimCount = TierCalculationLib.estimatedClaimCount(i, 365);
       assertEq(
-        distributor.findHighestNumberOfTiersWithEstimatedPrizesLt(uint32(claimCount)),
+        distributor.estimateTierUsingPrizeCountPerDraw(uint32(claimCount)),
         i,
         string.concat("tier", string(abi.encodePacked(i)))
       );
     }
-    assertEq(distributor.findHighestNumberOfTiersWithEstimatedPrizesLt(type(uint32).max), 15, "maximum");
+    assertEq(distributor.estimateTierUsingPrizeCountPerDraw(type(uint32).max), 15, "maximum");
   }
 
   function testRemainingTierLiquidity() public {

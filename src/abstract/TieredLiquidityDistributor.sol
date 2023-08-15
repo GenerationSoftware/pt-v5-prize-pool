@@ -323,14 +323,16 @@ contract TieredLiquidityDistributor {
     uint totalNewLiquidity = _prizeTokenLiquidity + reclaimedLiquidity;
     uint256 nextTotalShares = _getTotalShares(_nextNumberOfTiers);
     UD60x18 deltaPrizeTokensPerShare = (convert(totalNewLiquidity).div(convert(nextTotalShares))).floor();
-    uint roundedNewLiquidity = convert(deltaPrizeTokensPerShare.mul(convert(nextTotalShares)));
-    uint newLiquidityRemainder = (totalNewLiquidity - roundedNewLiquidity);
     
     newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
 
     newReserve = uint104(
-      convert(deltaPrizeTokensPerShare.mul(convert(reserveShares))) + // reserve portion
-      newLiquidityRemainder // remainder
+      // reserve portion of new liquidity
+      convert(deltaPrizeTokensPerShare.mul(convert(reserveShares))) + 
+      // remainder left over from shares
+      (
+        totalNewLiquidity - convert(deltaPrizeTokensPerShare.mul(convert(nextTotalShares)))
+      )
     );
   }
 
@@ -601,6 +603,9 @@ contract TieredLiquidityDistributor {
     return 0;
   }
 
+  /// @notice Estimates the number of tiers for the given prize count.
+  /// @param _prizeCount The number of prizes that were claimed
+  /// @return The estimated tier
   function _estimateTierUsingPrizeCountPerDraw(uint32 _prizeCount) internal pure returns (uint8) {
     if (_prizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS) {
       return 2;
