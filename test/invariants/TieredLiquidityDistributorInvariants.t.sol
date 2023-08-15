@@ -32,7 +32,7 @@ contract TieredLiquidityDistributorInvariants is Test {
   function testInvariantFailure_Case_2023_05_26() external {
     distributor.nextDraw(4, 253012247290373118207);
     distributor.nextDraw(3, 99152290762372054017);
-    distributor.nextDraw(255, 79228162514264337593543950333);
+    distributor.nextDraw(255, 792281625142643375935439);
     distributor.consumeLiquidity(1);
     distributor.consumeLiquidity(0);
     distributor.nextDraw(1, 2365);
@@ -41,7 +41,7 @@ contract TieredLiquidityDistributorInvariants is Test {
     distributor.consumeLiquidity(174);
     distributor.consumeLiquidity(254);
     distributor.nextDraw(6, 2335051495798885129312);
-    distributor.nextDraw(160, 543634559793817062402422965);
+    distributor.nextDraw(160, 543634559793817062402);
     distributor.nextDraw(187, 3765046993999626249);
     distributor.nextDraw(1, 196958881398058173458);
     uint256 expected = distributor.totalAdded() - distributor.totalConsumed();

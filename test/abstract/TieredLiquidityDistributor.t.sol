@@ -123,11 +123,18 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testGetTierPrizeSize_overflow() public {
-    distributor.nextDraw(3, type(uint96).max);
-    distributor.nextDraw(4, type(uint96).max);
-    distributor.nextDraw(5, type(uint96).max);
+    distributor = new TieredLiquidityDistributorWrapper(
+      numberOfTiers,
+      tierShares,
+      0
+    );
 
-    assertEq(distributor.getTierPrizeSize(0), type(uint96).max);
+    distributor.nextDraw(3, type(uint104).max);
+    distributor.nextDraw(4, type(uint104).max);
+    distributor.nextDraw(5, type(uint104).max);
+    distributor.nextDraw(6, type(uint104).max);
+
+    assertEq(distributor.getTierPrizeSize(0), type(uint104).max);
   }
 
   function testGetRemainingTierLiquidity() public {

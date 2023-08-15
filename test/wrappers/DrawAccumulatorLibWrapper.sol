@@ -22,7 +22,7 @@ contract DrawAccumulatorLibWrapper {
     accumulator.ringBufferInfo.nextIndex = nextIndex;
   }
 
-  function add(uint256 _amount, uint16 _drawId, SD59x18 _alpha) public returns (bool) {
+  function add(uint256 _amount, uint24 _drawId, SD59x18 _alpha) public returns (bool) {
     bool result = DrawAccumulatorLib.add(accumulator, _amount, _drawId, _alpha);
     return result;
   }
@@ -41,8 +41,8 @@ contract DrawAccumulatorLibWrapper {
    * Requires endDrawId to be greater than (the newest draw id - 1)
    */
   function getDisbursedBetween(
-    uint16 _startDrawId,
-    uint16 _endDrawId,
+    uint24 _startDrawId,
+    uint24 _endDrawId,
     SD59x18 _alpha
   ) public view returns (uint256) {
     uint256 result = DrawAccumulatorLib.getDisbursedBetween(
@@ -86,15 +86,15 @@ contract DrawAccumulatorLibWrapper {
     uint16 _oldestIndex,
     uint16 _newestIndex,
     uint16 _cardinality,
-    uint16 _targetLastClosedDrawId
+    uint24 _targetLastClosedDrawId
   )
     public
     view
     returns (
       uint16 beforeOrAtIndex,
-      uint16 beforeOrAtDrawId,
+      uint24 beforeOrAtDrawId,
       uint16 afterOrAtIndex,
-      uint16 afterOrAtDrawId
+      uint24 afterOrAtDrawId
     )
   {
     (beforeOrAtIndex, beforeOrAtDrawId, afterOrAtIndex, afterOrAtDrawId) = DrawAccumulatorLib

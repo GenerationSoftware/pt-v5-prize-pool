@@ -70,7 +70,7 @@ contract PrizePoolTest is Test {
   /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
   /// @param drawStartedAt The start timestamp of the draw
   event DrawClosed(
-    uint16 indexed drawId,
+    uint24 indexed drawId,
     uint256 winningRandomNumber,
     uint8 numTiers,
     uint8 nextNumTiers,
@@ -88,7 +88,7 @@ contract PrizePoolTest is Test {
   /// @param vault The address of the vault that is contributing tokens
   /// @param drawId The ID of the first draw that the tokens will be applied to
   /// @param amount The amount of tokens contributed
-  event ContributePrizeTokens(address indexed vault, uint16 indexed drawId, uint256 amount);
+  event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
 
   /// @notice Emitted when an address withdraws their claim rewards
   /// @param to The address the rewards are sent to
@@ -177,7 +177,7 @@ contract PrizePoolTest is Test {
     address indexed vault,
     address indexed winner,
     address indexed recipient,
-    uint16 drawId,
+    uint24 drawId,
     uint8 tier,
     uint32 prizeIndex,
     uint152 payout,
@@ -228,8 +228,8 @@ contract PrizePoolTest is Test {
     prizeToken.approve(address(prizePool), type(uint104).max);
     assertEq(prizePool.reserve(), 0);
     // increase reserve by max amount
-    prizePool.contributeReserve(type(uint104).max);
-    assertEq(prizePool.reserve(), type(uint104).max);
+    prizePool.contributeReserve(type(uint96).max);
+    assertEq(prizePool.reserve(), type(uint96).max);
   }
 
   function testReserve_withRemainder() public {
@@ -331,7 +331,7 @@ contract PrizePoolTest is Test {
     closeDraw(1);
     // reserve = 10e18 * (10 / 310) = 0.3225806451612903e18
     assertApproxEqAbs(prizePool.reserve(), (10e18*RESERVE_SHARES) / prizePool.getTotalShares(), 100);
-    prizePool.withdrawReserve(address(this), uint104(prizePool.reserve()));
+    prizePool.withdrawReserve(address(this), prizePool.reserve());
     assertEq(prizePool.accountedBalance(), prizeToken.balanceOf(address(prizePool)));
     assertEq(prizePool.reserve(), 0);
   }
