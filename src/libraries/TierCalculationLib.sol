@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.19;
 
+import { UniformRandomNumber } from "uniform-random-number/UniformRandomNumber.sol";
 import { E, SD59x18, sd, unwrap, convert, ceil } from "prb-math/SD59x18.sol";
 import { UD60x18, convert as convertUD60x18 } from "prb-math/UD60x18.sol";
 
@@ -89,7 +90,7 @@ library TierCalculationLib {
                 - Portion of prize that was contributed by the vault
         */
     // first constrain the random number to be within the vault total supply
-    uint256 constrainedRandomNumber = _userSpecificRandomNumber % (_vaultTwabTotalSupply);
+    uint256 constrainedRandomNumber = UniformRandomNumber.uniform(_userSpecificRandomNumber, _vaultTwabTotalSupply);
     uint256 winningZone = calculateWinningZone(_userTwab, _vaultContributionFraction, _tierOdds);
 
     return constrainedRandomNumber < winningZone;
