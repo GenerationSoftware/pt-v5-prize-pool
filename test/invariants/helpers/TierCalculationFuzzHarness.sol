@@ -26,6 +26,7 @@ contract TierCalculationFuzzHarness is CommonBase {
         address userAddress = vm.addr(u);
         for (uint32 p = 0; p < prizeCount; p++) {
           uint256 prn = TierCalculationLib.calculatePseudoRandomNumber(
+            address(this),
             userAddress,
             t,
             p,

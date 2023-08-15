@@ -97,18 +97,20 @@ library TierCalculationLib {
   }
 
   /// @notice Calculates a pseudo-random number that is unique to the user, tier, and winning random number.
+  /// @param _vault The vault the user deposited into
   /// @param _user The user
   /// @param _tier The tier
   /// @param _prizeIndex The particular prize index they are checking
   /// @param _winningRandomNumber The winning random number
   /// @return A pseudo-random number
   function calculatePseudoRandomNumber(
+    address _vault,
     address _user,
     uint8 _tier,
     uint32 _prizeIndex,
     uint256 _winningRandomNumber
   ) internal pure returns (uint256) {
-    return uint256(keccak256(abi.encode(_user, _tier, _prizeIndex, _winningRandomNumber)));
+    return uint256(keccak256(abi.encode(_vault, _user, _tier, _prizeIndex, _winningRandomNumber)));
   }
 
   /// @notice Calculates the winning zone for a user. If their pseudo-random number falls within this zone, they win the tier.
