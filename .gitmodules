@@ -19,3 +19,6 @@
 [submodule "lib/ring-buffer-lib"]
 	path = lib/ring-buffer-lib
 	url = https://github.com/GenerationSoftware/ring-buffer-lib
+[submodule "lib/uniform-random-number"]
+	path = lib/uniform-random-number
+	url = https://github.com/generationsoftware/uniform-random-number
