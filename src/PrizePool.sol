@@ -834,8 +834,8 @@ contract PrizePool is TieredLiquidityDistributor {
     return
       TierCalculationLib.isWinner(
         userSpecificRandomNumber,
-        uint128(_userTwab),
-        uint128(_vaultTwabTotalSupply),
+        _userTwab,
+        _vaultTwabTotalSupply,
         _vaultPortion,
         _tierOdds
       );
