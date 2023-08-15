@@ -414,7 +414,7 @@ contract PrizePool is TieredLiquidityDistributor {
     );
 
     if (
-      !_isWinner(msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _tierOdds, _drawDuration)
+      !_isWinner(lastClosedDrawId, msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _tierOdds, _drawDuration)
     ) {
       revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
     }
@@ -652,7 +652,7 @@ contract PrizePool is TieredLiquidityDistributor {
       numberOfTiers,
       lastClosedDrawId
     );
-    return _isWinner(_vault, _user, _tier, _prizeIndex, vaultPortion, tierOdds, drawDuration);
+    return _isWinner(lastClosedDrawId, _vault, _user, _tier, _prizeIndex, vaultPortion, tierOdds, drawDuration);
   }
 
   /***
@@ -808,6 +808,7 @@ contract PrizePool is TieredLiquidityDistributor {
    * @return A boolean value indicating whether the user has won the prize or not.
    */
   function _isWinner(
+    uint32 _drawId,
     address _vault,
     address _user,
     uint8 _tier,
@@ -823,6 +824,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     uint256 userSpecificRandomNumber = TierCalculationLib.calculatePseudoRandomNumber(
+      _drawId,
       _vault,
       _user,
       _tier,
