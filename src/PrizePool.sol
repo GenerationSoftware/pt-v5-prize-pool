@@ -169,7 +169,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Emitted when the reserve is manually increased.
   /// @param user The user who increased the reserve
   /// @param amount The amount of assets transferred
-  event IncreaseReserve(address user, uint256 amount);
+  event ContributedReserve(address user, uint256 amount);
 
   /// @notice Emitted when a vault contributes prize tokens to the pool.
   /// @param vault The address of the vault that is contributing tokens
@@ -232,13 +232,16 @@ contract PrizePool is TieredLiquidityDistributor {
   uint32 public claimCount;
 
   /// @notice The total amount of prize tokens that have been claimed for all time.
-  uint168 internal _totalWithdrawn;
+  uint160 internal _totalWithdrawn;
 
   /// @notice The timestamp at which the last closed draw started.
   uint64 internal _lastClosedDrawStartedAt;
 
   /// @notice The timestamp at which the last closed draw was awarded.
   uint64 internal _lastClosedDrawAwardedAt;
+
+  /// @notice Tracks reserve that was contributed directly to the reserve. Always increases.
+  uint192 internal directlyContributedReserve;
 
   /* ============ Constructor ============ */
 
@@ -436,7 +439,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
     // co-locate to save gas
     claimCount++;
-    _totalWithdrawn = uint168(_totalWithdrawn + amount);
+    _totalWithdrawn = uint160(_totalWithdrawn + amount);
 
     emit ClaimedPrize(
       msg.sender,
@@ -475,10 +478,11 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Allows anyone to deposit directly into the Prize Pool reserve.
   /// @dev Ensure caller has sufficient balance and has approved the Prize Pool to transfer the tokens
   /// @param _amount The amount of tokens to increase the reserve by
-  function increaseReserve(uint104 _amount) external {
+  function contributeReserve(uint104 _amount) external {
     _reserve += _amount;
+    directlyContributedReserve += _amount;
     prizeToken.safeTransferFrom(msg.sender, address(this), _amount);
-    emit IncreaseReserve(msg.sender, _amount);
+    emit ContributedReserve(msg.sender, _amount);
   }
 
   /* ============ External Read Functions ============ */
@@ -722,7 +726,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @return The balance of tokens that have been accounted for
   function _accountedBalance() internal view returns (uint256) {
     Observation memory obs = DrawAccumulatorLib.newestObservation(totalAccumulator);
-    return (obs.available + obs.disbursed) - _totalWithdrawn;
+    return (obs.available + obs.disbursed) + directlyContributedReserve - _totalWithdrawn;
   }
 
   /// @notice Returns the start time of the draw for the next successful closeDraw
@@ -793,7 +797,7 @@ contract PrizePool is TieredLiquidityDistributor {
    * @param _amount The amount to transfer
    */
   function _transfer(address _to, uint256 _amount) internal {
-    _totalWithdrawn = uint168(_totalWithdrawn + _amount);
+    _totalWithdrawn = uint160(_totalWithdrawn + _amount);
     prizeToken.safeTransfer(_to, _amount);
   }
 
