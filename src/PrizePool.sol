@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
+import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { E, SD59x18, sd } from "prb-math/SD59x18.sol";
@@ -354,7 +353,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
     uint64 openDrawStartedAt_ = _openDrawStartedAt();
 
-    _nextDraw(_nextNumberOfTiers, uint96(_contributionsForDraw(lastClosedDrawId + 1)));
+    _nextDraw(_nextNumberOfTiers, SafeCast.toUint96(_contributionsForDraw(lastClosedDrawId + 1)));
 
     _winningRandomNumber = winningRandomNumber_;
     claimCount = 0;
@@ -439,7 +438,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
     // co-locate to save gas
     claimCount++;
-    _totalWithdrawn = uint160(_totalWithdrawn + amount);
+    _totalWithdrawn = SafeCast.toUint160(_totalWithdrawn + amount);
 
     emit ClaimedPrize(
       msg.sender,
@@ -599,7 +598,7 @@ contract PrizePool is TieredLiquidityDistributor {
     (, uint104 newReserve, ) = _computeNewDistributions(
       _numTiers,
       _nextNumberOfTiers,
-      uint96(_contributionsForDraw(lastClosedDrawId + 1))
+      SafeCast.toUint96(_contributionsForDraw(lastClosedDrawId + 1))
     );
 
     return newReserve;
@@ -797,7 +796,7 @@ contract PrizePool is TieredLiquidityDistributor {
    * @param _amount The amount to transfer
    */
   function _transfer(address _to, uint256 _amount) internal {
-    _totalWithdrawn = uint160(_totalWithdrawn + _amount);
+    _totalWithdrawn = SafeCast.toUint160(_totalWithdrawn + _amount);
     prizeToken.safeTransfer(_to, _amount);
   }
 
