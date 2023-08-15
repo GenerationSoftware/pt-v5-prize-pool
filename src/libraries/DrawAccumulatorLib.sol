@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.19;
 
+import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap, convert } from "prb-math/SD59x18.sol";
 
@@ -89,8 +90,8 @@ library DrawAccumulatorLib {
 
       accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
       accumulator.observations[_drawId] = Observation({
-        available: uint96(_amount + remainingAmount),
-        disbursed: uint168(newestObservation_.disbursed + disbursedAmount + remainder)
+        available: SafeCast.toUint96(_amount + remainingAmount),
+        disbursed: SafeCast.toUint168(newestObservation_.disbursed + disbursedAmount + remainder)
       });
       uint16 nextIndex = uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY));
       uint16 cardinality = ringBufferInfo.cardinality;
@@ -104,7 +105,7 @@ library DrawAccumulatorLib {
       return true;
     } else {
       accumulator.observations[newestDrawId_] = Observation({
-        available: uint96(newestObservation_.available + _amount),
+        available: SafeCast.toUint96(newestObservation_.available + _amount),
         disbursed: newestObservation_.disbursed
       });
       return false;
