@@ -16,7 +16,6 @@ import {
   PrizePool,
   ConstructorParams,
   InsufficientRewardsError,
-  AlreadyClaimedPrize,
   DidNotWin,
   FeeTooLarge,
   SmoothingGTEOne,
@@ -862,17 +861,7 @@ contract PrizePoolTest is Test {
     uint prize = prizePool.getTierPrizeSize(0);
     assertEq(claimPrize(msg.sender, 0, 0), prize, "prize size");
     // second claim is zero
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        AlreadyClaimedPrize.selector,
-        address(this),
-        msg.sender,
-        0,
-        0,
-        msg.sender
-      )
-    );
-    claimPrize(msg.sender, 0, 0);
+    assertEq(claimPrize(msg.sender, 0, 0), 0, "no more prize");
   }
 
   function testComputeNextNumberOfTiers() public {
