@@ -4,3 +4,4 @@ openzeppelin=lib/openzeppelin-contracts/contracts/
 pt-v5-twab-controller/=lib/pt-v5-twab-controller/src/
 ring-buffer-lib/=lib/ring-buffer-lib/src/
 owner-manager-contracts/=lib/owner-manager-contracts/contracts/
+uniform-random-number/=lib/uniform-random-number/src/
