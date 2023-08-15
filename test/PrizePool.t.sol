@@ -108,7 +108,7 @@ contract PrizePoolTest is Test {
   /// @notice Emitted when the reserve is manually increased.
   /// @param user The user who increased the reserve
   /// @param amount The amount of assets transferred
-  event IncreaseReserve(address user, uint256 amount);
+  event ContributedReserve(address user, uint256 amount);
 
   /**********************************************************************************/
 
@@ -186,7 +186,7 @@ contract PrizePoolTest is Test {
   );
 
   /**********************************************************************************/
-  function testIncreaseReserve() public {
+  function testContributedReserve() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
 
@@ -203,13 +203,14 @@ contract PrizePoolTest is Test {
     prizeToken.approve(address(prizePool), 100e18);
 
     vm.expectEmit();
-    emit IncreaseReserve(sender1, 100e18);
-    prizePool.increaseReserve(100e18);
+    emit ContributedReserve(sender1, 100e18);
+    prizePool.contributeReserve(100e18);
 
     assertEq(prizePool.reserve(), 100e18 + reserve);
+    assertEq(prizePool.accountedBalance(), 200e18);
   }
 
-  function testFailIncreaseReserve() public {
+  function testFailContributedReserve() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
     assertEq(prizePool.reserve(), 454545454545454660);
@@ -218,16 +219,16 @@ contract PrizePoolTest is Test {
     vm.startPrank(sender1);
     prizeToken.mint(sender1, 1e18);
     prizeToken.approve(address(prizePool), 100e18);
-    prizePool.increaseReserve(100e18);
+    prizePool.contributeReserve(100e18);
   }
 
-  function testIncreaseReserve_Max() public {
+  function testContributedReserve_Max() public {
     vm.startPrank(sender1);
     prizeToken.mint(sender1, type(uint104).max);
     prizeToken.approve(address(prizePool), type(uint104).max);
     assertEq(prizePool.reserve(), 0);
     // increase reserve by max amount
-    prizePool.increaseReserve(type(uint104).max);
+    prizePool.contributeReserve(type(uint104).max);
     assertEq(prizePool.reserve(), type(uint104).max);
   }
 
@@ -287,6 +288,7 @@ contract PrizePoolTest is Test {
     emit WithdrawReserve(address(this), 1e18);
     prizePool.withdrawReserve(address(this), 1e18);
     assertEq(prizeToken.balanceOf(address(this)), 1e18);
+    assertEq(prizePool.accountedBalance(), 309e18);
   }
 
   function testGetTotalContributedBetween() public {
