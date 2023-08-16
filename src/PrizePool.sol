@@ -22,6 +22,9 @@ import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 /// @notice Emitted when someone tries to set the draw manager.
 error DrawManagerAlreadySet();
 
+/// @notice Emitted when the caller is not the deployer.
+error NotDeployer();
+
 /// @notice Emitted when someone tries to withdraw too many rewards.
 /// @param requested The requested reward amount to withdraw
 /// @param available The total reward amount available for the caller to withdraw
@@ -201,6 +204,10 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Tracks the total fees accrued to each claimer.
   mapping(address => uint256) internal claimerRewards;
 
+  /// @notice The deployer of the contract
+  /// @dev Used to verify that the addresses setting the drawManager is only the deployer so it can't be front-run
+  address internal immutable deployer;
+
   /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing. Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
   SD1x18 public immutable smoothing;
 
@@ -262,6 +269,7 @@ contract PrizePool is TieredLiquidityDistributor {
     drawPeriodSeconds = params.drawPeriodSeconds;
     _lastClosedDrawStartedAt = params.firstDrawStartsAt;
     firstDrawStartsAt = params.firstDrawStartsAt;
+    deployer = msg.sender;
 
     if (params.drawManager != address(0)) {
       drawManager = params.drawManager;
@@ -282,9 +290,11 @@ contract PrizePool is TieredLiquidityDistributor {
   /* ============ External Write Functions ============ */
 
   /// @notice Allows a caller to set the DrawManager if not already set.
-  /// @dev Notice that this can be front-run: make sure to verify the drawManager after construction
   /// @param _drawManager The draw manager
   function setDrawManager(address _drawManager) external {
+    if (msg.sender != deployer) {
+      revert NotDeployer();
+    }
     if (drawManager != address(0)) {
       revert DrawManagerAlreadySet();
     }
