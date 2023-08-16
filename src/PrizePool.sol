@@ -265,8 +265,8 @@ contract PrizePool is TieredLiquidityDistributor {
     _lastClosedDrawStartedAt = params.firstDrawStartsAt;
     firstDrawStartsAt = params.firstDrawStartsAt;
 
-    drawManager = params.drawManager;
     if (params.drawManager != address(0)) {
+      drawManager = params.drawManager;
       emit DrawManagerSet(params.drawManager);
     }
   }
