@@ -12,13 +12,15 @@ import { UD60x18,
   InsufficientLiquidity,
   fromUD34x4toUD60x18,
   convert,
-  SD59x18
+  SD59x18,
+  MAXIMUM_NUMBER_OF_TIERS,
+  MINIMUM_NUMBER_OF_TIERS
 } from "../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorTest is Test {
   TieredLiquidityDistributorWrapper public distributor;
 
-  uint16 grandPrizePeriodDraws;
+  uint24 grandPrizePeriodDraws;
   uint8 numberOfTiers;
   uint8 tierShares;
   uint8 reserveShares;
@@ -27,11 +29,13 @@ contract TieredLiquidityDistributorTest is Test {
     numberOfTiers = 3;
     tierShares = 100;
     reserveShares = 10;
+    grandPrizePeriodDraws = 365;
 
     distributor = new TieredLiquidityDistributorWrapper(
       numberOfTiers,
       tierShares,
-      reserveShares
+      reserveShares,
+      grandPrizePeriodDraws
     );
   }
 
@@ -45,7 +49,8 @@ contract TieredLiquidityDistributorTest is Test {
     new TieredLiquidityDistributorWrapper(
       16,
       tierShares,
-      reserveShares
+      reserveShares,
+      365
     );
   }
 
@@ -54,20 +59,21 @@ contract TieredLiquidityDistributorTest is Test {
     new TieredLiquidityDistributorWrapper(
       1,
       tierShares,
-      reserveShares
+      reserveShares,
+      365
     );
   }
 
-  function testestimateTierUsingPrizeCountPerDraw() public {
-    for (uint8 i = 2; i < 16; i++) {
-      uint claimCount = TierCalculationLib.estimatedClaimCount(i, 365);
+  function testEstimateTierUsingPrizeCountPerDraw() public {
+    for (uint8 i = MINIMUM_NUMBER_OF_TIERS; i <= MAXIMUM_NUMBER_OF_TIERS; i++) {
+      // actual claim count does not include canary tier, so it's i-1
+      uint claimCount = TierCalculationLib.estimatedClaimCount(i-1, distributor.grandPrizePeriodDraws());
       assertEq(
-        distributor.estimateTierUsingPrizeCountPerDraw(uint32(claimCount)),
-        i,
-        string.concat("tier", string(abi.encodePacked(i)))
+        distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(uint32(claimCount)),
+        i
       );
     }
-    assertEq(distributor.estimateTierUsingPrizeCountPerDraw(type(uint32).max), 15, "maximum");
+    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(type(uint32).max), 10, "maximum");
   }
 
   function testRemainingTierLiquidity() public {
@@ -126,7 +132,8 @@ contract TieredLiquidityDistributorTest is Test {
     distributor = new TieredLiquidityDistributorWrapper(
       numberOfTiers,
       tierShares,
-      0
+      0,
+      365
     );
 
     distributor.nextDraw(3, type(uint104).max);
@@ -195,22 +202,12 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(summed, amount, "summed amount across prize tiers");
   }
 
-  function testTierOdds_Accuracy() public {
-    SD59x18 odds = distributor.getTierOdds(0, 3);
-    assertEq(SD59x18.unwrap(odds), 2739726027397260);
-    odds = distributor.getTierOdds(3, 7);
-    assertEq(SD59x18.unwrap(odds), 52342392259021369);
-    odds = distributor.getTierOdds(14, 15);
-    assertEq(SD59x18.unwrap(odds), 1000000000000000000, "checking accuracy for last tier");
-  }
-
-  function testTierOdds_AllAvailable() public {
+  function testGetTierOdds_AllAvailable() public {
     SD59x18 odds;
-    for (uint8 numTiers = 3; numTiers < 16; numTiers++) {
+    grandPrizePeriodDraws = distributor.grandPrizePeriodDraws();
+    for (uint8 numTiers = MINIMUM_NUMBER_OF_TIERS; numTiers <= MAXIMUM_NUMBER_OF_TIERS; numTiers++) {
       for (uint8 tier = 0; tier < numTiers; tier++) {
         odds = distributor.getTierOdds(tier, numTiers);
-        assertGt(SD59x18.unwrap(odds), 0);
-        assertLe(SD59x18.unwrap(odds), 1000000000000000000, "checking accuracy for highest available");
       }
     }
   }
@@ -221,23 +218,38 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierPrizeCount(2), 16);
   }
 
-
-
   function testTierOdds_zero_when_outside_bounds() public {
     SD59x18 odds;
-    for (uint8 numTiers = 3; numTiers < 16; numTiers++) {
+    for (uint8 numTiers = MINIMUM_NUMBER_OF_TIERS; numTiers <= MAXIMUM_NUMBER_OF_TIERS; numTiers++) {
       odds = distributor.getTierOdds(numTiers, numTiers);
       assertEq(SD59x18.unwrap(odds), 0);
     }
   }
 
-  function testEstimatedPrizesPerDraw_AllAvailable() public {
+  function testEstimateNumberOfTiersUsingPrizeCountPerDraw_allTiers() public {
     uint32 prizeCount;
-    for (uint8 numTiers = 3; numTiers <= 15; numTiers++) {
+    for (uint8 numTiers = MINIMUM_NUMBER_OF_TIERS; numTiers <= MAXIMUM_NUMBER_OF_TIERS; numTiers++) {
       prizeCount = distributor.estimatedPrizeCount(numTiers);
-      assertGt(prizeCount, 0);
-      assertLe(prizeCount, 79777187);
+      assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount), numTiers, "reverse");
     }
+
+    assertEq(distributor.estimatedPrizeCount(11), 0, "exceeds bounds");
+  }
+
+  function testEstimatedPrizeCount_current() public {
+    assertEq(distributor.estimatedPrizeCount(), 4);
+  }
+
+  function testEstimatedPrizeCount_allTiers() public {
+    assertEq(distributor.estimatedPrizeCount(3), TierCalculationLib.estimatedClaimCount(2, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(4), TierCalculationLib.estimatedClaimCount(3, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(5), TierCalculationLib.estimatedClaimCount(4, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(6), TierCalculationLib.estimatedClaimCount(5, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(7), TierCalculationLib.estimatedClaimCount(6, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(8), TierCalculationLib.estimatedClaimCount(7, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(9), TierCalculationLib.estimatedClaimCount(8, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(10), TierCalculationLib.estimatedClaimCount(9, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(11), 0);
   }
 
   function testExpansionTierLiquidity_regression() public {

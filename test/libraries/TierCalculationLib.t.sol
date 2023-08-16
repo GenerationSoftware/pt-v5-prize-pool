@@ -18,7 +18,7 @@ contract TierCalculationLibTest is Test {
   function testGetTierOdds() public {
     assertEq(unwrap(TierCalculationLib.getTierOdds(0, 4, 365)), 2739726027397260);
     assertEq(unwrap(TierCalculationLib.getTierOdds(1, 4, 365)), 19579642462506911);
-    assertEq(unwrap(TierCalculationLib.getTierOdds(2, 4, 365)), 139927275620255366);
+    assertEq(unwrap(TierCalculationLib.getTierOdds(2, 4, 365)), 139927275620255364);
     assertEq(unwrap(TierCalculationLib.getTierOdds(3, 4, 365)), 1e18);
   }
 

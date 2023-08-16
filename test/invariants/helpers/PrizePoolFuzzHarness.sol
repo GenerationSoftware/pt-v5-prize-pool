@@ -39,10 +39,11 @@ contract PrizePoolFuzzHarness is CommonBase {
       drawManager,
       drawPeriodSeconds,
       nextDrawStartsAt,
+      smoothing,
+      365,
       numberOfTiers,
       tierShares,
-      reserveShares,
-      smoothing
+      reserveShares
     );
     prizePool = new PrizePool(params);
   }

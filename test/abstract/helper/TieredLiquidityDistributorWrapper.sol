@@ -9,8 +9,9 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   constructor(
     uint8 _numberOfTiers,
     uint8 _tierShares,
-    uint8 _reserveShares
-  ) TieredLiquidityDistributor(_numberOfTiers, _tierShares, _reserveShares) {}
+    uint8 _reserveShares,
+    uint24 _grandPrizePeriodDraws
+  ) TieredLiquidityDistributor(_numberOfTiers, _tierShares, _reserveShares, _grandPrizePeriodDraws) {}
 
   function nextDraw(uint8 _nextNumTiers, uint256 liquidity) external {
     _nextDraw(_nextNumTiers, liquidity);
@@ -36,8 +37,8 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
       );
   }
 
-  function estimateTierUsingPrizeCountPerDraw(uint32 _prizeCount) external pure returns (uint8) {
-    uint8 result = _estimateTierUsingPrizeCountPerDraw(_prizeCount);
+  function estimateNumberOfTiersUsingPrizeCountPerDraw(uint32 _prizeCount) external view returns (uint8) {
+    uint8 result = _estimateNumberOfTiersUsingPrizeCountPerDraw(_prizeCount);
     return result;
   }
 
