@@ -4,13 +4,12 @@ pragma solidity ^0.8.19;
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import { E, SD59x18, sd } from "prb-math/SD59x18.sol";
-import { UD60x18, ud, convert, intoSD59x18 } from "prb-math/UD60x18.sol";
-import { UD2x18, intoUD60x18 } from "prb-math/UD2x18.sol";
+import { SD59x18, sd } from "prb-math/SD59x18.sol";
+import { intoSD59x18 } from "prb-math/UD60x18.sol";
 import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
-import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18, toUD34x4 } from "./libraries/UD34x4.sol";
+import { UD34x4 } from "./libraries/UD34x4.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
 import {
   TieredLiquidityDistributor,
