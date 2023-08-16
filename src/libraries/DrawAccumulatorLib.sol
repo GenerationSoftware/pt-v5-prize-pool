@@ -438,7 +438,9 @@ library DrawAccumulatorLib {
     uint16 rightSide = _newestIndex < leftSide ? leftSide + _cardinality - 1 : _newestIndex;
     uint16 currentIndex;
 
-    while (true) {
+    // We still check when rightSide is the same as leftSide since the range is inclusive.
+    // Break assurance: at the end of the while loop, the distance between right and left will always be reduced by 1.
+    while (rightSide >= leftSide) {
       // We start our search in the middle of the `leftSide` and `rightSide`.
       // After each iteration, we narrow down the search to the left or the right side while still starting our search in the middle.
       currentIndex = (leftSide + rightSide) / 2;
@@ -458,6 +460,7 @@ library DrawAccumulatorLib {
 
       // If `beforeOrAtTimestamp` is greater than `_target`, then we keep searching lower. To the left of the current index.
       if (!targetAtOrAfter) {
+        if (rightSide == 0) break; // avoid underflow error on subtraction
         rightSide = currentIndex - 1;
       } else {
         // Otherwise, we keep searching higher. To the left of the current index.
