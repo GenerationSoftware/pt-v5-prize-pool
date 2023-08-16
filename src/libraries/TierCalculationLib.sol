@@ -145,4 +145,12 @@ library TierCalculationLib {
     }
     return count;
   }
+
+  /// @notice Checks whether a tier is a valid tier
+  /// @param _tier The tier to check
+  /// @param _numberOfTiers The number of tiers
+  /// @return True if the tier is valid, false otherwise
+  function isValidTier(uint8 _tier, uint8 _numberOfTiers) internal pure returns (bool) {
+    return _tier < _numberOfTiers;
+  }
 }
