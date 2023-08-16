@@ -290,7 +290,6 @@ contract PrizePool is TieredLiquidityDistributor {
   /* ============ External Write Functions ============ */
 
   /// @notice Allows a caller to set the DrawManager if not already set.
-  /// @dev Notice that this can be front-run: make sure to verify the drawManager after construction
   /// @param _drawManager The draw manager
   function setDrawManager(address _drawManager) external {
     if (msg.sender != deployer) {
