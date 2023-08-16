@@ -870,7 +870,7 @@ contract PrizePool is TieredLiquidityDistributor {
     drawDuration = uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
     vaultPortion = _getVaultPortion(
       _vault,
-      SafeCast.toUint24(drawDuration > _lastClosedDrawId ? 0 : _lastClosedDrawId - drawDuration + 1),
+      SafeCast.toUint24(drawDuration > _lastClosedDrawId ? 1 : _lastClosedDrawId - drawDuration + 1),
       _lastClosedDrawId,
       smoothing.intoSD59x18()
     );
