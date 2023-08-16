@@ -18,17 +18,6 @@ import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 /// @notice Emitted when someone tries to set the draw manager.
 error DrawManagerAlreadySet();
 
-/// @notice Emitted when someone tries to claim a prize that was already claimed.
-/// @param winner The winner of the prize
-/// @param tier The prize tier
-error AlreadyClaimedPrize(
-  address vault,
-  address winner,
-  uint8 tier,
-  uint32 prizeIndex,
-  address recipient
-);
-
 /// @notice Emitted when someone tries to withdraw too many rewards.
 /// @param requested The requested reward amount to withdraw
 /// @param available The total reward amount available for the caller to withdraw
@@ -393,7 +382,7 @@ contract PrizePool is TieredLiquidityDistributor {
    * @param _prizeRecipient The recipient of the prize
    * @param _fee The fee associated with claiming the prize.
    * @param _feeRecipient The address to receive the fee.
-   * @return Total prize amount claimed (payout and fees combined).
+   * @return Total prize amount claimed (payout and fees combined). If the prize was already claimed it returns zero.
    */
   function claimPrize(
     address _winner,
@@ -427,7 +416,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     if (claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex]) {
-      revert AlreadyClaimedPrize(msg.sender, _winner, _tier, _prizeIndex, _prizeRecipient);
+      return 0;
     }
 
     claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex] = true;
