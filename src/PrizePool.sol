@@ -936,7 +936,7 @@ contract PrizePool is TieredLiquidityDistributor {
       // vaultContributed / totalContributed
       return
         sd(
-          int256(
+          SafeCast.toInt256(
             DrawAccumulatorLib.getDisbursedBetween(
               vaultAccumulator[_vault],
               _startDrawId,
@@ -944,7 +944,7 @@ contract PrizePool is TieredLiquidityDistributor {
               _smoothing
             )
           )
-        ).div(sd(int256(totalContributed)));
+        ).div(sd(SafeCast.toInt256(totalContributed)));
     } else {
       return sd(0);
     }
