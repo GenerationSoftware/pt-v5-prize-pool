@@ -326,7 +326,7 @@ contract TieredLiquidityDistributor {
   /// @return The prize size for the tier
   function getTierPrizeSize(uint8 _tier) external view returns (uint104) {
     uint8 _numTiers = numberOfTiers;
-    if (_tier >= _numTiers) { 
+    if (!TierCalculationLib.isValidTier(_tier, _numTiers)) { 
       return 0;
     }
     return _getTier(_tier, _numTiers).prizeSize;
@@ -336,7 +336,7 @@ contract TieredLiquidityDistributor {
   /// @param _tier The tier to retrieve
   /// @return The estimated number of prizes
   function getTierPrizeCount(uint8 _tier) external view returns (uint32) {
-    if (_tier >= numberOfTiers) { 
+    if (!TierCalculationLib.isValidTier(_tier, numberOfTiers)) { 
       return 0;
     }
     return uint32(TierCalculationLib.prizeCount(_tier));
@@ -512,7 +512,7 @@ contract TieredLiquidityDistributor {
   /// @return The remaining liquidity
   function getTierRemainingLiquidity(uint8 _tier) external view returns (uint256) {
     uint8 _numTiers = numberOfTiers;
-    if (_tier >= _numTiers) {
+    if (!TierCalculationLib.isValidTier(_tier, _numTiers)) {
       return 0;
     }
     return
