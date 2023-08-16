@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
-import { E, SD59x18, sd, unwrap, convert } from "prb-math/SD59x18.sol";
+import { SD59x18, sd, unwrap, convert } from "prb-math/SD59x18.sol";
 
 /// @notice Emitted when adding balance for draw zero.
 error AddToDrawZero();

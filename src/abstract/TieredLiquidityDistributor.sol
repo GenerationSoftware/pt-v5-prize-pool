@@ -3,12 +3,10 @@
 pragma solidity ^0.8.19;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
-import { E, SD59x18, sd } from "prb-math/SD59x18.sol";
-import { UD60x18, ud, convert, intoSD59x18 } from "prb-math/UD60x18.sol";
-import { UD2x18, intoUD60x18 } from "prb-math/UD2x18.sol";
-import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
+import { SD59x18, sd } from "prb-math/SD59x18.sol";
+import { UD60x18, ud, convert } from "prb-math/UD60x18.sol";
 
-import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18, toUD34x4 } from "../libraries/UD34x4.sol";
+import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18 } from "../libraries/UD34x4.sol";
 import { TierCalculationLib } from "../libraries/TierCalculationLib.sol";
 
 /// @notice Struct that tracks tier liquidity information.

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.19;
 
-import { UD60x18, uMAX_UD60x18 } from "prb-math/UD60x18.sol";
+import { UD60x18 } from "prb-math/UD60x18.sol";
 
 type UD34x4 is uint128;
 
