@@ -431,13 +431,15 @@ contract PrizePool is TieredLiquidityDistributor {
     // `amount` is a snapshot of the reserve before consuming liquidity
     _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize);
 
+    // `amount` is now the payout amount
+    uint256 amount;
     if (_fee != 0) {
       emit IncreaseClaimRewards(_feeRecipient, _fee);
       claimerRewards[_feeRecipient] += _fee;
+      amount = tierLiquidity.prizeSize - _fee;
+    } else {
+      amount = tierLiquidity.prizeSize;
     }
-
-    // `amount` is now the payout amount
-    uint256 amount = tierLiquidity.prizeSize - _fee;
 
     // co-locate to save gas
     claimCount++;
