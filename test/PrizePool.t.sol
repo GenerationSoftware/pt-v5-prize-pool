@@ -30,6 +30,7 @@ import {
   InvalidTier,
   DrawManagerAlreadySet,
   CallerNotDrawManager,
+  NotDeployer,
   MAXIMUM_NUMBER_OF_TIERS,
   MINIMUM_NUMBER_OF_TIERS
 } from "../src/PrizePool.sol";
@@ -669,6 +670,13 @@ contract PrizePoolTest is Test {
   function testSetDrawManager_alreadySet() public {
     vm.expectRevert(abi.encodeWithSelector(DrawManagerAlreadySet.selector));
     prizePool.setDrawManager(address(this));
+  }
+
+  function testSetDrawManager_notDeployer() public {
+    vm.startPrank(address(1));
+    vm.expectRevert(abi.encodeWithSelector(NotDeployer.selector));
+    prizePool.setDrawManager(address(this));
+    vm.stopPrank();
   }
 
   function testIsWinner_noDraw() public {
