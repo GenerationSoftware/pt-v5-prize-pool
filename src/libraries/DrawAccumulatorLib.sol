@@ -239,12 +239,12 @@ library DrawAccumulatorLib {
 
     uint24 observationDrawIdBeforeOrAtStart;
     uint24 firstObservationDrawIdOccurringAtOrAfterStart;
-    // if there is only one observation, or startId is after the oldest record
+    // if there is only one observation, or startId is after the newest record
     if (_startDrawId >= drawIds.second) {
-      // then use the last record
+      // then use the newest record
       observationDrawIdBeforeOrAtStart = drawIds.second;
     } else if (_startDrawId <= drawIds.first) {
-      // if the start is before the newest record
+      // if the start is before the oldest record
       // then set to the oldest record.
       firstObservationDrawIdOccurringAtOrAfterStart = drawIds.first;
     } else {

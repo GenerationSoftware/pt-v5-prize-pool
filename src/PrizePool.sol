@@ -529,7 +529,8 @@ contract PrizePool is TieredLiquidityDistributor {
       );
   }
 
-  /// @notice Returns the
+  /// @notice Computes the expected duration prize accrual for a tier
+  /// @param _tier The tier to check
   /// @return The number of draws
   function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint16) {
     return
@@ -638,6 +639,7 @@ contract PrizePool is TieredLiquidityDistributor {
    * @param _vault The address of the vault to check.
    * @param _user The address of the user to check for the prize.
    * @param _tier The tier for which the prize is to be checked.
+   * @param _prizeIndex The index of the prize to check (less than prize count for tier)
    * @return A boolean value indicating whether the user has won the prize or not.
    */
   function isWinner(
@@ -691,13 +693,7 @@ contract PrizePool is TieredLiquidityDistributor {
   }
 
   /**
-   * @notice Returns the portion of a vault's contributions in a given draw range.
-   * This function takes in an address _vault, a uint16 startDrawId, and a uint16 endDrawId.
-   * It calculates the portion of the _vault's contributions in the given draw range by calling the internal
-   * _getVaultPortion function with the _vault argument, startDrawId as the drawId_ argument,
-   * endDrawId - startDrawId as the _durationInDraws argument, and smoothing.intoSD59x18() as the _smoothing
-   * argument. The function then returns the resulting SD59x18 value representing the portion of the
-   * vault's contributions.
+   * @notice Returns the portion of a vault's contributions in a given draw range as a fraction.
    * @param _vault The address of the vault to calculate the contribution portion for.
    * @param _startDrawId The starting draw ID of the draw range to calculate the contribution portion for.
    * @param _endDrawId The ending draw ID of the draw range to calculate the contribution portion for.
@@ -729,10 +725,14 @@ contract PrizePool is TieredLiquidityDistributor {
   }
 
   /// @notice Returns the start time of the draw for the next successful closeDraw
+  /// @return The timestamp at which the open draw started
   function _openDrawStartedAt() internal view returns (uint64) {
     return _openDrawEndsAt() - drawPeriodSeconds;
   }
 
+  /// @notice Reverts if the given _tier is >= _numTiers
+  /// @param _tier The tier to check
+  /// @param _numTiers The current number of tiers
   function _checkValidTier(uint8 _tier, uint8 _numTiers) internal pure {
     if (_tier >= _numTiers) {
       revert InvalidTier(_tier, _numTiers);
@@ -740,6 +740,7 @@ contract PrizePool is TieredLiquidityDistributor {
   }
 
   /// @notice Returns the time at which the open draw ends.
+  /// @return The timestamp at which the open draw ends
   function _openDrawEndsAt() internal view returns (uint64) {
     // If this is the first draw, we treat _lastClosedDrawStartedAt as the start of this draw
     uint64 _nextExpectedEndTime = _lastClosedDrawStartedAt +
@@ -805,6 +806,10 @@ contract PrizePool is TieredLiquidityDistributor {
    * @param _vault The address of the vault to check.
    * @param _user The address of the user to check for the prize.
    * @param _tier The tier for which the prize is to be checked.
+   * @param _prizeIndex The prize index to check. Must be less than prize count for the tier
+   * @param _vaultPortion The portion of the prizes that were contributed by the given vault
+   * @param _tierOdds The tier odds to apply to make prizes less frequent
+   * @param _drawDuration The duration of prize accrual for the given tier.
    * @return A boolean value indicating whether the user has won the prize or not.
    */
   function _isWinner(

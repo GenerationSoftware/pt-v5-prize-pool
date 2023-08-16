@@ -18,20 +18,22 @@ uint128 constant uUNIT = 1e4;
 /// @notice Casts an UD34x4 number into UD60x18.
 /// @dev Requirements:
 /// - x must be less than or equal to `uMAX_UD2x18`.
-function intoUD60x18(UD34x4 x) pure returns (UD60x18 result) {
+function intoUD60x18(UD34x4 x) pure returns (UD60x18) {
   uint256 xUint = uint256(UD34x4.unwrap(x)) * uint256(1e14);
-  result = UD60x18.wrap(xUint);
+  return UD60x18.wrap(xUint);
 }
 
-/// @notice Casts an UD34x4 number into UD60x18.
+/// @notice Casts an UD60x18 number into UD34x4
 /// @dev Requirements:
-/// - x must be less than or equal to `uMAX_UD2x18`.
-function fromUD60x18(UD60x18 x) pure returns (UD34x4 result) {
+/// - x must be less than or equal to `uMAX_UD34x4`.
+/// @param x The value to be converted
+/// @return The value as UD34x4
+function fromUD60x18(UD60x18 x) pure returns (UD34x4) {
   uint256 xUint = UD60x18.unwrap(x) / 1e14;
   if (xUint > uMAX_UD34x4) {
     revert PRBMath_UD34x4_fromUD60x18_Convert_Overflow(x.unwrap());
   }
-  result = UD34x4.wrap(uint128(xUint));
+  return UD34x4.wrap(uint128(xUint));
 }
 
 /// @notice Converts an UD34x4 number to a simple integer by dividing it by `UNIT`. Rounds towards zero in the process.
