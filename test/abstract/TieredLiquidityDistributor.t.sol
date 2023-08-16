@@ -123,6 +123,11 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierPrizeSize(4), 0);
   }
 
+  function testGetTierPrizeSize_invalid() public {
+    distributor.nextDraw(3, 310e18);
+    assertEq(distributor.getTierPrizeSize(4), 0);
+  }
+
   function testGetTierPrizeSize_grandPrize() public {
     distributor.nextDraw(3, 310e18);
     assertEq(distributor.getTierPrizeSize(0), 100e18);
@@ -152,6 +157,11 @@ contract TieredLiquidityDistributorTest is Test {
   function testGetTierRemainingLiquidity() public {
     distributor.nextDraw(3, 310e18);
     assertEq(distributor.getTierRemainingLiquidity(0), 100e18);
+  }
+
+  function testGetTierRemainingLiquidity_invalid() public {
+    distributor.nextDraw(3, 310e18);
+    assertEq(distributor.getTierRemainingLiquidity(5), 0);
   }
 
   function testReclaimLiquidity_canary_tier() public {
@@ -216,6 +226,10 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierPrizeCount(0), 1);
     assertEq(distributor.getTierPrizeCount(1), 4);
     assertEq(distributor.getTierPrizeCount(2), 16);
+  }
+
+  function testGetTierPrizeCount_invalid() public {
+    assertEq(distributor.getTierPrizeCount(3), 0);
   }
 
   function testTierOdds_zero_when_outside_bounds() public {

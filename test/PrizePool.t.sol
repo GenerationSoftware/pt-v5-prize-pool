@@ -289,10 +289,6 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.getTierAccrualDurationInDraws(0), 366);
   }
 
-  function testGetTierPrizeCount() public {
-    assertEq(prizePool.getTierPrizeCount(3), 4 ** 3);
-  }
-
   function testContributePrizeTokens() public {
     contribute(100);
     assertEq(prizeToken.balanceOf(address(prizePool)), 100);
