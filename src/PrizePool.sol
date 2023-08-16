@@ -87,6 +87,9 @@ error InvalidTier(uint8 tier, uint8 numberOfTiers);
 /// @param drawManager The drawManager address
 error CallerNotDrawManager(address caller, address drawManager);
 
+/// @notice Emitted when someone tries to claim a prize that is zero size
+error PrizeIsZero();
+
 /**
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
@@ -404,6 +407,10 @@ contract PrizePool is TieredLiquidityDistributor {
 
     if (_fee > tierLiquidity.prizeSize) {
       revert FeeTooLarge(_fee, tierLiquidity.prizeSize);
+    }
+
+    if (tierLiquidity.prizeSize == 0) {
+      revert PrizeIsZero();
     }
 
     (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint24 _drawDuration) = _computeVaultTierDetails(

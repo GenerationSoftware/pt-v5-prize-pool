@@ -14,6 +14,7 @@ import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import {
   PrizePool,
+  PrizeIsZero,
   ConstructorParams,
   InsufficientRewardsError,
   AlreadyClaimedPrize,
@@ -793,6 +794,23 @@ contract PrizePoolTest is Test {
     closeDraw(winningRandomNumber);
     assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
     assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
+  }
+
+  function testAccountedBalance_remainder() public {
+    contribute(1000);
+    assertEq(prizePool.accountedBalance(), 1000, "accounted balance");
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.accountedBalance(), 1000, "accounted balance");
+  }
+
+  function testClaimPrize_zero() public {
+    contribute(1000);
+    closeDraw(winningRandomNumber);
+    address winner = makeAddr("winner");
+    mockTwab(address(this), winner, 1);
+    assertEq(prizePool.getTierPrizeSize(2), 0, "prize size");
+    vm.expectRevert(abi.encodeWithSelector(PrizeIsZero.selector));
+    prizePool.claimPrize(winner, 1, 0, winner, 0, address(0));
   }
 
   function testClaimPrize_single() public {
