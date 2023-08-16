@@ -12,7 +12,12 @@ import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18, toUD34x4 } from "./libraries/UD34x4.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
-import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
+import {
+  TieredLiquidityDistributor,
+  Tier,
+  MAXIMUM_NUMBER_OF_TIERS,
+  MINIMUM_NUMBER_OF_TIERS
+} from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
 /// @notice Emitted when someone tries to set the draw manager.
@@ -97,10 +102,11 @@ struct ConstructorParams {
   address drawManager;
   uint32 drawPeriodSeconds;
   uint64 firstDrawStartsAt;
+  SD1x18 smoothing;
+  uint24 grandPrizePeriodDraws;
   uint8 numberOfTiers;
   uint8 tierShares;
   uint8 reserveShares;
-  SD1x18 smoothing;
 }
 
 /**
@@ -244,7 +250,8 @@ contract PrizePool is TieredLiquidityDistributor {
     TieredLiquidityDistributor(
       params.numberOfTiers,
       params.tierShares,
-      params.reserveShares
+      params.reserveShares,
+      params.grandPrizePeriodDraws
     )
   {
     if (unwrap(params.smoothing) >= unwrap(UNIT)) {
@@ -758,10 +765,10 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @dev This function will use the claim count to determine the number of tiers, then add one for the canary tier.
   /// @param _claimCount The number of prize claims
   /// @return The estimated number of tiers + the canary tier
-  function _computeNextNumberOfTiers(uint32 _claimCount) internal pure returns (uint8) {
+  function _computeNextNumberOfTiers(uint32 _claimCount) internal view returns (uint8) {
     // claimCount is expected to be the estimated number of claims for the current prize tier.
     // We add 1 to the claim count for the canary tier
-    uint8 numTiers = _estimateTierUsingPrizeCountPerDraw(_claimCount) + 1;
+    uint8 numTiers = _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount);
     return numTiers > MAXIMUM_NUMBER_OF_TIERS ? MAXIMUM_NUMBER_OF_TIERS : numTiers; // add new canary tier
   }
 
@@ -769,7 +776,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @dev This function will use the claim count to determine the number of tiers, then add one for the canary tier.
   /// @param _claimCount The number of prize claims
   /// @return The estimated number of tiers + the canary tier
-  function computeNextNumberOfTiers(uint32 _claimCount) external pure returns (uint8) {
+  function computeNextNumberOfTiers(uint32 _claimCount) external view returns (uint8) {
     return _computeNextNumberOfTiers(_claimCount);
   }
 

@@ -22,14 +22,14 @@ contract TierCalculationInvariants is Test {
     // }
 
     if (harness.draws() > 0) {
-      uint estimatedPrizeCount = TierCalculationLib.estimatedClaimCount(
+      uint estimatePrizeCount = TierCalculationLib.estimatedClaimCount(
         harness.numberOfTiers(),
         harness.grandPrizePeriod()
       );
       uint bounds = 30;
       assertApproxEqAbs(
         harness.averagePrizesPerDraw(),
-        estimatedPrizeCount,
+        estimatePrizeCount,
         bounds,
         "estimated prizes match reality"
       );
