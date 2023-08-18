@@ -86,6 +86,9 @@ error CallerNotDrawManager(address caller, address drawManager);
 /// @notice Emitted when someone tries to claim a prize that is zero size
 error PrizeIsZero();
 
+/// @notice Emitted when someone tries to claim a prize, but sets the fee recipient address to the zero address.
+error FeeRecipientZeroAddress();
+
 /**
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
@@ -415,6 +418,10 @@ contract PrizePool is TieredLiquidityDistributor {
     uint96 _fee,
     address _feeRecipient
   ) external returns (uint256) {
+    if (_feeRecipient == address(0)) {
+      revert FeeRecipientZeroAddress();
+    }
+
     uint8 _numTiers = numberOfTiers;
 
     Tier memory tierLiquidity = _getTier(_tier, _numTiers);
