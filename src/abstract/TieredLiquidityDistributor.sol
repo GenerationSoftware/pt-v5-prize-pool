@@ -139,17 +139,17 @@ contract TieredLiquidityDistributor {
    * @param _reserveShares The number of shares to allocate to the reserve.
    */
   constructor(uint8 _numberOfTiers, uint8 _tierShares, uint8 _reserveShares, uint24 _grandPrizePeriodDraws) {
-    numberOfTiers = _numberOfTiers;
-    tierShares = _tierShares;
-    reserveShares = _reserveShares;
-    grandPrizePeriodDraws = _grandPrizePeriodDraws;
-
     if (_numberOfTiers < MINIMUM_NUMBER_OF_TIERS) {
       revert NumberOfTiersLessThanMinimum(_numberOfTiers);
     }
     if (_numberOfTiers > MAXIMUM_NUMBER_OF_TIERS) {
       revert NumberOfTiersGreaterThanMaximum(_numberOfTiers);
     }
+
+    numberOfTiers = _numberOfTiers;
+    tierShares = _tierShares;
+    reserveShares = _reserveShares;
+    grandPrizePeriodDraws = _grandPrizePeriodDraws;
 
     // Off by one because the canary tier isn't expected to produce prizes.
     ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS = TierCalculationLib.estimatedClaimCount(2, _grandPrizePeriodDraws);
