@@ -309,12 +309,12 @@ contract TieredLiquidityDistributor {
     uint totalNewLiquidity = _prizeTokenLiquidity + reclaimedLiquidity;
     uint256 nextTotalShares = _getTotalShares(_nextNumberOfTiers);
     UD60x18 deltaPrizeTokensPerShare = (convert(totalNewLiquidity).div(convert(nextTotalShares))).floor();
-    
+
     newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
 
     newReserve = SafeCast.toUint96(
       // reserve portion of new liquidity
-      convert(deltaPrizeTokensPerShare.mul(convert(reserveShares))) + 
+      convert(deltaPrizeTokensPerShare.mul(convert(reserveShares))) +
       // remainder left over from shares
       (
         totalNewLiquidity - convert(deltaPrizeTokensPerShare.mul(convert(nextTotalShares)))
@@ -327,7 +327,7 @@ contract TieredLiquidityDistributor {
   /// @return The prize size for the tier
   function getTierPrizeSize(uint8 _tier) external view returns (uint104) {
     uint8 _numTiers = numberOfTiers;
-    if (!TierCalculationLib.isValidTier(_tier, _numTiers)) { 
+    if (!TierCalculationLib.isValidTier(_tier, _numTiers)) {
       return 0;
     }
     return _getTier(_tier, _numTiers).prizeSize;
@@ -337,7 +337,7 @@ contract TieredLiquidityDistributor {
   /// @param _tier The tier to retrieve
   /// @return The estimated number of prizes
   function getTierPrizeCount(uint8 _tier) external view returns (uint32) {
-    if (!TierCalculationLib.isValidTier(_tier, numberOfTiers)) { 
+    if (!TierCalculationLib.isValidTier(_tier, numberOfTiers)) {
       return 0;
     }
     return uint32(TierCalculationLib.prizeCount(_tier));
@@ -469,6 +469,10 @@ contract TieredLiquidityDistributor {
       );
   }
 
+  /// @notice Determines if the given tier is the canary tier.
+  /// @param _tier The tier to check
+  /// @param _numberOfTiers The current number of tiers
+  /// @return True if the tier is the canary tier
   function _isCanaryTier(uint8 _tier, uint8 _numberOfTiers) internal pure returns (bool) {
     return _tier == _numberOfTiers - 1;
   }

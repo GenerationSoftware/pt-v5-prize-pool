@@ -5,7 +5,6 @@ import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
-import { intoSD59x18 } from "prb-math/UD60x18.sol";
 import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
@@ -303,8 +302,11 @@ contract PrizePool is TieredLiquidityDistributor {
     emit DrawManagerSet(_drawManager);
   }
 
-  /// @notice Contributes prize tokens on behalf of the given vault. The tokens should have already been transferred to the prize pool.
-  /// The prize pool balance will be checked to ensure there is at least the given amount to deposit.
+  /// @notice Contributes prize tokens on behalf of the given vault.
+  /// @dev The tokens should have already been transferred to the prize pool.
+  /// @dev The prize pool balance will be checked to ensure there is at least the given amount to deposit.
+  /// @param _prizeVault The address of the vault to contribute to
+  /// @param _amount The amount of prize tokens to contribute
   /// @return The amount of available prize tokens prior to the contribution.
   function contributePrizeTokens(address _prizeVault, uint256 _amount) external returns (uint256) {
     uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - _accountedBalance();
@@ -523,7 +525,10 @@ contract PrizePool is TieredLiquidityDistributor {
     return lastClosedDrawId;
   }
 
-  /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive. Note that this is after smoothing is applied.
+  /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive.
+  /// @dev Note that this is after smoothing is applied.
+  /// @param _startDrawIdInclusive Start draw id inclusive
+  /// @param _endDrawIdInclusive End draw id inclusive
   /// @return The total prize tokens contributed by all vaults
   function getTotalContributedBetween(
     uint16 _startDrawIdInclusive,
@@ -538,7 +543,11 @@ contract PrizePool is TieredLiquidityDistributor {
       );
   }
 
-  /// @notice Returns the total prize tokens contributed by a particular vault between the given draw ids, inclusive. Note that this is after smoothing is applied.
+  /// @notice Returns the total prize tokens contributed by a particular vault between the given draw ids, inclusive.
+  /// @dev Note that this is after smoothing is applied.
+  /// @param _vault The address of the vault
+  /// @param _startDrawIdInclusive Start draw id inclusive
+  /// @param _endDrawIdInclusive End draw id inclusive
   /// @return The total prize tokens contributed by the given vault
   function getContributedBetween(
     address _vault,
@@ -554,7 +563,7 @@ contract PrizePool is TieredLiquidityDistributor {
       );
   }
 
-  /// @notice Computes the expected duration prize accrual for a tier
+  /// @notice Computes the expected duration prize accrual for a tier.
   /// @param _tier The tier to check
   /// @return The number of draws
   function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint16) {
@@ -827,14 +836,15 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /**
    * @notice Checks if the given user has won the prize for the specified tier in the given vault.
-   * @param _vault The address of the vault to check.
-   * @param _user The address of the user to check for the prize.
-   * @param _tier The tier for which the prize is to be checked.
+   * @param _drawId The draw ID for which to check the winner
+   * @param _vault The address of the vault to check
+   * @param _user The address of the user to check for the prize
+   * @param _tier The tier for which the prize is to be checked
    * @param _prizeIndex The prize index to check. Must be less than prize count for the tier
    * @param _vaultPortion The portion of the prizes that were contributed by the given vault
    * @param _tierOdds The tier odds to apply to make prizes less frequent
-   * @param _drawDuration The duration of prize accrual for the given tier.
-   * @return A boolean value indicating whether the user has won the prize or not.
+   * @param _drawDuration The duration of prize accrual for the given tier
+   * @return A boolean value indicating whether the user has won the prize or not
    */
   function _isWinner(
     uint32 _drawId,

@@ -8,7 +8,7 @@ import { SD59x18 } from "prb-math/SD59x18.sol";
 import { TierCalculationLib } from "../src/libraries/TierCalculationLib.sol";
 
 contract GenerateConstants is Script {
-  function run() public {
+  function run() public view {
     uint16 GRAND_PRIZE_PERIOD_DRAWS = 365;
 
     console.log(
