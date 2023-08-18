@@ -224,7 +224,8 @@ contract TieredLiquidityDistributor {
     }
 
     uint8 numTiers = numberOfTiers;
-    UD60x18 _prizeTokenPerShare = fromUD34x4toUD60x18(prizeTokenPerShare);
+    UD34x4 _prizeTokenPerShare = prizeTokenPerShare;
+    UD60x18 _prizeTokenPerShareUD60x18 = fromUD34x4toUD60x18(_prizeTokenPerShare);
     (
       uint24 closedDrawId,
       uint96 newReserve,
@@ -232,7 +233,7 @@ contract TieredLiquidityDistributor {
     ) = _computeNewDistributions(
         numTiers,
         _nextNumberOfTiers,
-        _prizeTokenPerShare,
+        _prizeTokenPerShareUD60x18,
         _prizeTokenLiquidity
       );
 
@@ -251,8 +252,8 @@ contract TieredLiquidityDistributor {
     for (uint8 i = start; i < end; i++) {
       _tiers[i] = Tier({
         drawId: closedDrawId,
-        prizeTokenPerShare: prizeTokenPerShare,
-        prizeSize: _computePrizeSize(i, _nextNumberOfTiers, _prizeTokenPerShare, newPrizeTokenPerShare)
+        prizeTokenPerShare: _prizeTokenPerShare,
+        prizeSize: _computePrizeSize(i, _nextNumberOfTiers, _prizeTokenPerShareUD60x18, newPrizeTokenPerShare)
       });
     }
 

@@ -352,24 +352,29 @@ contract PrizePool is TieredLiquidityDistributor {
       revert DrawNotFinished(_openDrawEndsAt(), uint64(block.timestamp));
     }
 
+    uint24 _lastClosedDrawId = lastClosedDrawId;
+    uint24 nextDrawId = _lastClosedDrawId + 1;
+    uint32 _claimCount = claimCount;
     uint8 _numTiers = numberOfTiers;
     uint8 _nextNumberOfTiers = _numTiers;
 
-    if (lastClosedDrawId != 0) {
-      _nextNumberOfTiers = _computeNextNumberOfTiers(claimCount);
+    if (_lastClosedDrawId != 0) {
+      _nextNumberOfTiers = _computeNextNumberOfTiers(_claimCount);
     }
 
     uint64 openDrawStartedAt_ = _openDrawStartedAt();
 
-    _nextDraw(_nextNumberOfTiers, _contributionsForDraw(lastClosedDrawId + 1));
+    _nextDraw(_nextNumberOfTiers, _contributionsForDraw(nextDrawId));
 
     _winningRandomNumber = winningRandomNumber_;
-    claimCount = 0;
+    if (_claimCount != 0) {
+      claimCount = 0;
+    }
     _lastClosedDrawStartedAt = openDrawStartedAt_;
     _lastClosedDrawAwardedAt = uint64(block.timestamp);
 
     emit DrawClosed(
-      lastClosedDrawId,
+      nextDrawId,
       winningRandomNumber_,
       _numTiers,
       _nextNumberOfTiers,
@@ -378,7 +383,7 @@ contract PrizePool is TieredLiquidityDistributor {
       _lastClosedDrawStartedAt
     );
 
-    return lastClosedDrawId;
+    return _lastClosedDrawId;
   }
 
   /**
@@ -483,7 +488,7 @@ contract PrizePool is TieredLiquidityDistributor {
       revert InsufficientRewardsError(_amount, _available);
     }
 
-    claimerRewards[msg.sender] -= _amount;
+    claimerRewards[msg.sender] = _available - _amount;
     _transfer(_to, _amount);
     emit WithdrawClaimRewards(_to, _amount, _available);
   }
