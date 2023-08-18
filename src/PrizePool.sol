@@ -194,15 +194,15 @@ contract PrizePool is TieredLiquidityDistributor {
   /* ============ State ============ */
 
   /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault.
-  mapping(address => DrawAccumulatorLib.Accumulator) internal vaultAccumulator;
+  mapping (address => DrawAccumulatorLib.Accumulator) internal vaultAccumulator;
 
   /// @notice Records the claim record for a winner.
   /// @dev vault => account => drawId => tier => prizeIndex => claimed
-  mapping(address => mapping(address => mapping(uint24 => mapping(uint8 => mapping(uint32 => bool)))))
+  mapping (address => mapping (address => mapping (uint24 => mapping (uint8 => mapping (uint32 => bool)))))
     internal claimedPrizes;
 
   /// @notice Tracks the total fees accrued to each claimer.
-  mapping(address => uint256) internal claimerRewards;
+  mapping (address => uint256) internal claimerRewards;
 
   /// @notice The deployer of the contract
   /// @dev Used to verify that the addresses setting the drawManager is only the deployer so it can't be front-run
