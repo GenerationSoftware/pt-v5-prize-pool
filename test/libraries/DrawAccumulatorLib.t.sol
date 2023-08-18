@@ -8,6 +8,9 @@ import { SD59x18, sd } from "prb-math/SD59x18.sol";
 import { DrawAccumulatorLib, AddToDrawZero, DrawClosed, InvalidDrawRange, InvalidDisbursedEndDrawId } from "../../src/libraries/DrawAccumulatorLib.sol";
 import { DrawAccumulatorLibWrapper } from "../wrappers/DrawAccumulatorLibWrapper.sol";
 
+// Custom Errors
+error TargetDrawIdNotFound(uint24 drawId);
+
 contract DrawAccumulatorLibTest is Test {
   using DrawAccumulatorLib for DrawAccumulatorLib.Accumulator;
 
@@ -302,6 +305,18 @@ contract DrawAccumulatorLibTest is Test {
     assertEq(beforeOrAtDrawId, 2);
     assertEq(afterOrAtIndex, 1);
     assertEq(afterOrAtDrawId, 4);
+  }
+
+  function testBinarySearchIdLessThanMin() public {
+    fillDrawRingBuffer([2, 4, 6, 5, 7]);
+    vm.expectRevert(abi.encodeWithSelector(TargetDrawIdNotFound.selector, 1));
+    wrapper.binarySearch(0, 4, 5, 1);
+  }
+
+  function testBinarySearchIdGreaterThanMax() public {
+    fillDrawRingBuffer([2, 4, 6, 5, 7]);
+    vm.expectRevert(abi.encodeWithSelector(TargetDrawIdNotFound.selector, 8));
+    wrapper.binarySearch(0, 4, 5, 8);
   }
 
   function fillDrawRingBuffer(uint8[5] memory values) internal {
