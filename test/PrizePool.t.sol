@@ -914,6 +914,14 @@ contract PrizePoolTest is Test {
     prizePool.claimPrize(sender1, 2, 0, sender1, 1, address(0));
   }
 
+  function testClaimPrize_ZeroAddressFeeRecipient_ZeroFee() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    mockTwab(address(this), sender1, 2);
+    prizePool.claimPrize(sender1, 2, 0, sender1, 0, address(0)); // zero fee, so no revert
+    assertEq(prizePool.claimCount(), 1);
+  }
+
   function testTotalWithdrawn() public {
     assertEq(prizePool.totalWithdrawn(), 0);
     contribute(100e18);

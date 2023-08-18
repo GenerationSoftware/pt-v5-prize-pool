@@ -418,7 +418,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint96 _fee,
     address _feeRecipient
   ) external returns (uint256) {
-    if (_feeRecipient == address(0)) {
+    if (_feeRecipient == address(0) && _fee > 0) {
       revert FeeRecipientZeroAddress();
     }
 
