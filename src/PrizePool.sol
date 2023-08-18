@@ -311,19 +311,21 @@ contract PrizePool is TieredLiquidityDistributor {
     if (_deltaBalance < _amount) {
       revert ContributionGTDeltaBalance(_amount, _deltaBalance);
     }
+    uint24 openDrawId = lastClosedDrawId + 1;
+    SD59x18 _smoothing = smoothing.intoSD59x18();
     DrawAccumulatorLib.add(
       vaultAccumulator[_prizeVault],
       _amount,
-      lastClosedDrawId + 1,
-      smoothing.intoSD59x18()
+      openDrawId,
+      _smoothing
     );
     DrawAccumulatorLib.add(
       totalAccumulator,
       _amount,
-      lastClosedDrawId + 1,
-      smoothing.intoSD59x18()
+      openDrawId,
+      _smoothing
     );
-    emit ContributePrizeTokens(_prizeVault, lastClosedDrawId + 1, _amount);
+    emit ContributePrizeTokens(_prizeVault, openDrawId, _amount);
     return _deltaBalance;
   }
 
