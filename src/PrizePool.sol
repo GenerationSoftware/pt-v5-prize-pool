@@ -435,15 +435,15 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     { // hide the variables!
-      (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint24 _drawDuration) = _computeVaultTierDetails(
+      (SD59x18 _vaultPortion, SD59x18 _computedTierOdds, uint24 _drawDuration) = _computeVaultTierDetails(
         msg.sender,
         _tier,
-        _numTiers,
+        numberOfTiers,
         lastClosedDrawId
       );
 
       if (
-        !_isWinner(lastClosedDrawId, msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _tierOdds, _drawDuration)
+        !_isWinner(lastClosedDrawId, msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _computedTierOdds, _drawDuration)
       ) {
         revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
       }
