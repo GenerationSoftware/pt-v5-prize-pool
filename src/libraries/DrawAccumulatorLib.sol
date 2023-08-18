@@ -23,6 +23,10 @@ error InvalidDrawRange(uint24 startDrawId, uint24 endDrawId);
 /// @param endDrawId The end draw ID for the range
 error InvalidDisbursedEndDrawId(uint24 endDrawId);
 
+/// @notice Emitted when the target draw ID that was searched for is not in the buffer.
+/// @param targetDrawId The searched draw ID
+error TargetDrawIdNotFound(uint24 targetDrawId);
+
 struct Observation {
   // track the total amount available as of this Observation
   uint96 available;
@@ -438,9 +442,7 @@ library DrawAccumulatorLib {
     uint16 rightSide = _newestIndex < leftSide ? leftSide + _cardinality - 1 : _newestIndex;
     uint16 currentIndex;
 
-    // We still check when rightSide is the same as leftSide since the range is inclusive.
-    // Break assurance: at the end of the while loop, the distance between right and left will always be reduced by 1.
-    while (rightSide >= leftSide) {
+    while (true) {
       // We start our search in the middle of the `leftSide` and `rightSide`.
       // After each iteration, we narrow down the search to the left or the right side while still starting our search in the middle.
       currentIndex = (leftSide + rightSide) / 2;
@@ -460,11 +462,20 @@ library DrawAccumulatorLib {
 
       // If `beforeOrAtTimestamp` is greater than `_target`, then we keep searching lower. To the left of the current index.
       if (!targetAtOrAfter) {
-        if (rightSide == 0) break; // avoid underflow error on subtraction
+        if (currentIndex == 0) {
+          // We've exhuasted the buffer, avoid underflow error
+          revert TargetDrawIdNotFound(_targetLastClosedDrawId);
+        }
         rightSide = currentIndex - 1;
       } else {
         // Otherwise, we keep searching higher. To the left of the current index.
         leftSide = currentIndex + 1;
+      }
+
+      // Check if we've exhausted the buffer
+      // Break assurance: each iteration, the distance between right and left will always be reduced by at least 1.
+      if (rightSide < leftSide) {
+        revert TargetDrawIdNotFound(_targetLastClosedDrawId);
       }
     }
   }
