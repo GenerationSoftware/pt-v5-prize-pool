@@ -409,7 +409,7 @@ library DrawAccumulatorLib {
   }
 
   /// @notice Binary searches an array of draw ids for the given target draw id.
-  /// @dev Index bounds and draw ID bounds must be checked in the implementation of this function.
+  /// @dev Index bounds and draw ID bounds must be validated before they are passed to this function.
   /// @param _drawRingBuffer The array of draw ids to search
   /// @param _oldestIndex The oldest index in the ring buffer
   /// @param _newestIndex The newest index in the ring buffer
