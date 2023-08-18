@@ -408,7 +408,9 @@ contract PrizePool is TieredLiquidityDistributor {
     uint96 _fee,
     address _feeRecipient
   ) external returns (uint256) {
-    Tier memory tierLiquidity = _getTier(_tier, numberOfTiers);
+    uint8 _numTiers = numberOfTiers;
+
+    Tier memory tierLiquidity = _getTier(_tier, _numTiers);
 
     if (_fee > tierLiquidity.prizeSize) {
       revert FeeTooLarge(_fee, tierLiquidity.prizeSize);
@@ -418,17 +420,19 @@ contract PrizePool is TieredLiquidityDistributor {
       revert PrizeIsZero();
     }
 
-    (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint24 _drawDuration) = _computeVaultTierDetails(
-      msg.sender,
-      _tier,
-      numberOfTiers,
-      lastClosedDrawId
-    );
+    { // hide the variables!
+      (SD59x18 _vaultPortion, SD59x18 _tierOdds, uint24 _drawDuration) = _computeVaultTierDetails(
+        msg.sender,
+        _tier,
+        _numTiers,
+        lastClosedDrawId
+      );
 
-    if (
-      !_isWinner(lastClosedDrawId, msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _tierOdds, _drawDuration)
-    ) {
-      revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
+      if (
+        !_isWinner(lastClosedDrawId, msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _tierOdds, _drawDuration)
+      ) {
+        revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
+      }
     }
 
     if (claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex]) {
@@ -886,7 +890,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
     _checkValidTier(_tier, _numberOfTiers);
 
-    tierOdds = _tierOdds(_tier, numberOfTiers);
+    tierOdds = _tierOdds(_tier, _numberOfTiers);
     drawDuration = uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
     vaultPortion = _getVaultPortion(
       _vault,
