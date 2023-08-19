@@ -220,6 +220,18 @@ contract DrawAccumulatorLibTest is Test {
     assertEq(getDisbursedBetween(3, 4), 2538);
   }
 
+  function testGetDisbursedBetween_AfterLast() public {
+    add(1);
+    add(4);
+    // 1  1000
+    // 2  900
+    // 3  810
+    // 4  729 + 1000
+    // 5  656 + 900
+    // 6  590 + 810
+    assertEq(getDisbursedBetween(6, 6), 1400);
+  }
+
   function testIntegrateInf() public {
     assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 0, 100), 100);
     assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 1, 100), 90);

@@ -409,6 +409,7 @@ library DrawAccumulatorLib {
   }
 
   /// @notice Binary searches an array of draw ids for the given target draw id.
+  /// @dev The _targetLastClosedDrawId MUST exist in the buffer between _oldestIndex and _newestIndex (inclusive)
   /// @param _drawRingBuffer The array of draw ids to search
   /// @param _oldestIndex The oldest index in the ring buffer
   /// @param _newestIndex The newest index in the ring buffer
