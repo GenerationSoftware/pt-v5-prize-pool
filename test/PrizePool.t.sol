@@ -31,6 +31,7 @@ import {
   DrawManagerAlreadySet,
   CallerNotDrawManager,
   NotDeployer,
+  FeeRecipientZeroAddress,
   MAXIMUM_NUMBER_OF_TIERS,
   MINIMUM_NUMBER_OF_TIERS
 } from "../src/PrizePool.sol";
@@ -799,7 +800,7 @@ contract PrizePoolTest is Test {
     mockTwab(address(this), winner, 1);
     assertEq(prizePool.getTierPrizeSize(2), 0, "prize size");
     vm.expectRevert(abi.encodeWithSelector(PrizeIsZero.selector));
-    prizePool.claimPrize(winner, 1, 0, winner, 0, address(0));
+    prizePool.claimPrize(winner, 1, 0, winner, 0, address(this));
   }
 
   function testClaimPrize_single() public {
@@ -822,9 +823,9 @@ contract PrizePoolTest is Test {
       0,
       uint152(prize),
       0,
-      address(0)
+      address(this)
     );
-    assertEq(prizePool.claimPrize(winner, 1, 0, recipient, 0, address(0)), prize);
+    assertEq(prizePool.claimPrize(winner, 1, 0, recipient, 0, address(this)), prize);
     assertEq(prizeToken.balanceOf(recipient), prize, "recipient balance is good");
     assertEq(prizePool.claimCount(), 1);
   }
@@ -859,7 +860,7 @@ contract PrizePoolTest is Test {
     mockTwab(address(this), msg.sender, 0);
     uint prize = prizePool.getTierPrizeSize(0);
     vm.expectRevert(abi.encodeWithSelector(FeeTooLarge.selector, 10e18, prize));
-    claimPrize(msg.sender, 0, 0, 10e18, address(0));
+    claimPrize(msg.sender, 0, 0, 10e18, address(this));
   }
 
   function testClaimPrize_grandPrize_cannotClaimTwice() public {
@@ -902,6 +903,22 @@ contract PrizePoolTest is Test {
     closeDraw(winningRandomNumber);
     mockTwab(address(this), sender1, 2);
     claimPrize(sender1, 2, 0);
+    assertEq(prizePool.claimCount(), 1);
+  }
+
+  function testClaimPrize_ZeroAddressFeeRecipient() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    mockTwab(address(this), sender1, 2);
+    vm.expectRevert(abi.encodeWithSelector(FeeRecipientZeroAddress.selector));
+    prizePool.claimPrize(sender1, 2, 0, sender1, 1, address(0));
+  }
+
+  function testClaimPrize_ZeroAddressFeeRecipient_ZeroFee() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    mockTwab(address(this), sender1, 2);
+    prizePool.claimPrize(sender1, 2, 0, sender1, 0, address(0)); // zero fee, so no revert
     assertEq(prizePool.claimCount(), 1);
   }
 
@@ -1148,7 +1165,7 @@ contract PrizePoolTest is Test {
   }
 
   function claimPrize(address sender, uint8 tier, uint32 prizeIndex) public returns (uint256) {
-    return claimPrize(sender, tier, prizeIndex, 0, address(0));
+    return claimPrize(sender, tier, prizeIndex, 0, address(this));
   }
 
   function claimPrize(
