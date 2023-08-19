@@ -61,13 +61,11 @@ function convert(uint128 x) pure returns (UD34x4 result) {
 }
 
 /// @notice Alias for the `convert` function defined above.
-/// @dev Here for backward compatibility. Will be removed in V4.
 function fromUD34x4(UD34x4 x) pure returns (uint128 result) {
   result = convert(x);
 }
 
 /// @notice Alias for the `convert` function defined above.
-/// @dev Here for backward compatibility. Will be removed in V4.
 function toUD34x4(uint128 x) pure returns (UD34x4 result) {
   result = convert(x);
 }
