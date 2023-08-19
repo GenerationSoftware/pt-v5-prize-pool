@@ -296,17 +296,17 @@ contract TieredLiquidityDistributor {
     uint8 _numberOfTiers,
     uint8 _nextNumberOfTiers,
     UD60x18 _currentPrizeTokenPerShare,
-    uint _prizeTokenLiquidity
+    uint256 _prizeTokenLiquidity
   ) internal view returns (uint24 closedDrawId, uint96 newReserve, UD60x18 newPrizeTokenPerShare) {
     closedDrawId = lastClosedDrawId + 1;
 
-    uint reclaimedLiquidity = _getTierLiquidityToReclaim(
+    uint256 reclaimedLiquidity = _getTierLiquidityToReclaim(
       _numberOfTiers,
       _nextNumberOfTiers,
       _currentPrizeTokenPerShare
     );
 
-    uint totalNewLiquidity = _prizeTokenLiquidity + reclaimedLiquidity;
+    uint256 totalNewLiquidity = _prizeTokenLiquidity + reclaimedLiquidity;
     uint256 nextTotalShares = _getTotalShares(_nextNumberOfTiers);
     UD60x18 deltaPrizeTokensPerShare = (convert(totalNewLiquidity).div(convert(nextTotalShares))).floor();
     

@@ -278,7 +278,7 @@ library DrawAccumulatorLib {
       uint24 headStartDrawId = _startDrawId - observationDrawIdBeforeOrAtStart;
       uint24 headEndDrawId = headStartDrawId +
         (firstObservationDrawIdOccurringAtOrAfterStart - _startDrawId);
-      uint amount = integrate(_alpha, headStartDrawId, headEndDrawId, beforeOrAtStart.available);
+      uint256 amount = integrate(_alpha, headStartDrawId, headEndDrawId, beforeOrAtStart.available);
       total += amount;
     }
 
@@ -292,7 +292,7 @@ library DrawAccumulatorLib {
         firstObservationDrawIdOccurringAtOrAfterStart
       ];
       atOrBeforeEnd = _accumulator.observations[lastObservationDrawIdOccurringAtOrBeforeEnd];
-      uint amount = atOrBeforeEnd.disbursed - atOrAfterStart.disbursed;
+      uint256 amount = atOrBeforeEnd.disbursed - atOrAfterStart.disbursed;
       total += amount;
     }
 
@@ -378,7 +378,7 @@ library DrawAccumulatorLib {
   /// @param _x The x value to integrate from.
   /// @param _k The k value to scale the sum (this is the total available balance).
   /// @return The integration from x to inf of the EWA for the given parameters.
-  function integrateInf(SD59x18 _alpha, uint _x, uint _k) internal pure returns (uint256) {
+  function integrateInf(SD59x18 _alpha, uint256 _x, uint256 _k) internal pure returns (uint256) {
     return uint256(convert(computeC(_alpha, _x, _k)));
   }
 
@@ -390,9 +390,9 @@ library DrawAccumulatorLib {
   /// @return The integration from start to end of the EWA for the given parameters.
   function integrate(
     SD59x18 _alpha,
-    uint _start,
-    uint _end,
-    uint _k
+    uint256 _start,
+    uint256 _end,
+    uint256 _k
   ) internal pure returns (uint256) {
     int start = unwrap(computeC(_alpha, _start, _k));
     int end = unwrap(computeC(_alpha, _end, _k));
@@ -404,7 +404,7 @@ library DrawAccumulatorLib {
   /// @param _x The x value to compute for
   /// @param _k The total available balance
   /// @return The value C
-  function computeC(SD59x18 _alpha, uint _x, uint _k) internal pure returns (SD59x18) {
+  function computeC(SD59x18 _alpha, uint256 _x, uint256 _k) internal pure returns (SD59x18) {
     return convert(int(_k)).mul(_alpha.pow(convert(int256(_x))));
   }
 
