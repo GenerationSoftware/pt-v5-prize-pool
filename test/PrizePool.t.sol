@@ -114,7 +114,7 @@ contract PrizePoolTest is Test {
   /// @notice Emitted when the reserve is manually increased.
   /// @param user The user who increased the reserve
   /// @param amount The amount of assets transferred
-  event ContributedReserve(address user, uint256 amount);
+  event ContributedReserve(address indexed user, uint256 amount);
 
   /**********************************************************************************/
 
