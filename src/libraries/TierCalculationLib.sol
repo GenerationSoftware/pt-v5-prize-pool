@@ -127,23 +127,19 @@ library TierCalculationLib {
       );
   }
 
-  /// @notice Computes the estimated number of prizes per draw given the number of tiers and the grand prize period.
-  /// @param _numberOfTiers The number of tiers
-  /// @param _grandPrizePeriod The grand prize period
-  /// @return The estimated number of prizes per draw
-  function estimatedClaimCount(
-    uint8 _numberOfTiers,
-    uint24 _grandPrizePeriod
+  /// @notice Computes the estimated number of prizes per draw for a given tier and tier odds.
+  /// @param _tier The tier
+  /// @param _odds The odds of the tier occurring for the draw
+  /// @return The estimated number of prizes per draw for the given tier and tier odds
+  function tierPrizeCountPerDraw(
+    uint8 _tier,
+    SD59x18 _odds
   ) internal pure returns (uint32) {
-    uint32 count = 0;
-    for (uint8 i = 0; i < _numberOfTiers; i++) {
-      count += uint32(
-        uint256(
-          unwrap(sd(int256(prizeCount(i))).mul(getTierOdds(i, _numberOfTiers, _grandPrizePeriod)))
-        )
-      );
-    }
-    return count;
+    return uint32(
+      uint256(
+        unwrap(sd(int256(prizeCount(_tier))).mul(_odds))
+      )
+    );
   }
 
   /// @notice Checks whether a tier is a valid tier

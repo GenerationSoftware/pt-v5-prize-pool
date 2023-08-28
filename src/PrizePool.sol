@@ -806,8 +806,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @return The estimated number of tiers + the canary tier
   function _computeNextNumberOfTiers(uint32 _claimCount) internal view returns (uint8) {
     // claimCount is expected to be the estimated number of claims for the current prize tier.
-    uint8 numTiers = _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount);
-    return numTiers > MAXIMUM_NUMBER_OF_TIERS ? MAXIMUM_NUMBER_OF_TIERS : numTiers; // add new canary tier
+    return _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount) + 1;
   }
 
   /// @notice Calculates the number of tiers given the number of prize claims
