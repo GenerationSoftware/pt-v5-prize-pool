@@ -28,7 +28,7 @@ import {
   InvalidPrizeIndex,
   NoClosedDraw,
   InvalidTier,
-  DrawManagerAlreadySet,
+  DrawManagerIsZeroAddress,
   CallerNotDrawManager,
   NotDeployer,
   FeeRecipientZeroAddress,
@@ -668,14 +668,14 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.drawManager(), address(this));
   }
 
-  function testSetDrawManager_alreadySet() public {
-    vm.expectRevert(abi.encodeWithSelector(DrawManagerAlreadySet.selector));
-    prizePool.setDrawManager(address(this));
+  function testSetDrawManager_DrawManagerIsZeroAddress() public {
+    vm.expectRevert(abi.encodeWithSelector(DrawManagerIsZeroAddress.selector));
+    prizePool.setDrawManager(address(0));
   }
 
-  function testSetDrawManager_notDeployer() public {
+  function testSetDrawManager_notOwner() public {
     vm.startPrank(address(1));
-    vm.expectRevert(abi.encodeWithSelector(NotDeployer.selector));
+    vm.expectRevert("Ownable: caller is not the owner");
     prizePool.setDrawManager(address(this));
     vm.stopPrank();
   }
