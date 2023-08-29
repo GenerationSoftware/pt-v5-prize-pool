@@ -45,7 +45,6 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     ConstructorParams memory params = ConstructorParams(
       token,
       twabController,
-      drawManager,
       drawPeriodSeconds,
       nextDrawStartsAt,
       smoothing,
@@ -55,6 +54,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
       reserveShares
     );
     prizePool = new PrizePool(params);
+    prizePool.setDrawManager(drawManager);
   }
 
   function contributePrizeTokens(uint64 _amount) warp public {

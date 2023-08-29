@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
+import { Ownable } from "openzeppelin/access/Ownable.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
@@ -18,8 +19,8 @@ import {
 } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
-/// @notice Emitted when someone tries to set the draw manager.
-error DrawManagerAlreadySet();
+/// @notice Emitted when someone tries to set the draw manager with the zero address
+error DrawManagerIsZeroAddress();
 
 /// @notice Emitted when the caller is not the deployer.
 error NotDeployer();
@@ -92,7 +93,6 @@ error FeeRecipientZeroAddress();
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
  * @param twabController The Twab Controller to retrieve time-weighted average balances from
- * @param drawManager The address of the draw manager for the prize pool
  * @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
  * @param firstDrawStartsAt The timestamp at which the first draw will start.
  * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
@@ -103,7 +103,6 @@ error FeeRecipientZeroAddress();
 struct ConstructorParams {
   IERC20 prizeToken;
   TwabController twabController;
-  address drawManager;
   uint32 drawPeriodSeconds;
   uint64 firstDrawStartsAt;
   SD1x18 smoothing;
@@ -118,7 +117,7 @@ struct ConstructorParams {
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
-contract PrizePool is TieredLiquidityDistributor {
+contract PrizePool is TieredLiquidityDistributor, Ownable {
   using SafeERC20 for IERC20;
 
   /* ============ Events ============ */
@@ -206,10 +205,6 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Tracks the total fees accrued to each claimer.
   mapping (address => uint256) internal claimerRewards;
 
-  /// @notice The deployer of the contract
-  /// @dev Used to verify that the addresses setting the drawManager is only the deployer so it can't be front-run
-  address internal immutable deployer;
-
   /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing. Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
   SD1x18 public immutable smoothing;
 
@@ -261,6 +256,7 @@ contract PrizePool is TieredLiquidityDistributor {
       params.reserveShares,
       params.grandPrizePeriodDraws
     )
+    Ownable()
   {
     if (unwrap(params.smoothing) >= unwrap(UNIT)) {
       revert SmoothingGTEOne(unwrap(params.smoothing));
@@ -271,12 +267,6 @@ contract PrizePool is TieredLiquidityDistributor {
     drawPeriodSeconds = params.drawPeriodSeconds;
     _lastClosedDrawStartedAt = params.firstDrawStartsAt;
     firstDrawStartsAt = params.firstDrawStartsAt;
-    deployer = msg.sender;
-
-    if (params.drawManager != address(0)) {
-      drawManager = params.drawManager;
-      emit DrawManagerSet(params.drawManager);
-    }
   }
 
   /* ============ Modifiers ============ */
@@ -293,12 +283,9 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /// @notice Allows a caller to set the DrawManager if not already set.
   /// @param _drawManager The draw manager
-  function setDrawManager(address _drawManager) external {
-    if (msg.sender != deployer) {
-      revert NotDeployer();
-    }
-    if (drawManager != address(0)) {
-      revert DrawManagerAlreadySet();
+  function setDrawManager(address _drawManager) external onlyOwner {
+    if (_drawManager == address(0)) {
+      revert DrawManagerIsZeroAddress();
     }
     drawManager = _drawManager;
 
