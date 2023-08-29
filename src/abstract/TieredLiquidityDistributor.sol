@@ -553,6 +553,12 @@ contract TieredLiquidityDistributor {
     return lastClosedDrawId + 1;
   }
 
+  /// @notice Estimates the number of prizes for the current number of tiers, including the canary tier
+  /// @return The estimated number of prizes including the canary tier
+  function estimatedPrizeCount() external view returns (uint32) {
+    return _estimatePrizeCountPerDrawUsingNumberOfTiers(numberOfTiers);
+  }
+
   /// @notice Estimates the number of prizes that will be awarded given a number of tiers. Includes canary tier
   /// @param numTiers The number of tiers
   /// @return The estimated prize count for the given number of tiers

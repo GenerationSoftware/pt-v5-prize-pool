@@ -249,6 +249,10 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(540), 5, "matches significantly over");
   }
 
+  function testEstimatedPrizeCount_noParam() public {
+    assertEq(distributor.estimatedPrizeCount(), 20);
+  }
+
   function testEstimatedPrizeCount_allTiers() public {
     assertEq(distributor.estimatedPrizeCount(3), 20);
     assertEq(distributor.estimatedPrizeCount(4), 80);
