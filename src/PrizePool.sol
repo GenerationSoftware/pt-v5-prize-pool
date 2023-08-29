@@ -925,7 +925,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint256 _drawDuration
   ) internal view returns (uint256 twab, uint256 twabTotalSupply) {
     uint32 _endTimestamp = uint32(_lastClosedDrawStartedAt + drawPeriodSeconds);
-    uint32 _startTimestamp = uint32(_endTimestamp - _drawDuration * drawPeriodSeconds);
+    uint32 durationSeconds = uint32(_drawDuration * drawPeriodSeconds);
+    uint32 _startTimestamp = _endTimestamp > durationSeconds ? _endTimestamp - durationSeconds : 0;
 
     twab = twabController.getTwabBetween(_vault, _user, _startTimestamp, _endTimestamp);
 
