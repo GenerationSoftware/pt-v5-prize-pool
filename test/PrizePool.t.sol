@@ -1142,6 +1142,26 @@ contract PrizePoolTest is Test {
     assertEq(twabTotalSupply, 1e30);
   }
 
+  function testGetVaultUserBalanceAndTotalSupplyTwab_insufficientPast() public {
+    vm.warp(1 days);
+    params.firstDrawStartsAt = 2 days;
+    prizePool = new PrizePool(params);
+    closeDraw(winningRandomNumber);
+    mockTwab(
+      address(this),
+      msg.sender,
+      0,
+      prizePool.lastClosedDrawEndedAt()
+    );
+    (uint256 twab, uint256 twabTotalSupply) = prizePool.getVaultUserBalanceAndTotalSupplyTwab(
+      address(this),
+      msg.sender,
+      grandPrizePeriodDraws
+    );
+    assertEq(twab, 366e30);
+    assertEq(twabTotalSupply, 1e30);
+  }
+
   function mockGetAverageBalanceBetween(
     address _vault,
     address _user,
