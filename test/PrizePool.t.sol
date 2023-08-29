@@ -1146,6 +1146,7 @@ contract PrizePoolTest is Test {
     vm.warp(1 days);
     params.firstDrawStartsAt = 2 days;
     prizePool = new PrizePool(params);
+    prizePool.setDrawManager(address(this));
     closeDraw(winningRandomNumber);
     mockTwab(
       address(this),
