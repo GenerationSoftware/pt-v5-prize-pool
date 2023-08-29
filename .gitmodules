@@ -13,12 +13,12 @@
 [submodule "lib/owner-manager-contracts"]
 	path = lib/owner-manager-contracts
 	url = https://github.com/pooltogether/owner-manager-contracts
-[submodule "lib/pt-v5-twab-controller"]
-	path = lib/pt-v5-twab-controller
-	url = https://github.com/GenerationSoftware/pt-v5-twab-controller
 [submodule "lib/ring-buffer-lib"]
 	path = lib/ring-buffer-lib
 	url = https://github.com/GenerationSoftware/ring-buffer-lib
 [submodule "lib/uniform-random-number"]
 	path = lib/uniform-random-number
 	url = https://github.com/generationsoftware/uniform-random-number
+[submodule "lib/pt-v5-twab-controller"]
+	path = lib/pt-v5-twab-controller
+	url = https://github.com/generationsoftware/pt-v5-twab-controller
