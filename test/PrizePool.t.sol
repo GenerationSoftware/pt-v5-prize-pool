@@ -137,7 +137,6 @@ contract PrizePoolTest is Test {
     params = ConstructorParams(
       prizeToken,
       twabController,
-      drawManager,
       drawPeriodSeconds,
       firstDrawStartsAt,
       sd1x18(0.9e18), // alpha
@@ -147,9 +146,11 @@ contract PrizePoolTest is Test {
       uint8(RESERVE_SHARES)
     );
 
+    prizePool = new PrizePool(params);
+
     vm.expectEmit();
     emit DrawManagerSet(drawManager);
-    prizePool = new PrizePool(params);
+    prizePool.setDrawManager(drawManager);
   }
 
   function testConstructor() public {
@@ -525,7 +526,6 @@ contract PrizePoolTest is Test {
     ConstructorParams memory prizePoolParams = ConstructorParams(
       prizeToken,
       twabController,
-      address(this),
       drawPeriodSeconds,
       firstDrawStartsAt,
       sd1x18(0.9e18), // alpha
@@ -535,6 +535,7 @@ contract PrizePoolTest is Test {
       10
     );
     prizePool = new PrizePool(prizePoolParams);
+    prizePool.setDrawManager(address(this));
 
     contribute(510e18);
     closeDraw(1234);
@@ -550,7 +551,6 @@ contract PrizePoolTest is Test {
     ConstructorParams memory prizePoolParams = ConstructorParams(
       prizeToken,
       twabController,
-      address(this),
       drawPeriodSeconds,
       firstDrawStartsAt,
       sd1x18(0.9e18), // alpha
@@ -560,6 +560,7 @@ contract PrizePoolTest is Test {
       10
     );
     prizePool = new PrizePool(prizePoolParams);
+    prizePool.setDrawManager(address(this));
 
     contribute(510e18);
 
@@ -660,12 +661,11 @@ contract PrizePoolTest is Test {
   }
 
   function testSetDrawManager() public {
-    params.drawManager = address(0);
-    prizePool = new PrizePool(params);
+    address bob = makeAddr("bob");
     vm.expectEmit();
-    emit DrawManagerSet(address(this));
-    prizePool.setDrawManager(address(this));
-    assertEq(prizePool.drawManager(), address(this));
+    emit DrawManagerSet(address(bob));
+    prizePool.setDrawManager(address(bob));
+    assertEq(prizePool.drawManager(), address(bob));
   }
 
   function testSetDrawManager_DrawManagerIsZeroAddress() public {

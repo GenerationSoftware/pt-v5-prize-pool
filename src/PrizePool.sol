@@ -93,7 +93,6 @@ error FeeRecipientZeroAddress();
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
  * @param twabController The Twab Controller to retrieve time-weighted average balances from
- * @param drawManager The address of the draw manager for the prize pool
  * @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
  * @param firstDrawStartsAt The timestamp at which the first draw will start.
  * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
@@ -104,7 +103,6 @@ error FeeRecipientZeroAddress();
 struct ConstructorParams {
   IERC20 prizeToken;
   TwabController twabController;
-  address drawManager;
   uint32 drawPeriodSeconds;
   uint64 firstDrawStartsAt;
   SD1x18 smoothing;
@@ -269,11 +267,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     drawPeriodSeconds = params.drawPeriodSeconds;
     _lastClosedDrawStartedAt = params.firstDrawStartsAt;
     firstDrawStartsAt = params.firstDrawStartsAt;
-
-    if (params.drawManager != address(0)) {
-      drawManager = params.drawManager;
-      emit DrawManagerSet(params.drawManager);
-    }
   }
 
   /* ============ Modifiers ============ */
