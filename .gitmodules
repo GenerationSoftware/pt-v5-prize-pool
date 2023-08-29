@@ -19,6 +19,3 @@
 [submodule "lib/uniform-random-number"]
 	path = lib/uniform-random-number
 	url = https://github.com/generationsoftware/uniform-random-number
-[submodule "lib/pt-v5-twab-controller"]
-	path = lib/pt-v5-twab-controller
-	url = git@github.com:GenerationSoftware/pt-v5-twab-controller-PRIVATE.git
