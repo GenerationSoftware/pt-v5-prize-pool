@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { TierCalculationLibWrapper } from "../wrappers/TierCalculationLibWrapper.sol";
-import { SD59x18, sd, unwrap, convert } from "prb-math/SD59x18.sol";
+import { SD59x18, sd, wrap, unwrap, convert } from "prb-math/SD59x18.sol";
 import { UD60x18, ud } from "prb-math/UD60x18.sol";
 
 contract TierCalculationLibTest is Test {
@@ -16,10 +16,10 @@ contract TierCalculationLibTest is Test {
   }
 
   function testGetTierOdds() public {
-    assertEq(unwrap(TierCalculationLib.getTierOdds(0, 4, 365)), 2739726027397260);
-    assertEq(unwrap(TierCalculationLib.getTierOdds(1, 4, 365)), 19579642462506911);
-    assertEq(unwrap(TierCalculationLib.getTierOdds(2, 4, 365)), 139927275620255364);
-    assertEq(unwrap(TierCalculationLib.getTierOdds(3, 4, 365)), 1e18);
+    assertEq(unwrap(wrapper.getTierOdds(0, 4, 365)), 2739726027397260);
+    assertEq(unwrap(wrapper.getTierOdds(1, 4, 365)), 19579642462506911);
+    assertEq(unwrap(wrapper.getTierOdds(2, 4, 365)), 139927275620255364);
+    assertEq(unwrap(wrapper.getTierOdds(3, 4, 365)), 1e18);
   }
 
   function testEstimatePrizeFrequencyInDraws() public {
@@ -55,40 +55,6 @@ contract TierCalculationLibTest is Test {
 
   function testCalculateWinningZoneWithPrizeCount() public {
     assertEq(TierCalculationLib.calculateWinningZone(1000, sd(1e18), sd(1e18)), 1000);
-  }
-
-  function testEstimatedClaimCount() public {
-    // 2: 4.002739726
-    // 3: 16.2121093
-    // 4: 66.31989471
-    // 5: 271.5303328
-    // 6: 1109.21076
-    // 7: 4518.562795
-    // 8: 18359.91762
-    // 9: 74437.0802
-    // 10: 301242.1839
-    // 11: 1217269.1
-    // 12: 4912623.73
-    // 13: 19805539.61
-    // 14: 79777192.14
-    // 15: 321105957.4
-    // 16: 1291645055
-
-    assertEq(wrapper.estimatedClaimCount(2, 365), 4);
-    assertEq(wrapper.estimatedClaimCount(3, 365), 16);
-    assertEq(wrapper.estimatedClaimCount(4, 365), 66);
-    assertEq(wrapper.estimatedClaimCount(5, 365), 270);
-    assertEq(wrapper.estimatedClaimCount(6, 365), 1108);
-    assertEq(wrapper.estimatedClaimCount(7, 365), 4517);
-    assertEq(wrapper.estimatedClaimCount(8, 365), 18358);
-    assertEq(wrapper.estimatedClaimCount(9, 365), 74435);
-    assertEq(wrapper.estimatedClaimCount(10, 365), 301239);
-    assertEq(wrapper.estimatedClaimCount(11, 365), 1217266);
-    assertEq(wrapper.estimatedClaimCount(12, 365), 4912619);
-    assertEq(wrapper.estimatedClaimCount(13, 365), 19805536);
-    assertEq(wrapper.estimatedClaimCount(14, 365), 79777187);
-    assertEq(wrapper.estimatedClaimCount(15, 365), 321105952);
-    assertEq(wrapper.estimatedClaimCount(16, 365), 1291645048);
   }
 
   function testCanaryPrizeCount() public {
@@ -164,5 +130,9 @@ contract TierCalculationLibTest is Test {
     }
 
     assertApproxEqAbs(wins, prizeCount / 2, 20);
+  }
+
+  function testTierPrizeCountPerDraw() public {
+    assertEq(wrapper.tierPrizeCountPerDraw(3, wrap(0.5e18)), 32);
   }
 }

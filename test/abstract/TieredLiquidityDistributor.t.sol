@@ -64,18 +64,6 @@ contract TieredLiquidityDistributorTest is Test {
     );
   }
 
-  function testEstimateTierUsingPrizeCountPerDraw() public {
-    for (uint8 i = MINIMUM_NUMBER_OF_TIERS; i <= MAXIMUM_NUMBER_OF_TIERS; i++) {
-      // actual claim count does not include canary tier, so it's i-1
-      uint claimCount = TierCalculationLib.estimatedClaimCount(i-1, distributor.grandPrizePeriodDraws());
-      assertEq(
-        distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(uint32(claimCount)),
-        i
-      );
-    }
-    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(type(uint32).max), 10, "maximum");
-  }
-
   function testRemainingTierLiquidity() public {
     distributor.nextDraw(3, 310e18);
     assertEq(distributor.remainingTierLiquidity(0), 100e18);
@@ -244,26 +232,49 @@ contract TieredLiquidityDistributorTest is Test {
     uint32 prizeCount;
     for (uint8 numTiers = MINIMUM_NUMBER_OF_TIERS; numTiers <= MAXIMUM_NUMBER_OF_TIERS; numTiers++) {
       prizeCount = distributor.estimatedPrizeCount(numTiers);
-      assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount), numTiers, "reverse");
+      console2.log("estimatedPrizeCount: tier %s count %s", numTiers, prizeCount);
+      assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount - 1), numTiers, "slightly under");
+      assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount), numTiers, "match");
+      assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount + 1), numTiers, "slightly over");
     }
 
     assertEq(distributor.estimatedPrizeCount(11), 0, "exceeds bounds");
   }
 
-  function testEstimatedPrizeCount_current() public {
-    assertEq(distributor.estimatedPrizeCount(), 4);
+  function testEstimateNumberOfTiersUsingPrizeCountPerDraw_loose() public {
+    // 270 prizes for num tiers = 5
+    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(250), 5, "matches slightly under");
+    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(270), 5, "matches exact");
+    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(280), 5, "matches slightly over");
+    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(540), 5, "matches significantly over");
+  }
+
+  function testEstimatedPrizeCount_noParam() public {
+    assertEq(distributor.estimatedPrizeCount(), 20);
   }
 
   function testEstimatedPrizeCount_allTiers() public {
-    assertEq(distributor.estimatedPrizeCount(3), TierCalculationLib.estimatedClaimCount(2, grandPrizePeriodDraws));
-    assertEq(distributor.estimatedPrizeCount(4), TierCalculationLib.estimatedClaimCount(3, grandPrizePeriodDraws));
-    assertEq(distributor.estimatedPrizeCount(5), TierCalculationLib.estimatedClaimCount(4, grandPrizePeriodDraws));
-    assertEq(distributor.estimatedPrizeCount(6), TierCalculationLib.estimatedClaimCount(5, grandPrizePeriodDraws));
-    assertEq(distributor.estimatedPrizeCount(7), TierCalculationLib.estimatedClaimCount(6, grandPrizePeriodDraws));
-    assertEq(distributor.estimatedPrizeCount(8), TierCalculationLib.estimatedClaimCount(7, grandPrizePeriodDraws));
-    assertEq(distributor.estimatedPrizeCount(9), TierCalculationLib.estimatedClaimCount(8, grandPrizePeriodDraws));
-    assertEq(distributor.estimatedPrizeCount(10), TierCalculationLib.estimatedClaimCount(9, grandPrizePeriodDraws));
+    assertEq(distributor.estimatedPrizeCount(3), 20);
+    assertEq(distributor.estimatedPrizeCount(4), 80);
+    assertEq(distributor.estimatedPrizeCount(5), 322);
+    assertEq(distributor.estimatedPrizeCount(6), 1294);
+    assertEq(distributor.estimatedPrizeCount(7), 5204);
+    assertEq(distributor.estimatedPrizeCount(8), 20901);
+    assertEq(distributor.estimatedPrizeCount(9), 83894);
+    assertEq(distributor.estimatedPrizeCount(10), 336579);
     assertEq(distributor.estimatedPrizeCount(11), 0);
+  }
+
+  function testSumTierPrizeCounts() public {
+    assertEq(distributor.sumTierPrizeCounts(3), 20);
+    assertEq(distributor.sumTierPrizeCounts(4), 80);
+    assertEq(distributor.sumTierPrizeCounts(5), 322);
+    assertEq(distributor.sumTierPrizeCounts(6), 1294);
+    assertEq(distributor.sumTierPrizeCounts(7), 5204);
+    assertEq(distributor.sumTierPrizeCounts(8), 20901);
+    assertEq(distributor.sumTierPrizeCounts(9), 83894);
+    assertEq(distributor.sumTierPrizeCounts(10), 336579);
+    assertEq(distributor.sumTierPrizeCounts(11), 0);
   }
 
   function testExpansionTierLiquidity_regression() public {

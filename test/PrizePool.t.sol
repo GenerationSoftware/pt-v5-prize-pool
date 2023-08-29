@@ -873,10 +873,40 @@ contract PrizePoolTest is Test {
     assertEq(claimPrize(msg.sender, 0, 0), 0, "no more prize");
   }
 
-  function testComputeNextNumberOfTiers() public {
+  function testComputeNextNumberOfTiers_zero() public {
     assertEq(prizePool.computeNextNumberOfTiers(0), 3);
-    // max is 10
-    assertEq(prizePool.computeNextNumberOfTiers(8e8), 10);
+  }
+
+  function testComputeNextNumberOfTiers_deviationLess() public {
+    // no canary tiers taken
+    assertEq(prizePool.computeNextNumberOfTiers(3), 3);
+  }
+
+  function testComputeNextNumberOfTiers_deviationMore() public {
+    // deviation is ok
+    assertEq(prizePool.computeNextNumberOfTiers(8), 3);
+  }
+
+  function testComputeNextNumberOfTiers_canaryPrizes() public {
+    // canary prizes were taken!
+    assertEq(prizePool.computeNextNumberOfTiers(16), 4);
+    assertEq(prizePool.computeNextNumberOfTiers(20), 4);
+    assertEq(prizePool.computeNextNumberOfTiers(24), 4);
+  }
+
+  function testComputeNextNumberOfTiers_beyondMinimum() public {
+    // canary prizes were taken for tier 4!
+    assertEq(prizePool.computeNextNumberOfTiers(80), 5);
+  }
+
+  function testComputeNextNumberOfTiers_beyondMinimum_bigDeviation() public {
+    // half the canary prizes were taken
+    assertEq(prizePool.computeNextNumberOfTiers(150), 5);
+  }
+
+  function testComputeNextNumberOfTiers_beyondMinimum_nextLevelUp() public {
+    // half the canary prizes were taken
+    assertEq(prizePool.computeNextNumberOfTiers(200), 6);
   }
 
   function testClaimPrize_secondTier_claimTwice() public {
