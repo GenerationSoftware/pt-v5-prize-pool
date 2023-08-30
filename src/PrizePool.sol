@@ -553,8 +553,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param _endDrawIdInclusive End draw id inclusive
   /// @return The total prize tokens contributed by all vaults
   function getTotalContributedBetween(
-    uint16 _startDrawIdInclusive,
-    uint16 _endDrawIdInclusive
+    uint24 _startDrawIdInclusive,
+    uint24 _endDrawIdInclusive
   ) external view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
@@ -573,8 +573,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @return The total prize tokens contributed by the given vault
   function getContributedBetween(
     address _vault,
-    uint16 _startDrawIdInclusive,
-    uint16 _endDrawIdInclusive
+    uint24 _startDrawIdInclusive,
+    uint24 _endDrawIdInclusive
   ) external view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
@@ -588,9 +588,9 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Computes the expected duration prize accrual for a tier.
   /// @param _tier The tier to check
   /// @return The number of draws
-  function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint16) {
+  function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint24) {
     return
-      uint16(TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)));
+      uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)));
   }
 
   /// @notice The total amount of prize tokens that have been claimed for all time
