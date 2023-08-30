@@ -20,7 +20,15 @@ library TierCalculationLib {
     uint8 _numberOfTiers,
     uint24 _grandPrizePeriod
   ) internal pure returns (SD59x18) {
-    return sd(1).div(sd(int24(_grandPrizePeriod))).pow((sd(int8(_tier) - (int8(_numberOfTiers) - 1))).div(sd((-1 * int8(_numberOfTiers) + 1))));
+    return sd(1).div(
+      sd(int24(_grandPrizePeriod))
+    ).pow(
+      sd(
+        int8(_tier) - (int8(_numberOfTiers) - 1)
+      ).div(
+        sd((-1 * int8(_numberOfTiers) + 1))
+      )
+    );
   }
 
   /// @notice Estimates the number of draws between a tier occurring.
@@ -57,13 +65,13 @@ library TierCalculationLib {
       return false;
     }
     /*
-            The user-held portion of the total supply is the "winning zone". If the above pseudo-random number falls within the winning zone, the user has won this tier
-
-            However, we scale the size of the zone based on:
-                - Odds of the tier occuring
-                - Number of prizes
-                - Portion of prize that was contributed by the vault
-        */
+      The user-held portion of the total supply is the "winning zone".
+      If the above pseudo-random number falls within the winning zone, the user has won this tier.
+      However, we scale the size of the zone based on:
+        - Odds of the tier occurring
+        - Number of prizes
+        - Portion of prize that was contributed by the vault
+    */
     // first constrain the random number to be within the vault total supply
     uint256 constrainedRandomNumber = UniformRandomNumber.uniform(_userSpecificRandomNumber, _vaultTwabTotalSupply);
     uint256 winningZone = calculateWinningZone(_userTwab, _vaultContributionFraction, _tierOdds);
