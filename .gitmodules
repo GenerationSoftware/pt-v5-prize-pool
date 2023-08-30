@@ -16,6 +16,7 @@
 [submodule "lib/ring-buffer-lib"]
 	path = lib/ring-buffer-lib
 	url = https://github.com/GenerationSoftware/ring-buffer-lib
+	branch = prod-deploy-1
 [submodule "lib/uniform-random-number"]
 	path = lib/uniform-random-number
 	url = https://github.com/generationsoftware/uniform-random-number
