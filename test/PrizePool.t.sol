@@ -32,6 +32,9 @@ import {
   CallerNotDrawManager,
   NotDeployer,
   FeeRecipientZeroAddress,
+  FirstDrawStartsInPast,
+  IncompatibleTwabPeriodLength,
+  IncompatibleTwabPeriodOffset,
   MAXIMUM_NUMBER_OF_TIERS,
   MINIMUM_NUMBER_OF_TIERS
 } from "../src/PrizePool.sol";
@@ -130,6 +133,9 @@ contract PrizePoolTest is Test {
     firstDrawStartsAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
     initialNumberOfTiers = 3;
 
+    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_OFFSET, ()), abi.encode(firstDrawStartsAt));
+    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_LENGTH, ()), abi.encode(drawPeriodSeconds));
+
     address drawManager = address(this);
     vault = address(this);
     vault2 = address(0x1234);
@@ -161,6 +167,31 @@ contract PrizePoolTest is Test {
   function testConstructor_SmoothingGTEOne() public {
     params.smoothing = sd1x18(1.0e18); // smoothing
     vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
+    new PrizePool(params);
+  }
+
+  function testConstructor_FirstDrawStartsInPast() public {
+    vm.expectRevert(abi.encodeWithSelector(FirstDrawStartsInPast.selector));
+    params.firstDrawStartsAt = 1 days;
+    vm.warp(2 days);
+    new PrizePool(params);
+  }
+
+  function testConstructor_IncompatibleTwabPeriodLength_longer() public {
+    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_LENGTH, ()), abi.encode(drawPeriodSeconds*2));
+    vm.expectRevert(abi.encodeWithSelector(IncompatibleTwabPeriodLength.selector));
+    new PrizePool(params);
+  }
+
+  function testConstructor_IncompatibleTwabPeriodLength_not_modulo() public {
+    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_LENGTH, ()), abi.encode(drawPeriodSeconds + 1));
+    vm.expectRevert(abi.encodeWithSelector(IncompatibleTwabPeriodLength.selector));
+    new PrizePool(params);
+  }
+
+  function testConstructor_IncompatibleTwabPeriodOffset_notAligned() public {
+    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_OFFSET, ()), abi.encode(params.firstDrawStartsAt - 1));
+    vm.expectRevert(abi.encodeWithSelector(IncompatibleTwabPeriodOffset.selector));
     new PrizePool(params);
   }
 
@@ -1145,6 +1176,7 @@ contract PrizePoolTest is Test {
   function testGetVaultUserBalanceAndTotalSupplyTwab_insufficientPast() public {
     vm.warp(1 days);
     params.firstDrawStartsAt = 2 days;
+    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_OFFSET,()), abi.encode(2 days));
     prizePool = new PrizePool(params);
     prizePool.setDrawManager(address(this));
     closeDraw(winningRandomNumber);
