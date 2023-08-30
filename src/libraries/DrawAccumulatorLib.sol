@@ -50,7 +50,7 @@ library DrawAccumulatorLib {
     mapping (uint256 => Observation) observations;
   }
 
-  /// @notice A pair of uint16s.
+  /// @notice A pair of uint24s.
   struct Pair48 {
     uint24 first;
     uint24 second;
