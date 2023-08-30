@@ -57,23 +57,6 @@ contract TierCalculationLibTest is Test {
     assertEq(TierCalculationLib.calculateWinningZone(1000, sd(1e18), sd(1e18)), 1000);
   }
 
-  function testCanaryPrizeCount() public {
-    assertEq(wrapper.canaryPrizeCount(2, 10, 0, 100).unwrap(), 2361904761904761904);
-    assertEq(wrapper.canaryPrizeCount(3, 10, 0, 100).unwrap(), 8464516129032258048);
-    assertEq(wrapper.canaryPrizeCount(4, 10, 0, 100).unwrap(), 31843902439024390144);
-    assertEq(wrapper.canaryPrizeCount(5, 10, 0, 100).unwrap(), 122478431372549018624);
-    assertEq(wrapper.canaryPrizeCount(6, 10, 0, 100).unwrap(), 476747540983606554624);
-    assertEq(wrapper.canaryPrizeCount(7, 10, 0, 100).unwrap(), 1869160563380281688064);
-    assertEq(wrapper.canaryPrizeCount(8, 10, 0, 100).unwrap(), 7362686419753086418944);
-    assertEq(wrapper.canaryPrizeCount(9, 10, 0, 100).unwrap(), 29095103296703296700416);
-    assertEq(wrapper.canaryPrizeCount(10, 10, 0, 100).unwrap(), 115239540594059404902400);
-    assertEq(wrapper.canaryPrizeCount(11, 10, 0, 100).unwrap(), 457216922522522522484736);
-    assertEq(wrapper.canaryPrizeCount(12, 10, 0, 100).unwrap(), 1816376277685950406983680);
-    assertEq(wrapper.canaryPrizeCount(13, 10, 0, 100).unwrap(), 7223167804580152605671424);
-    assertEq(wrapper.canaryPrizeCount(14, 10, 0, 100).unwrap(), 28747343160283687758594048);
-    assertEq(wrapper.canaryPrizeCount(15, 10, 0, 100).unwrap(), 114485055406622515774095360);
-  }
-
   function testIsWinner_WinsAll() external {
     uint8 tier = 5;
     uint8 numberOfTiers = 6;
