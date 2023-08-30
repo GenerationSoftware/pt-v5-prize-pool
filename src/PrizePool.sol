@@ -19,7 +19,7 @@ import {
 } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
-/// @notice Emitted when the prize pool is constructor with a draw start that is in the past
+/// @notice Emitted when the prize pool is constructed with a draw start that is in the past
 error FirstDrawStartsInPast();
 
 /// @notice Emitted when the Twab Controller has an incompatible period length
