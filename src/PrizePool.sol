@@ -19,6 +19,15 @@ import {
 } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
+/// @notice Emitted when the prize pool is constructor with a draw start that is in the past
+error FirstDrawStartsInPast();
+
+/// @notice Emitted when the Twab Controller has an incompatible period length
+error IncompatibleTwabPeriodLength();
+
+/// @notice Emitted when the Twab Controller has an incompatible period offset
+error IncompatibleTwabPeriodOffset();
+
 /// @notice Emitted when someone tries to set the draw manager with the zero address
 error DrawManagerIsZeroAddress();
 
@@ -261,12 +270,31 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     if (unwrap(params.smoothing) >= unwrap(UNIT)) {
       revert SmoothingGTEOne(unwrap(params.smoothing));
     }
+
+    if (params.firstDrawStartsAt < block.timestamp) {
+      revert FirstDrawStartsInPast();
+    }
+
     prizeToken = params.prizeToken;
     twabController = params.twabController;
     smoothing = params.smoothing;
     drawPeriodSeconds = params.drawPeriodSeconds;
     _lastClosedDrawStartedAt = params.firstDrawStartsAt;
     firstDrawStartsAt = params.firstDrawStartsAt;
+
+    uint48 twabPeriodOffset = params.twabController.PERIOD_OFFSET();
+    uint48 twabPeriodLength = params.twabController.PERIOD_LENGTH();
+
+    if (params.drawPeriodSeconds < twabPeriodLength ||
+        params.drawPeriodSeconds % twabPeriodLength != 0
+    ) {
+      revert IncompatibleTwabPeriodLength();
+    }
+
+    if ((params.firstDrawStartsAt - twabPeriodOffset) % twabPeriodLength != 0) {
+      revert IncompatibleTwabPeriodOffset();
+    }
+
   }
 
   /* ============ Modifiers ============ */
