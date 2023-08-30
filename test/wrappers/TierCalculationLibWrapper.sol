@@ -8,20 +8,6 @@ import { UD60x18 } from "prb-math/UD60x18.sol";
 // Note: Need to store the results from the library in a variable to be picked up by forge coverage
 // See: https://github.com/foundry-rs/foundry/pull/3128#issuecomment-1241245086
 contract TierCalculationLibWrapper {
-  function canaryPrizeCount(
-    uint8 _numberOfTiers,
-    uint8 _canaryShares,
-    uint8 _reserveShares,
-    uint8 _tierShares
-  ) external pure returns (UD60x18) {
-    UD60x18 result = TierCalculationLib.canaryPrizeCount(
-      _numberOfTiers,
-      _canaryShares,
-      _reserveShares,
-      _tierShares
-    );
-    return result;
-  }
 
   function tierPrizeCountPerDraw(
     uint8 _tier,

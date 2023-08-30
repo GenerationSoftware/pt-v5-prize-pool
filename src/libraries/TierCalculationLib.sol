@@ -39,27 +39,6 @@ library TierCalculationLib {
     return _numberOfPrizes;
   }
 
-  /// @notice Computes the number of canary prizes as a fraction, based on the share distribution. This is important because the canary prizes should be indicative of the smallest prizes if
-  /// the number of prize tiers was to increase by 1.
-  /// @param _numberOfTiers The number of tiers
-  /// @param _canaryShares The number of shares allocated to canary prizes
-  /// @param _reserveShares The number of shares allocated to the reserve
-  /// @param _tierShares The number of shares allocated to prize tiers
-  /// @return The number of canary prizes, including fractional prizes.
-  function canaryPrizeCount(
-    uint8 _numberOfTiers,
-    uint8 _canaryShares,
-    uint8 _reserveShares,
-    uint8 _tierShares
-  ) internal pure returns (UD60x18) {
-    uint256 numerator = uint256(_canaryShares) *
-      ((_numberOfTiers + 1) * uint256(_tierShares) + _canaryShares + _reserveShares);
-    uint256 denominator = uint256(_tierShares) *
-      ((_numberOfTiers) * uint256(_tierShares) + _canaryShares + _reserveShares);
-    UD60x18 multiplier = convertUD60x18(numerator).div(convertUD60x18(denominator));
-    return multiplier.mul(convertUD60x18(prizeCount(_numberOfTiers)));
-  }
-
   /// @notice Determines if a user won a prize tier.
   /// @param _userSpecificRandomNumber The random number to use as entropy
   /// @param _userTwab The user's time weighted average balance
