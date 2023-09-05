@@ -793,6 +793,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Returns the time at which the open draw ends.
   /// @return The timestamp at which the open draw ends
   function _openDrawEndsAt() internal view returns (uint64) {
+    uint32 _drawPeriodSeconds = drawPeriodSeconds;
+
     // If this is the first draw, we treat _lastClosedDrawStartedAt as the start of this draw
     uint64 _nextExpectedEndTime = _lastClosedDrawStartedAt +
       (_lastClosedDrawId == 0 ? 1 : 2) *
@@ -803,8 +805,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       // Offset the end time by the total duration of the missed draws
       // drawPeriodSeconds * numMissedDraws
       _nextExpectedEndTime +=
-        drawPeriodSeconds *
-        (uint64((block.timestamp - _nextExpectedEndTime) / drawPeriodSeconds));
+        _drawPeriodSeconds *
+        (uint64((block.timestamp - _nextExpectedEndTime) / _drawPeriodSeconds));
     }
 
     return _nextExpectedEndTime;
