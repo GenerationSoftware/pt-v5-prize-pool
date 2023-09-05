@@ -334,20 +334,19 @@ contract TieredLiquidityDistributor {
   /// @return The prize size for the tier
   function getTierPrizeSize(uint8 _tier) external view returns (uint104) {
     uint8 _numTiers = numberOfTiers;
-    if (!TierCalculationLib.isValidTier(_tier, _numTiers)) {
-      return 0;
-    }
-    return _getTier(_tier, _numTiers).prizeSize;
+
+    return
+      !TierCalculationLib.isValidTier(_tier, _numTiers) ? 0 : _getTier(_tier, _numTiers).prizeSize;
   }
 
   /// @notice Returns the estimated number of prizes for the given tier.
   /// @param _tier The tier to retrieve
   /// @return The estimated number of prizes
   function getTierPrizeCount(uint8 _tier) external view returns (uint32) {
-    if (!TierCalculationLib.isValidTier(_tier, numberOfTiers)) {
-      return 0;
-    }
-    return uint32(TierCalculationLib.prizeCount(_tier));
+    return
+      !TierCalculationLib.isValidTier(_tier, numberOfTiers)
+        ? 0
+        : uint32(TierCalculationLib.prizeCount(_tier));
   }
 
   /// @notice Retrieves an up-to-date Tier struct for the given tier.
@@ -448,11 +447,8 @@ contract TieredLiquidityDistributor {
           _getTotalShares(_numberOfTiers + 1);
       }
     }
-    if (prizeSize > type(uint104).max) {
-      return type(uint104).max;
-    } else {
-      return uint104(prizeSize);
-    }
+
+    return prizeSize > type(uint104).max ? type(uint104).max : uint104(prizeSize);
   }
 
   /// @notice Computes the prize size with the given parameters.
@@ -523,17 +519,17 @@ contract TieredLiquidityDistributor {
   /// @return The remaining liquidity
   function getTierRemainingLiquidity(uint8 _tier) external view returns (uint256) {
     uint8 _numTiers = numberOfTiers;
-    if (!TierCalculationLib.isValidTier(_tier, _numTiers)) {
-      return 0;
-    }
+
     return
-      convert(
-        _getTierRemainingLiquidity(
-          tierShares,
-          fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare),
-          fromUD34x4toUD60x18(prizeTokenPerShare)
-        )
-      );
+      !TierCalculationLib.isValidTier(_tier, _numTiers)
+        ? 0
+        : convert(
+          _getTierRemainingLiquidity(
+            tierShares,
+            fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare),
+            fromUD34x4toUD60x18(prizeTokenPerShare)
+          )
+        );
   }
 
   /// @notice Computes the remaining tier liquidity.
@@ -546,11 +542,10 @@ contract TieredLiquidityDistributor {
     UD60x18 _tierPrizeTokenPerShare,
     UD60x18 _prizeTokenPerShare
   ) internal pure returns (UD60x18) {
-    if (_tierPrizeTokenPerShare.gte(_prizeTokenPerShare)) {
-      return ud(0);
-    }
-    UD60x18 delta = _prizeTokenPerShare.sub(_tierPrizeTokenPerShare);
-    return delta.mul(convert(_shares));
+    return
+      _tierPrizeTokenPerShare.gte(_prizeTokenPerShare)
+        ? ud(0)
+        : _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(_shares));
   }
 
   /// @notice Retrieves the id of the next draw to be closed.
