@@ -6,16 +6,7 @@ import "forge-std/console2.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { TieredLiquidityDistributorWrapper } from "./helper/TieredLiquidityDistributorWrapper.sol";
-import { UD60x18,
-  NumberOfTiersLessThanMinimum,
-  NumberOfTiersGreaterThanMaximum,
-  InsufficientLiquidity,
-  fromUD34x4toUD60x18,
-  convert,
-  SD59x18,
-  MAXIMUM_NUMBER_OF_TIERS,
-  MINIMUM_NUMBER_OF_TIERS
-} from "../../src/abstract/TieredLiquidityDistributor.sol";
+import { UD60x18, NumberOfTiersLessThanMinimum, NumberOfTiersGreaterThanMaximum, InsufficientLiquidity, fromUD34x4toUD60x18, convert, SD59x18, MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorTest is Test {
   TieredLiquidityDistributorWrapper public distributor;
@@ -46,22 +37,12 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testConstructor_numberOfTiersTooLarge() public {
     vm.expectRevert(abi.encodeWithSelector(NumberOfTiersGreaterThanMaximum.selector, 16));
-    new TieredLiquidityDistributorWrapper(
-      16,
-      tierShares,
-      reserveShares,
-      365
-    );
+    new TieredLiquidityDistributorWrapper(16, tierShares, reserveShares, 365);
   }
 
   function testConstructor_numberOfTiersTooSmall() public {
     vm.expectRevert(abi.encodeWithSelector(NumberOfTiersLessThanMinimum.selector, 1));
-    new TieredLiquidityDistributorWrapper(
-      1,
-      tierShares,
-      reserveShares,
-      365
-    );
+    new TieredLiquidityDistributorWrapper(1, tierShares, reserveShares, 365);
   }
 
   function testRemainingTierLiquidity() public {
@@ -122,12 +103,7 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testGetTierPrizeSize_overflow() public {
-    distributor = new TieredLiquidityDistributorWrapper(
-      numberOfTiers,
-      tierShares,
-      0,
-      365
-    );
+    distributor = new TieredLiquidityDistributorWrapper(numberOfTiers, tierShares, 0, 365);
 
     distributor.nextDraw(3, type(uint104).max);
     distributor.nextDraw(4, type(uint104).max);
@@ -203,7 +179,11 @@ contract TieredLiquidityDistributorTest is Test {
   function testGetTierOdds_AllAvailable() public {
     SD59x18 odds;
     grandPrizePeriodDraws = distributor.grandPrizePeriodDraws();
-    for (uint8 numTiers = MINIMUM_NUMBER_OF_TIERS; numTiers <= MAXIMUM_NUMBER_OF_TIERS; numTiers++) {
+    for (
+      uint8 numTiers = MINIMUM_NUMBER_OF_TIERS;
+      numTiers <= MAXIMUM_NUMBER_OF_TIERS;
+      numTiers++
+    ) {
       for (uint8 tier = 0; tier < numTiers; tier++) {
         odds = distributor.getTierOdds(tier, numTiers);
       }
@@ -222,7 +202,11 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testTierOdds_zero_when_outside_bounds() public {
     SD59x18 odds;
-    for (uint8 numTiers = MINIMUM_NUMBER_OF_TIERS; numTiers <= MAXIMUM_NUMBER_OF_TIERS; numTiers++) {
+    for (
+      uint8 numTiers = MINIMUM_NUMBER_OF_TIERS;
+      numTiers <= MAXIMUM_NUMBER_OF_TIERS;
+      numTiers++
+    ) {
       odds = distributor.getTierOdds(numTiers, numTiers);
       assertEq(SD59x18.unwrap(odds), 0);
     }
@@ -230,12 +214,28 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testEstimateNumberOfTiersUsingPrizeCountPerDraw_allTiers() public {
     uint32 prizeCount;
-    for (uint8 numTiers = MINIMUM_NUMBER_OF_TIERS; numTiers <= MAXIMUM_NUMBER_OF_TIERS; numTiers++) {
+    for (
+      uint8 numTiers = MINIMUM_NUMBER_OF_TIERS;
+      numTiers <= MAXIMUM_NUMBER_OF_TIERS;
+      numTiers++
+    ) {
       prizeCount = distributor.estimatedPrizeCount(numTiers);
       console2.log("estimatedPrizeCount: tier %s count %s", numTiers, prizeCount);
-      assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount - 1), numTiers, "slightly under");
-      assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount), numTiers, "match");
-      assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount + 1), numTiers, "slightly over");
+      assertEq(
+        distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount - 1),
+        numTiers,
+        "slightly under"
+      );
+      assertEq(
+        distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount),
+        numTiers,
+        "match"
+      );
+      assertEq(
+        distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount + 1),
+        numTiers,
+        "slightly over"
+      );
     }
 
     assertEq(distributor.estimatedPrizeCount(11), 0, "exceeds bounds");
@@ -243,10 +243,22 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testEstimateNumberOfTiersUsingPrizeCountPerDraw_loose() public {
     // 270 prizes for num tiers = 5
-    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(250), 5, "matches slightly under");
+    assertEq(
+      distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(250),
+      5,
+      "matches slightly under"
+    );
     assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(270), 5, "matches exact");
-    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(280), 5, "matches slightly over");
-    assertEq(distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(540), 5, "matches significantly over");
+    assertEq(
+      distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(280),
+      5,
+      "matches slightly over"
+    );
+    assertEq(
+      distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(540),
+      5,
+      "matches significantly over"
+    );
   }
 
   function testEstimatedPrizeCount_noParam() public {

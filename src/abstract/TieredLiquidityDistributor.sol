@@ -35,7 +35,6 @@ uint8 constant MAXIMUM_NUMBER_OF_TIERS = 10;
 /// @author PoolTogether Inc.
 /// @notice A contract that distributes liquidity according to PoolTogether V5 distribution rules.
 contract TieredLiquidityDistributor {
-
   /* ============ Events ============ */
 
   /// @notice Emitted when the reserve is consumed due to insufficient prize liquidity.
@@ -109,7 +108,7 @@ contract TieredLiquidityDistributor {
   uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS;
 
   /// @notice The Tier liquidity data.
-  mapping (uint8 => Tier) internal _tiers;
+  mapping(uint8 => Tier) internal _tiers;
 
   /// @notice The frequency of the grand prize
   uint24 public immutable grandPrizePeriodDraws;
@@ -138,7 +137,12 @@ contract TieredLiquidityDistributor {
    * @param _tierShares The number of shares to allocate to each tier
    * @param _reserveShares The number of shares to allocate to the reserve.
    */
-  constructor(uint8 _numberOfTiers, uint8 _tierShares, uint8 _reserveShares, uint24 _grandPrizePeriodDraws) {
+  constructor(
+    uint8 _numberOfTiers,
+    uint8 _tierShares,
+    uint8 _reserveShares,
+    uint24 _grandPrizePeriodDraws
+  ) {
     if (_numberOfTiers < MINIMUM_NUMBER_OF_TIERS) {
       revert NumberOfTiersLessThanMinimum(_numberOfTiers);
     }
@@ -212,7 +216,6 @@ contract TieredLiquidityDistributor {
     ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS = _sumTierPrizeCounts(8);
     ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS = _sumTierPrizeCounts(9);
     ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS = _sumTierPrizeCounts(10);
-
   }
 
   /// @notice Adjusts the number of tiers and distributes new liquidity.
@@ -253,7 +256,12 @@ contract TieredLiquidityDistributor {
       _tiers[i] = Tier({
         drawId: closedDrawId,
         prizeTokenPerShare: _prizeTokenPerShare,
-        prizeSize: _computePrizeSize(i, _nextNumberOfTiers, _prizeTokenPerShareUD60x18, newPrizeTokenPerShare)
+        prizeSize: _computePrizeSize(
+          i,
+          _nextNumberOfTiers,
+          _prizeTokenPerShareUD60x18,
+          newPrizeTokenPerShare
+        )
       });
     }
 
@@ -308,17 +316,16 @@ contract TieredLiquidityDistributor {
 
     uint256 totalNewLiquidity = _prizeTokenLiquidity + reclaimedLiquidity;
     uint256 nextTotalShares = _getTotalShares(_nextNumberOfTiers);
-    UD60x18 deltaPrizeTokensPerShare = (convert(totalNewLiquidity).div(convert(nextTotalShares))).floor();
+    UD60x18 deltaPrizeTokensPerShare = (convert(totalNewLiquidity).div(convert(nextTotalShares)))
+      .floor();
 
     newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
 
     newReserve = SafeCast.toUint96(
       // reserve portion of new liquidity
       convert(deltaPrizeTokensPerShare.mul(convert(reserveShares))) +
-      // remainder left over from shares
-      (
-        totalNewLiquidity - convert(deltaPrizeTokensPerShare.mul(convert(nextTotalShares)))
-      )
+        // remainder left over from shares
+        (totalNewLiquidity - convert(deltaPrizeTokensPerShare.mul(convert(nextTotalShares))))
     );
   }
 
@@ -372,10 +379,7 @@ contract TieredLiquidityDistributor {
   /// @param _numberOfTiers The number of tiers to calculate the total shares for
   /// @return The total shares
   function _getTotalShares(uint8 _numberOfTiers) internal view returns (uint256) {
-    return
-      uint256(_numberOfTiers) *
-      uint256(tierShares) +
-      uint256(reserveShares);
+    return uint256(_numberOfTiers) * uint256(tierShares) + uint256(reserveShares);
   }
 
   /// @notice Consumes liquidity from the given tier.
@@ -439,7 +443,9 @@ contract TieredLiquidityDistributor {
       bool canExpand = _numberOfTiers < MAXIMUM_NUMBER_OF_TIERS;
       if (canExpand && _isCanaryTier(_tier, _numberOfTiers)) {
         // make canary prizes smaller to account for reduction in shares for next number of tiers
-        prizeSize = (prizeSize * _getTotalShares(_numberOfTiers)) / _getTotalShares(_numberOfTiers + 1);
+        prizeSize =
+          (prizeSize * _getTotalShares(_numberOfTiers)) /
+          _getTotalShares(_numberOfTiers + 1);
       }
     }
     if (prizeSize > type(uint104).max) {
@@ -575,7 +581,9 @@ contract TieredLiquidityDistributor {
   /// @notice Estimates the prize count for the given tier.
   /// @param numTiers The number of prize tiers
   /// @return The estimated total number of prizes
-  function _estimatePrizeCountPerDrawUsingNumberOfTiers(uint8 numTiers) internal view returns (uint32) {
+  function _estimatePrizeCountPerDrawUsingNumberOfTiers(
+    uint8 numTiers
+  ) internal view returns (uint32) {
     if (numTiers == 3) {
       return ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS;
     } else if (numTiers == 4) {
@@ -600,7 +608,9 @@ contract TieredLiquidityDistributor {
   /// @dev Can return lower than the minimum, so that minimum can be detected
   /// @param _prizeCount The number of prizes that were claimed
   /// @return The estimated tier
-  function _estimateNumberOfTiersUsingPrizeCountPerDraw(uint32 _prizeCount) internal view returns (uint8) {
+  function _estimateNumberOfTiersUsingPrizeCountPerDraw(
+    uint32 _prizeCount
+  ) internal view returns (uint8) {
     // the prize count is slightly more than 4x for each higher tier. i.e. 16, 66, 270, 1108, etc
     // by doubling the measured count, we create a safe margin for error.
     uint32 _adjustedPrizeCount = _prizeCount * 2;
@@ -642,8 +652,7 @@ contract TieredLiquidityDistributor {
     do {
       prizeCount += TierCalculationLib.tierPrizeCountPerDraw(i, _tierOdds(i, _numTiers));
       i++;
-    }
-    while (i < _numTiers);
+    } while (i < _numTiers);
     return prizeCount;
   }
 

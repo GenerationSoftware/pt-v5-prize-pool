@@ -57,32 +57,32 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     prizePool.setDrawManager(drawManager);
   }
 
-  function contributePrizeTokens(uint64 _amount) warp public {
+  function contributePrizeTokens(uint64 _amount) public warp {
     contributed += _amount;
     token.mint(address(prizePool), _amount);
     prizePool.contributePrizeTokens(address(this), _amount);
   }
 
-  function contributeReserve(uint64 _amount) warp public {
+  function contributeReserve(uint64 _amount) public warp {
     contributed += _amount;
     token.mint(address(this), _amount);
     token.approve(address(prizePool), _amount);
     prizePool.contributeReserve(_amount);
   }
 
-  function withdrawReserve() warp public {
+  function withdrawReserve() public warp {
     uint96 amount = prizePool.reserve();
     withdrawn += amount;
     prizePool.withdrawReserve(address(msg.sender), amount);
   }
 
-  function withdrawClaimReward() warp public {
+  function withdrawClaimReward() public warp {
     vm.startPrank(claimer);
     prizePool.withdrawClaimRewards(address(claimer), prizePool.balanceOfClaimRewards(claimer));
     vm.stopPrank();
   }
 
-  function claimPrizes() warp public {
+  function claimPrizes() public warp {
     // console2.log("claimPrizes current time ", block.timestamp);
     if (prizePool.getLastClosedDrawId() == 0) {
       return;
@@ -97,7 +97,14 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
           uint prizeSize = prizePool.getTierPrizeSize(i);
           if (prizeSize > 0) {
             // console2.log("claiming...");
-            claimed += prizePool.claimPrize(address(this), i, p, address(this), 1, address(claimer));
+            claimed += prizePool.claimPrize(
+              address(this),
+              i,
+              p,
+              address(this),
+              1,
+              address(claimer)
+            );
           }
         }
       }

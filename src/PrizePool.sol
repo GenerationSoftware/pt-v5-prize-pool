@@ -11,12 +11,7 @@ import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { UD34x4 } from "./libraries/UD34x4.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
-import {
-  TieredLiquidityDistributor,
-  Tier,
-  MAXIMUM_NUMBER_OF_TIERS,
-  MINIMUM_NUMBER_OF_TIERS
-} from "./abstract/TieredLiquidityDistributor.sol";
+import { TieredLiquidityDistributor, Tier, MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
 /// @notice Emitted when the prize pool is constructed with a draw start that is in the past
@@ -277,18 +272,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert FirstDrawStartsInPast();
     }
 
-    prizeToken = params.prizeToken;
-    twabController = params.twabController;
-    smoothing = params.smoothing;
-    drawPeriodSeconds = params.drawPeriodSeconds;
-    _lastClosedDrawStartedAt = params.firstDrawStartsAt;
-    firstDrawStartsAt = params.firstDrawStartsAt;
-
     uint48 twabPeriodOffset = params.twabController.PERIOD_OFFSET();
     uint48 twabPeriodLength = params.twabController.PERIOD_LENGTH();
 
-    if (params.drawPeriodSeconds < twabPeriodLength ||
-        params.drawPeriodSeconds % twabPeriodLength != 0
+    if (
+      params.drawPeriodSeconds < twabPeriodLength ||
+      params.drawPeriodSeconds % twabPeriodLength != 0
     ) {
       revert IncompatibleTwabPeriodLength();
     }
@@ -297,6 +286,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert IncompatibleTwabPeriodOffset();
     }
 
+    prizeToken = params.prizeToken;
+    twabController = params.twabController;
+    smoothing = params.smoothing;
+    drawPeriodSeconds = params.drawPeriodSeconds;
+    _lastClosedDrawStartedAt = params.firstDrawStartsAt;
+    firstDrawStartsAt = params.firstDrawStartsAt;
   }
 
   /* ============ Modifiers ============ */
@@ -727,12 +722,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     _checkValidTier(_tier, _numberOfTiers);
     endTimestamp = _lastClosedDrawStartedAt + drawPeriodSeconds;
     SD59x18 tierOdds = _tierOdds(_tier, _numberOfTiers);
-    uint256 durationInSeconds = TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds) * drawPeriodSeconds;
+    uint256 durationInSeconds = TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds) *
+      drawPeriodSeconds;
 
-    startTimestamp = uint64(
-      endTimestamp -
-        durationInSeconds
-    );
+    startTimestamp = uint64(endTimestamp - durationInSeconds);
   }
 
   /**
