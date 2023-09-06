@@ -229,6 +229,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice The number of seconds between draws.
   uint32 public immutable drawPeriodSeconds;
 
+  /// @notice The timestamp at which the first draw will open.
   uint64 public immutable firstDrawStartsAt;
 
   /// @notice The exponential weighted average of all vault contributions.
