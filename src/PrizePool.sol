@@ -204,15 +204,15 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /* ============ State ============ */
 
   /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault.
-  mapping (address => DrawAccumulatorLib.Accumulator) internal vaultAccumulator;
+  mapping (address => DrawAccumulatorLib.Accumulator) internal _vaultAccumulator;
 
   /// @notice Records the claim record for a winner.
   /// @dev vault => account => drawId => tier => prizeIndex => claimed
   mapping (address => mapping (address => mapping (uint24 => mapping (uint8 => mapping (uint32 => bool)))))
-    internal claimedPrizes;
+    internal _claimedPrizes;
 
   /// @notice Tracks the total fees accrued to each claimer.
-  mapping (address => uint256) internal claimerRewards;
+  mapping (address => uint256) internal _claimerRewards;
 
   /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing.
   /// @dev Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
@@ -234,7 +234,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   uint64 public immutable firstDrawStartsAt;
 
   /// @notice The exponential weighted average of all vault contributions.
-  DrawAccumulatorLib.Accumulator internal totalAccumulator;
+  DrawAccumulatorLib.Accumulator internal _totalAccumulator;
 
   /// @notice The winner random number for the last closed draw.
   uint256 internal _winningRandomNumber;
@@ -252,7 +252,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   uint64 internal _lastClosedDrawAwardedAt;
 
   /// @notice Tracks reserve that was contributed directly to the reserve. Always increases.
-  uint192 internal directlyContributedReserve;
+  uint192 internal _directlyContributedReserve;
 
   /* ============ Constructor ============ */
 
@@ -336,13 +336,13 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint24 openDrawId = lastClosedDrawId + 1;
     SD59x18 _smoothing = smoothing.intoSD59x18();
     DrawAccumulatorLib.add(
-      vaultAccumulator[_prizeVault],
+      _vaultAccumulator[_prizeVault],
       _amount,
       openDrawId,
       _smoothing
     );
     DrawAccumulatorLib.add(
-      totalAccumulator,
+      _totalAccumulator,
       _amount,
       openDrawId,
       _smoothing
@@ -468,11 +468,11 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       }
     }
 
-    if (claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex]) {
+    if (_claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex]) {
       return 0;
     }
 
-    claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex] = true;
+    _claimedPrizes[msg.sender][_winner][lastClosedDrawId][_tier][_prizeIndex] = true;
 
     // `amount` is a snapshot of the reserve before consuming liquidity
     _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize);
@@ -481,7 +481,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint256 amount;
     if (_fee != 0) {
       emit IncreaseClaimRewards(_feeRecipient, _fee);
-      claimerRewards[_feeRecipient] += _fee;
+      _claimerRewards[_feeRecipient] += _fee;
       amount = tierLiquidity.prizeSize - _fee;
     } else {
       amount = tierLiquidity.prizeSize;
@@ -514,13 +514,13 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
    * @param _amount The amount of claim fees to withdraw
    */
   function withdrawClaimRewards(address _to, uint256 _amount) external {
-    uint256 _available = claimerRewards[msg.sender];
+    uint256 _available = _claimerRewards[msg.sender];
 
     if (_amount > _available) {
       revert InsufficientRewardsError(_amount, _available);
     }
 
-    claimerRewards[msg.sender] = _available - _amount;
+    _claimerRewards[msg.sender] = _available - _amount;
     _transfer(_to, _amount);
     emit WithdrawClaimRewards(_to, _amount, _available);
   }
@@ -530,7 +530,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param _amount The amount of tokens to increase the reserve by
   function contributeReserve(uint96 _amount) external {
     _reserve += _amount;
-    directlyContributedReserve += _amount;
+    _directlyContributedReserve += _amount;
     prizeToken.safeTransferFrom(msg.sender, address(this), _amount);
     emit ContributedReserve(msg.sender, _amount);
   }
@@ -560,7 +560,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   ) external view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
-        totalAccumulator,
+        _totalAccumulator,
         _startDrawIdInclusive,
         _endDrawIdInclusive,
         smoothing.intoSD59x18()
@@ -580,7 +580,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   ) external view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
-        vaultAccumulator[_vault],
+        _vaultAccumulator[_vault],
         _startDrawIdInclusive,
         _endDrawIdInclusive,
         smoothing.intoSD59x18()
@@ -680,7 +680,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint8 _tier,
     uint32 _prizeIndex
   ) external view returns (bool) {
-    return claimedPrizes[_vault][_winner][lastClosedDrawId][_tier][_prizeIndex];
+    return _claimedPrizes[_vault][_winner][lastClosedDrawId][_tier][_prizeIndex];
   }
 
   /**
@@ -689,7 +689,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
    * @return The balance of fees for the given claimer
    */
   function balanceOfClaimRewards(address _claimer) external view returns (uint256) {
-    return claimerRewards[_claimer];
+    return _claimerRewards[_claimer];
   }
 
   /**
@@ -778,8 +778,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Computes how many tokens have been accounted for
   /// @return The balance of tokens that have been accounted for
   function _accountedBalance() internal view returns (uint256) {
-    Observation memory obs = DrawAccumulatorLib.newestObservation(totalAccumulator);
-    return (obs.available + obs.disbursed) + directlyContributedReserve - _totalWithdrawn;
+    Observation memory obs = DrawAccumulatorLib.newestObservation(_totalAccumulator);
+    return (obs.available + obs.disbursed) + _directlyContributedReserve - _totalWithdrawn;
   }
 
   /// @notice Returns the start time of the draw for the next successful closeDraw
@@ -840,7 +840,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   function _contributionsForDraw(uint24 _drawId) internal view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
-        totalAccumulator,
+        _totalAccumulator,
         _drawId,
         _drawId,
         smoothing.intoSD59x18()
@@ -982,7 +982,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     SD59x18 _smoothing
   ) internal view returns (SD59x18) {
     uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(
-      totalAccumulator,
+      _totalAccumulator,
       _startDrawId,
       _endDrawId,
       _smoothing
@@ -994,7 +994,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
         sd(
           SafeCast.toInt256(
             DrawAccumulatorLib.getDisbursedBetween(
-              vaultAccumulator[_vault],
+              _vaultAccumulator[_vault],
               _startDrawId,
               _endDrawId,
               _smoothing
