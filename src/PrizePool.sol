@@ -214,7 +214,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Tracks the total fees accrued to each claimer.
   mapping (address => uint256) internal claimerRewards;
 
-  /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing. Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
+  /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing.
+  /// @dev Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
   SD1x18 public immutable smoothing;
 
   /// @notice The token that is being contributed and awarded as prizes.
