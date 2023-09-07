@@ -199,15 +199,15 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /* ============ State ============ */
 
   /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault.
-  mapping (address => DrawAccumulatorLib.Accumulator) internal _vaultAccumulator;
+  mapping(address => DrawAccumulatorLib.Accumulator) internal _vaultAccumulator;
 
   /// @notice Records the claim record for a winner.
   /// @dev vault => account => drawId => tier => prizeIndex => claimed
-  mapping (address => mapping (address => mapping (uint24 => mapping (uint8 => mapping (uint32 => bool)))))
+  mapping(address => mapping(address => mapping(uint24 => mapping(uint8 => mapping(uint32 => bool)))))
     internal _claimedPrizes;
 
   /// @notice Tracks the total fees accrued to each claimer.
-  mapping (address => uint256) internal _claimerRewards;
+  mapping(address => uint256) internal _claimerRewards;
 
   /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing.
   /// @dev Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
@@ -330,18 +330,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     }
     uint24 openDrawId = _lastClosedDrawId + 1;
     SD59x18 _smoothing = smoothing.intoSD59x18();
-    DrawAccumulatorLib.add(
-      _vaultAccumulator[_prizeVault],
-      _amount,
-      openDrawId,
-      _smoothing
-    );
-    DrawAccumulatorLib.add(
-      _totalAccumulator,
-      _amount,
-      openDrawId,
-      _smoothing
-    );
+    DrawAccumulatorLib.add(_vaultAccumulator[_prizeVault], _amount, openDrawId, _smoothing);
+    DrawAccumulatorLib.add(_totalAccumulator, _amount, openDrawId, _smoothing);
     emit ContributePrizeTokens(_prizeVault, openDrawId, _amount);
     return _deltaBalance;
   }
@@ -448,16 +438,25 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert PrizeIsZero();
     }
 
-    { // hide the variables!
-      (SD59x18 _vaultPortion, SD59x18 _computedTierOdds, uint24 _drawDuration) = _computeVaultTierDetails(
-        msg.sender,
-        _tier,
-        numberOfTiers,
-        _lastClosedDrawId
-      );
+    {
+      // hide the variables!
+      (
+        SD59x18 _vaultPortion,
+        SD59x18 _computedTierOdds,
+        uint24 _drawDuration
+      ) = _computeVaultTierDetails(msg.sender, _tier, numberOfTiers, _lastClosedDrawId);
 
       if (
-        !_isWinner(_lastClosedDrawId, msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _computedTierOdds, _drawDuration)
+        !_isWinner(
+          _lastClosedDrawId,
+          msg.sender,
+          _winner,
+          _tier,
+          _prizeIndex,
+          _vaultPortion,
+          _computedTierOdds,
+          _drawDuration
+        )
       ) {
         revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
       }
@@ -707,7 +706,17 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       numberOfTiers,
       _lastClosedDrawId
     );
-    return _isWinner(_lastClosedDrawId, _vault, _user, _tier, _prizeIndex, vaultPortion, tierOdds, drawDuration);
+    return
+      _isWinner(
+        _lastClosedDrawId,
+        _vault,
+        _user,
+        _tier,
+        _prizeIndex,
+        vaultPortion,
+        tierOdds,
+        drawDuration
+      );
   }
 
   /***
@@ -929,7 +938,9 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     drawDuration = uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
     vaultPortion = _getVaultPortion(
       _vault,
-      SafeCast.toUint24(drawDuration > lastClosedDrawId_ ? 1 : lastClosedDrawId_ - drawDuration + 1),
+      SafeCast.toUint24(
+        drawDuration > lastClosedDrawId_ ? 1 : lastClosedDrawId_ - drawDuration + 1
+      ),
       lastClosedDrawId_,
       smoothing.intoSD59x18()
     );
