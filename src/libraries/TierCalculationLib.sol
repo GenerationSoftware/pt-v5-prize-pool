@@ -3,8 +3,7 @@
 pragma solidity ^0.8.19;
 
 import { UniformRandomNumber } from "uniform-random-number/UniformRandomNumber.sol";
-import { E, SD59x18, sd, unwrap, convert, ceil } from "prb-math/SD59x18.sol";
-import { UD60x18, convert as convertUD60x18 } from "prb-math/UD60x18.sol";
+import { SD59x18, sd, unwrap, convert } from "prb-math/SD59x18.sol";
 
 /// @title Tier Calculation Library
 /// @author PoolTogether Inc. Team

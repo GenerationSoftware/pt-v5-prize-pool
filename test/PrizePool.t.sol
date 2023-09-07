@@ -13,7 +13,8 @@ import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { TierCalculationLib } from "../src/libraries/TierCalculationLib.sol";
-import { PrizePool, PrizeIsZero, ConstructorParams, InsufficientRewardsError, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerIsZeroAddress, CallerNotDrawManager, NotDeployer, FeeRecipientZeroAddress, FirstDrawStartsInPast, IncompatibleTwabPeriodLength, IncompatibleTwabPeriodOffset, MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../src/PrizePool.sol";
+import { MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../src/abstract/TieredLiquidityDistributor.sol";
+import { PrizePool, PrizeIsZero, ConstructorParams, InsufficientRewardsError, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerIsZeroAddress, CallerNotDrawManager, NotDeployer, FeeRecipientZeroAddress, FirstDrawStartsInPast, IncompatibleTwabPeriodLength, IncompatibleTwabPeriodOffset } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {

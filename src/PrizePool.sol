@@ -11,7 +11,7 @@ import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { UD34x4 } from "./libraries/UD34x4.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
-import { TieredLiquidityDistributor, Tier, MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "./abstract/TieredLiquidityDistributor.sol";
+import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
 /// @notice Emitted when the prize pool is constructed with a draw start that is in the past
