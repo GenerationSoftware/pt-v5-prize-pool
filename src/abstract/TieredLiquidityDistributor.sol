@@ -127,7 +127,7 @@ contract TieredLiquidityDistributor {
   uint8 public numberOfTiers;
 
   /// @notice The draw id of the last closed draw.
-  uint24 internal lastClosedDrawId;
+  uint24 internal _lastClosedDrawId;
 
   /// @notice The amount of available reserve.
   uint96 internal _reserve;
@@ -259,7 +259,7 @@ contract TieredLiquidityDistributor {
 
     prizeTokenPerShare = fromUD60x18toUD34x4(newPrizeTokenPerShare);
     numberOfTiers = _nextNumberOfTiers;
-    lastClosedDrawId = closedDrawId;
+    _lastClosedDrawId = closedDrawId;
     _reserve += newReserve;
   }
 
@@ -298,7 +298,7 @@ contract TieredLiquidityDistributor {
     UD60x18 _currentPrizeTokenPerShare,
     uint256 _prizeTokenLiquidity
   ) internal view returns (uint24 closedDrawId, uint96 newReserve, UD60x18 newPrizeTokenPerShare) {
-    closedDrawId = lastClosedDrawId + 1;
+    closedDrawId = _lastClosedDrawId + 1;
 
     uint256 reclaimedLiquidity = _getTierLiquidityToReclaim(
       _numberOfTiers,
@@ -349,9 +349,9 @@ contract TieredLiquidityDistributor {
   /// @return An up-to-date Tier struct; if the prize is outdated then it is recomputed based on available liquidity and the draw id updated.
   function _getTier(uint8 _tier, uint8 _numberOfTiers) internal view returns (Tier memory) {
     Tier memory tier = _tiers[_tier];
-    uint24 _lastClosedDrawId = lastClosedDrawId;
-    if (tier.drawId != _lastClosedDrawId) {
-      tier.drawId = _lastClosedDrawId;
+    uint24 lastClosedDrawId_ = _lastClosedDrawId;
+    if (tier.drawId != lastClosedDrawId_) {
+      tier.drawId = lastClosedDrawId_;
       tier.prizeSize = _computePrizeSize(
         _tier,
         _numberOfTiers,
@@ -550,7 +550,7 @@ contract TieredLiquidityDistributor {
   /// @notice Retrieves the id of the next draw to be closed.
   /// @return The next draw id
   function getOpenDrawId() external view returns (uint24) {
-    return lastClosedDrawId + 1;
+    return _lastClosedDrawId + 1;
   }
 
   /// @notice Estimates the number of prizes for the current number of tiers, including the canary tier
