@@ -316,16 +316,18 @@ contract TieredLiquidityDistributor {
 
     uint256 totalNewLiquidity = _prizeTokenLiquidity + reclaimedLiquidity;
     uint256 nextTotalShares = _getTotalShares(_nextNumberOfTiers);
-    UD60x18 deltaPrizeTokensPerShare = (convert(totalNewLiquidity).div(convert(nextTotalShares)))
-      .floor();
+    uint256 deltaPrizeTokensPerShare = totalNewLiquidity / nextTotalShares;
 
-    newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
+    newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(convert(deltaPrizeTokensPerShare));
 
     newReserve = SafeCast.toUint96(
       // reserve portion of new liquidity
-      convert(deltaPrizeTokensPerShare.mul(convert(reserveShares))) +
+      deltaPrizeTokensPerShare *
+        reserveShares +
         // remainder left over from shares
-        (totalNewLiquidity - convert(deltaPrizeTokensPerShare.mul(convert(nextTotalShares))))
+        totalNewLiquidity -
+        deltaPrizeTokensPerShare *
+        nextTotalShares
     );
   }
 
