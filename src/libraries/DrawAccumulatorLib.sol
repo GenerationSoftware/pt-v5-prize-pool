@@ -47,7 +47,7 @@ library DrawAccumulatorLib {
   struct Accumulator {
     RingBufferInfo ringBufferInfo;
     uint24[366] drawRingBuffer;
-    mapping(uint256 => Observation) observations;
+    mapping(uint256 drawId => Observation observation) observations;
   }
 
   /// @notice A pair of uint24s.
