@@ -20,15 +20,10 @@ library TierCalculationLib {
     uint8 _numberOfTiers,
     uint24 _grandPrizePeriod
   ) internal pure returns (SD59x18) {
-    return sd(1).div(
-      sd(int24(_grandPrizePeriod))
-    ).pow(
-      sd(
-        int8(_tier) - (int8(_numberOfTiers) - 1)
-      ).div(
-        sd((-1 * int8(_numberOfTiers) + 1))
-      )
-    );
+    return
+      sd(1).div(sd(int24(_grandPrizePeriod))).pow(
+        sd(int8(_tier) - (int8(_numberOfTiers) - 1)).div(sd((-1 * int8(_numberOfTiers) + 1)))
+      );
   }
 
   /// @notice Estimates the number of draws between a tier occurring.
@@ -73,7 +68,10 @@ library TierCalculationLib {
         - Portion of prize that was contributed by the vault
     */
     // first constrain the random number to be within the vault total supply
-    uint256 constrainedRandomNumber = UniformRandomNumber.uniform(_userSpecificRandomNumber, _vaultTwabTotalSupply);
+    uint256 constrainedRandomNumber = UniformRandomNumber.uniform(
+      _userSpecificRandomNumber,
+      _vaultTwabTotalSupply
+    );
     uint256 winningZone = calculateWinningZone(_userTwab, _vaultContributionFraction, _tierOdds);
 
     return constrainedRandomNumber < winningZone;
@@ -95,7 +93,10 @@ library TierCalculationLib {
     uint32 _prizeIndex,
     uint256 _winningRandomNumber
   ) internal pure returns (uint256) {
-    return uint256(keccak256(abi.encode(_drawId, _vault, _user, _tier, _prizeIndex, _winningRandomNumber)));
+    return
+      uint256(
+        keccak256(abi.encode(_drawId, _vault, _user, _tier, _prizeIndex, _winningRandomNumber))
+      );
   }
 
   /// @notice Calculates the winning zone for a user. If their pseudo-random number falls within this zone, they win the tier.
@@ -109,24 +110,15 @@ library TierCalculationLib {
     SD59x18 _tierOdds
   ) internal pure returns (uint256) {
     return
-      uint256(
-        convert(convert(int256(_userTwab)).mul(_tierOdds).mul(_vaultContributionFraction))
-      );
+      uint256(convert(convert(int256(_userTwab)).mul(_tierOdds).mul(_vaultContributionFraction)));
   }
 
   /// @notice Computes the estimated number of prizes per draw for a given tier and tier odds.
   /// @param _tier The tier
   /// @param _odds The odds of the tier occurring for the draw
   /// @return The estimated number of prizes per draw for the given tier and tier odds
-  function tierPrizeCountPerDraw(
-    uint8 _tier,
-    SD59x18 _odds
-  ) internal pure returns (uint32) {
-    return uint32(
-      uint256(
-        unwrap(sd(int256(prizeCount(_tier))).mul(_odds))
-      )
-    );
+  function tierPrizeCountPerDraw(uint8 _tier, SD59x18 _odds) internal pure returns (uint32) {
+    return uint32(uint256(unwrap(sd(int256(prizeCount(_tier))).mul(_odds))));
   }
 
   /// @notice Checks whether a tier is a valid tier

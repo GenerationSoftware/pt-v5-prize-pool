@@ -13,31 +13,7 @@ import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { TierCalculationLib } from "../src/libraries/TierCalculationLib.sol";
-import {
-  PrizePool,
-  PrizeIsZero,
-  ConstructorParams,
-  InsufficientRewardsError,
-  DidNotWin,
-  FeeTooLarge,
-  SmoothingGTEOne,
-  ContributionGTDeltaBalance,
-  InsufficientReserve,
-  RandomNumberIsZero,
-  DrawNotFinished,
-  InvalidPrizeIndex,
-  NoClosedDraw,
-  InvalidTier,
-  DrawManagerIsZeroAddress,
-  CallerNotDrawManager,
-  NotDeployer,
-  FeeRecipientZeroAddress,
-  FirstDrawStartsInPast,
-  IncompatibleTwabPeriodLength,
-  IncompatibleTwabPeriodOffset,
-  MAXIMUM_NUMBER_OF_TIERS,
-  MINIMUM_NUMBER_OF_TIERS
-} from "../src/PrizePool.sol";
+import { PrizePool, PrizeIsZero, ConstructorParams, InsufficientRewardsError, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerIsZeroAddress, CallerNotDrawManager, NotDeployer, FeeRecipientZeroAddress, FirstDrawStartsInPast, IncompatibleTwabPeriodLength, IncompatibleTwabPeriodOffset, MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -133,8 +109,16 @@ contract PrizePoolTest is Test {
     firstDrawStartsAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
     initialNumberOfTiers = 3;
 
-    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_OFFSET, ()), abi.encode(firstDrawStartsAt));
-    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_LENGTH, ()), abi.encode(drawPeriodSeconds));
+    vm.mockCall(
+      address(twabController),
+      abi.encodeCall(twabController.PERIOD_OFFSET, ()),
+      abi.encode(firstDrawStartsAt)
+    );
+    vm.mockCall(
+      address(twabController),
+      abi.encodeCall(twabController.PERIOD_LENGTH, ()),
+      abi.encode(drawPeriodSeconds)
+    );
 
     address drawManager = address(this);
     vault = address(this);
@@ -178,19 +162,31 @@ contract PrizePoolTest is Test {
   }
 
   function testConstructor_IncompatibleTwabPeriodLength_longer() public {
-    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_LENGTH, ()), abi.encode(drawPeriodSeconds*2));
+    vm.mockCall(
+      address(twabController),
+      abi.encodeCall(twabController.PERIOD_LENGTH, ()),
+      abi.encode(drawPeriodSeconds * 2)
+    );
     vm.expectRevert(abi.encodeWithSelector(IncompatibleTwabPeriodLength.selector));
     new PrizePool(params);
   }
 
   function testConstructor_IncompatibleTwabPeriodLength_not_modulo() public {
-    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_LENGTH, ()), abi.encode(drawPeriodSeconds + 1));
+    vm.mockCall(
+      address(twabController),
+      abi.encodeCall(twabController.PERIOD_LENGTH, ()),
+      abi.encode(drawPeriodSeconds + 1)
+    );
     vm.expectRevert(abi.encodeWithSelector(IncompatibleTwabPeriodLength.selector));
     new PrizePool(params);
   }
 
   function testConstructor_IncompatibleTwabPeriodOffset_notAligned() public {
-    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_OFFSET, ()), abi.encode(params.firstDrawStartsAt - 1));
+    vm.mockCall(
+      address(twabController),
+      abi.encodeCall(twabController.PERIOD_OFFSET, ()),
+      abi.encode(params.firstDrawStartsAt - 1)
+    );
     vm.expectRevert(abi.encodeWithSelector(IncompatibleTwabPeriodOffset.selector));
     new PrizePool(params);
   }
@@ -223,7 +219,7 @@ contract PrizePoolTest is Test {
     uint prizesPerShare = 10e18 / prizePool.getTotalShares();
     uint remainder = 10e18 - prizesPerShare * prizePool.getTotalShares();
 
-    uint reserve = (prizesPerShare*RESERVE_SHARES) + remainder;
+    uint reserve = (prizesPerShare * RESERVE_SHARES) + remainder;
 
     assertEq(prizePool.reserve(), reserve);
 
@@ -344,7 +340,11 @@ contract PrizePoolTest is Test {
     contribute(100e18);
     closeDraw(1);
     // reserve = 10e18 * (10 / 310) = 0.3225806451612903e18
-    assertApproxEqAbs(prizePool.reserve(), (10e18*RESERVE_SHARES) / prizePool.getTotalShares(), 100);
+    assertApproxEqAbs(
+      prizePool.reserve(),
+      (10e18 * RESERVE_SHARES) / prizePool.getTotalShares(),
+      100
+    );
     prizePool.withdrawReserve(address(this), prizePool.reserve());
     assertEq(prizePool.accountedBalance(), prizeToken.balanceOf(address(prizePool)));
     assertEq(prizePool.reserve(), 0);
@@ -656,7 +656,7 @@ contract PrizePoolTest is Test {
   }
 
   function testGetTotalShares() public {
-    assertEq(prizePool.getTotalShares(), TIER_SHARES*3 + RESERVE_SHARES);
+    assertEq(prizePool.getTotalShares(), TIER_SHARES * 3 + RESERVE_SHARES);
   }
 
   function testGetRemainingTierLiquidity_invalidTier() public {
@@ -842,20 +842,10 @@ contract PrizePoolTest is Test {
     mockTwab(address(this), winner, 1);
 
     uint prize = 806451612903225800;
-    assertApproxEqAbs(prize, (10e18*TIER_SHARES) / (4*prizePool.getTotalShares()), 100);
+    assertApproxEqAbs(prize, (10e18 * TIER_SHARES) / (4 * prizePool.getTotalShares()), 100);
 
     vm.expectEmit();
-    emit ClaimedPrize(
-      address(this),
-      winner,
-      recipient,
-      1,
-      1,
-      0,
-      uint152(prize),
-      0,
-      address(this)
-    );
+    emit ClaimedPrize(address(this), winner, recipient, 1, 1, 0, uint152(prize), 0, address(this));
     assertEq(prizePool.claimPrize(winner, 1, 0, recipient, 0, address(this)), prize);
     assertEq(prizeToken.balanceOf(recipient), prize, "recipient balance is good");
     assertEq(prizePool.claimCount(), 1);
@@ -1176,16 +1166,15 @@ contract PrizePoolTest is Test {
   function testGetVaultUserBalanceAndTotalSupplyTwab_insufficientPast() public {
     vm.warp(1 days);
     params.firstDrawStartsAt = 2 days;
-    vm.mockCall(address(twabController), abi.encodeCall(twabController.PERIOD_OFFSET,()), abi.encode(2 days));
+    vm.mockCall(
+      address(twabController),
+      abi.encodeCall(twabController.PERIOD_OFFSET, ()),
+      abi.encode(2 days)
+    );
     prizePool = new PrizePool(params);
     prizePool.setDrawManager(address(this));
     closeDraw(winningRandomNumber);
-    mockTwab(
-      address(this),
-      msg.sender,
-      0,
-      prizePool.lastClosedDrawEndedAt()
-    );
+    mockTwab(address(this), msg.sender, 0, prizePool.lastClosedDrawEndedAt());
     (uint256 twab, uint256 twabTotalSupply) = prizePool.getVaultUserBalanceAndTotalSupplyTwab(
       address(this),
       msg.sender,

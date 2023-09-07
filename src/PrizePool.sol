@@ -11,12 +11,7 @@ import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { UD34x4 } from "./libraries/UD34x4.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
-import {
-  TieredLiquidityDistributor,
-  Tier,
-  MAXIMUM_NUMBER_OF_TIERS,
-  MINIMUM_NUMBER_OF_TIERS
-} from "./abstract/TieredLiquidityDistributor.sol";
+import { TieredLiquidityDistributor, Tier, MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
 /// @notice Emitted when the prize pool is constructed with a draw start that is in the past
@@ -204,15 +199,15 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /* ============ State ============ */
 
   /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault.
-  mapping (address => DrawAccumulatorLib.Accumulator) internal _vaultAccumulator;
+  mapping(address => DrawAccumulatorLib.Accumulator) internal _vaultAccumulator;
 
   /// @notice Records the claim record for a winner.
   /// @dev vault => account => drawId => tier => prizeIndex => claimed
-  mapping (address => mapping (address => mapping (uint24 => mapping (uint8 => mapping (uint32 => bool)))))
+  mapping(address => mapping(address => mapping(uint24 => mapping(uint8 => mapping(uint32 => bool)))))
     internal _claimedPrizes;
 
   /// @notice Tracks the total fees accrued to each claimer.
-  mapping (address => uint256) internal _claimerRewards;
+  mapping(address => uint256) internal _claimerRewards;
 
   /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing.
   /// @dev Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
@@ -277,18 +272,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert FirstDrawStartsInPast();
     }
 
-    prizeToken = params.prizeToken;
-    twabController = params.twabController;
-    smoothing = params.smoothing;
-    drawPeriodSeconds = params.drawPeriodSeconds;
-    _lastClosedDrawStartedAt = params.firstDrawStartsAt;
-    firstDrawStartsAt = params.firstDrawStartsAt;
-
     uint48 twabPeriodOffset = params.twabController.PERIOD_OFFSET();
     uint48 twabPeriodLength = params.twabController.PERIOD_LENGTH();
 
-    if (params.drawPeriodSeconds < twabPeriodLength ||
-        params.drawPeriodSeconds % twabPeriodLength != 0
+    if (
+      params.drawPeriodSeconds < twabPeriodLength ||
+      params.drawPeriodSeconds % twabPeriodLength != 0
     ) {
       revert IncompatibleTwabPeriodLength();
     }
@@ -297,6 +286,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert IncompatibleTwabPeriodOffset();
     }
 
+    prizeToken = params.prizeToken;
+    twabController = params.twabController;
+    smoothing = params.smoothing;
+    drawPeriodSeconds = params.drawPeriodSeconds;
+    _lastClosedDrawStartedAt = params.firstDrawStartsAt;
+    firstDrawStartsAt = params.firstDrawStartsAt;
   }
 
   /* ============ Modifiers ============ */
@@ -335,18 +330,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     }
     uint24 openDrawId = _lastClosedDrawId + 1;
     SD59x18 _smoothing = smoothing.intoSD59x18();
-    DrawAccumulatorLib.add(
-      _vaultAccumulator[_prizeVault],
-      _amount,
-      openDrawId,
-      _smoothing
-    );
-    DrawAccumulatorLib.add(
-      _totalAccumulator,
-      _amount,
-      openDrawId,
-      _smoothing
-    );
+    DrawAccumulatorLib.add(_vaultAccumulator[_prizeVault], _amount, openDrawId, _smoothing);
+    DrawAccumulatorLib.add(_totalAccumulator, _amount, openDrawId, _smoothing);
     emit ContributePrizeTokens(_prizeVault, openDrawId, _amount);
     return _deltaBalance;
   }
@@ -453,16 +438,25 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert PrizeIsZero();
     }
 
-    { // hide the variables!
-      (SD59x18 _vaultPortion, SD59x18 _computedTierOdds, uint24 _drawDuration) = _computeVaultTierDetails(
-        msg.sender,
-        _tier,
-        numberOfTiers,
-        _lastClosedDrawId
-      );
+    {
+      // hide the variables!
+      (
+        SD59x18 _vaultPortion,
+        SD59x18 _computedTierOdds,
+        uint24 _drawDuration
+      ) = _computeVaultTierDetails(msg.sender, _tier, numberOfTiers, _lastClosedDrawId);
 
       if (
-        !_isWinner(_lastClosedDrawId, msg.sender, _winner, _tier, _prizeIndex, _vaultPortion, _computedTierOdds, _drawDuration)
+        !_isWinner(
+          _lastClosedDrawId,
+          msg.sender,
+          _winner,
+          _tier,
+          _prizeIndex,
+          _vaultPortion,
+          _computedTierOdds,
+          _drawDuration
+        )
       ) {
         revert DidNotWin(msg.sender, _winner, _tier, _prizeIndex);
       }
@@ -712,7 +706,17 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       numberOfTiers,
       _lastClosedDrawId
     );
-    return _isWinner(_lastClosedDrawId, _vault, _user, _tier, _prizeIndex, vaultPortion, tierOdds, drawDuration);
+    return
+      _isWinner(
+        _lastClosedDrawId,
+        _vault,
+        _user,
+        _tier,
+        _prizeIndex,
+        vaultPortion,
+        tierOdds,
+        drawDuration
+      );
   }
 
   /***
@@ -727,12 +731,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     _checkValidTier(_tier, _numberOfTiers);
     endTimestamp = _lastClosedDrawStartedAt + drawPeriodSeconds;
     SD59x18 tierOdds = _tierOdds(_tier, _numberOfTiers);
-    uint256 durationInSeconds = TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds) * drawPeriodSeconds;
+    uint256 durationInSeconds = TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds) *
+      drawPeriodSeconds;
 
-    startTimestamp = uint64(
-      endTimestamp -
-        durationInSeconds
-    );
+    startTimestamp = uint64(endTimestamp - durationInSeconds);
   }
 
   /**
@@ -800,6 +802,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Returns the time at which the open draw ends.
   /// @return The timestamp at which the open draw ends
   function _openDrawEndsAt() internal view returns (uint64) {
+    uint32 _drawPeriodSeconds = drawPeriodSeconds;
+
     // If this is the first draw, we treat _lastClosedDrawStartedAt as the start of this draw
     uint64 _nextExpectedEndTime = _lastClosedDrawStartedAt +
       (_lastClosedDrawId == 0 ? 1 : 2) *
@@ -810,8 +814,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       // Offset the end time by the total duration of the missed draws
       // drawPeriodSeconds * numMissedDraws
       _nextExpectedEndTime +=
-        drawPeriodSeconds *
-        (uint64((block.timestamp - _nextExpectedEndTime) / drawPeriodSeconds));
+        _drawPeriodSeconds *
+        (uint64((block.timestamp - _nextExpectedEndTime) / _drawPeriodSeconds));
     }
 
     return _nextExpectedEndTime;
@@ -934,7 +938,9 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     drawDuration = uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds));
     vaultPortion = _getVaultPortion(
       _vault,
-      SafeCast.toUint24(drawDuration > lastClosedDrawId_ ? 1 : lastClosedDrawId_ - drawDuration + 1),
+      SafeCast.toUint24(
+        drawDuration > lastClosedDrawId_ ? 1 : lastClosedDrawId_ - drawDuration + 1
+      ),
       lastClosedDrawId_,
       smoothing.intoSD59x18()
     );
@@ -988,10 +994,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       _smoothing
     );
 
-    if (totalContributed != 0) {
-      // vaultContributed / totalContributed
-      return
-        sd(
+    // vaultContributed / totalContributed
+    return
+      totalContributed != 0
+        ? sd(
           SafeCast.toInt256(
             DrawAccumulatorLib.getDisbursedBetween(
               _vaultAccumulator[_vault],
@@ -1000,9 +1006,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
               _smoothing
             )
           )
-        ).div(sd(SafeCast.toInt256(totalContributed)));
-    } else {
-      return sd(0);
-    }
+        ).div(sd(SafeCast.toInt256(totalContributed)))
+        : sd(0);
   }
 }

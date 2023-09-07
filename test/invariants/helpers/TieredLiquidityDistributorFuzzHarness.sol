@@ -3,12 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/console2.sol";
 
-import {
-  TieredLiquidityDistributor,
-  Tier,
-  fromUD34x4toUD60x18,
-  convert
-} from "../../../src/abstract/TieredLiquidityDistributor.sol";
+import { TieredLiquidityDistributor, Tier, fromUD34x4toUD60x18, convert } from "../../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
   uint256 public totalAdded;
