@@ -385,12 +385,11 @@ contract TieredLiquidityDistributor {
   /// @param _tierStruct The tier to consume liquidity from
   /// @param _tier The tier number
   /// @param _liquidity The amount of liquidity to consume
-  /// @return An updated Tier struct after consumption
   function _consumeLiquidity(
     Tier memory _tierStruct,
     uint8 _tier,
     uint104 _liquidity
-  ) internal returns (Tier memory) {
+  ) internal {
     uint8 _shares = tierShares;
     uint104 remainingLiquidity = SafeCast.toUint104(
       convert(
@@ -416,7 +415,6 @@ contract TieredLiquidityDistributor {
       );
     }
     _tiers[_tier] = _tierStruct;
-    return _tierStruct;
   }
 
   /// @notice Computes the prize size of the given tier.
