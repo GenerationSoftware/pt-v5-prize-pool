@@ -61,6 +61,6 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
     }
 
     totalConsumed += liq;
-    tier_ = _consumeLiquidity(tier_, tier, liq);
+    _consumeLiquidity(tier_, tier, liq);
   }
 }

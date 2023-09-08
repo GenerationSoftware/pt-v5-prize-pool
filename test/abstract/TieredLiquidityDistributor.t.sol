@@ -128,25 +128,6 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierRemainingLiquidity(5), 0);
   }
 
-  function testReclaimLiquidity_canary_tier() public {
-    distributor.nextDraw(4, 410e18);
-    // reclaiming same num tiers should take back canary tier
-    assertEq(distributor.getTierLiquidityToReclaim(4), 100e18);
-  }
-
-  function testReclaimLiquidity_canary_tier_plus_one() public {
-    distributor.nextDraw(4, 410e18);
-    assertEq(distributor.getTierLiquidityToReclaim(3), 200e18);
-  }
-
-  function testReclaimLiquidity_canary_tier_plus_two() public {
-    distributor.nextDraw(5, 510e18);
-    // should be 10e18 in the canary tier
-
-    // reclaiming same num tiers should take back canary tier
-    assertEq(distributor.getTierLiquidityToReclaim(3), 300e18);
-  }
-
   function testExpansionTierLiquidity() public {
     distributor.nextDraw(3, 310e18); // canary gets 100e18
     assertEq(distributor.getTierRemainingLiquidity(2), 100e18, "canary initial liquidity");

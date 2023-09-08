@@ -274,27 +274,6 @@ contract TieredLiquidityDistributor {
   /// @notice Computes the liquidity that will be distributed for the next draw given the next number of tiers and prize liquidity.
   /// @param _numberOfTiers The current number of tiers
   /// @param _nextNumberOfTiers The next number of tiers to use to compute distribution
-  /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
-  /// @return closedDrawId The drawId that this is for
-  /// @return newReserve The amount of liquidity that should be added to the reserve
-  /// @return newPrizeTokenPerShare The new prize token per share
-  function _computeNewDistributions(
-    uint8 _numberOfTiers,
-    uint8 _nextNumberOfTiers,
-    uint256 _prizeTokenLiquidity
-  ) internal view returns (uint24 closedDrawId, uint96 newReserve, UD60x18 newPrizeTokenPerShare) {
-    return
-      _computeNewDistributions(
-        _numberOfTiers,
-        _nextNumberOfTiers,
-        fromUD34x4toUD60x18(prizeTokenPerShare),
-        _prizeTokenLiquidity
-      );
-  }
-
-  /// @notice Computes the liquidity that will be distributed for the next draw given the next number of tiers and prize liquidity.
-  /// @param _numberOfTiers The current number of tiers
-  /// @param _nextNumberOfTiers The next number of tiers to use to compute distribution
   /// @param _currentPrizeTokenPerShare The current prize token per share
   /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
   /// @return closedDrawId The drawId that this is for
@@ -307,21 +286,46 @@ contract TieredLiquidityDistributor {
     uint256 _prizeTokenLiquidity
   ) internal view returns (uint24 closedDrawId, uint96 newReserve, UD60x18 newPrizeTokenPerShare) {
     closedDrawId = _lastClosedDrawId + 1;
+    UD60x18 reclaimedLiquidity;
+    {
+      // need to redistribute to the canary tier and any new tiers (if expanding)
+      uint8 start;
+      uint8 end;
+      uint8 shares = tierShares;
+      // if we are shrinking, we need to reclaim including the new canary tier
+      if (_nextNumberOfTiers < _numberOfTiers) {
+        start = _nextNumberOfTiers - 1;
+        end = _numberOfTiers;
+      } else {
+        // just reset the canary tier
+        start = _numberOfTiers - 1;
+        end = _numberOfTiers;
+      }
+      for (uint8 i = start; i < end; i++) {
+        reclaimedLiquidity = reclaimedLiquidity.add(
+          _getTierRemainingLiquidity(
+            shares,
+            fromUD34x4toUD60x18(_tiers[i].prizeTokenPerShare),
+            _currentPrizeTokenPerShare
+          )
+        );
+      }
+    }
 
-    uint256 totalNewLiquidity = _prizeTokenLiquidity +
-      _getTierLiquidityToReclaim(_numberOfTiers, _nextNumberOfTiers, _currentPrizeTokenPerShare);
-
+    uint256 totalNewLiquidity = _prizeTokenLiquidity + convert(reclaimedLiquidity);
     uint256 nextTotalShares = _getTotalShares(_nextNumberOfTiers);
-    UD60x18 deltaPrizeTokensPerShare = (convert(totalNewLiquidity).div(convert(nextTotalShares)))
-      .floor();
+    uint256 deltaPrizeTokensPerShare = totalNewLiquidity / nextTotalShares;
 
-    newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(deltaPrizeTokensPerShare);
+    newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(convert(deltaPrizeTokensPerShare));
 
     newReserve = SafeCast.toUint96(
       // reserve portion of new liquidity
-      convert(deltaPrizeTokensPerShare.mul(convert(reserveShares))) +
+      deltaPrizeTokensPerShare *
+        reserveShares +
         // remainder left over from shares
-        (totalNewLiquidity - convert(deltaPrizeTokensPerShare.mul(convert(nextTotalShares))))
+        totalNewLiquidity -
+        deltaPrizeTokensPerShare *
+        nextTotalShares
     );
   }
 
@@ -381,12 +385,7 @@ contract TieredLiquidityDistributor {
   /// @param _tierStruct The tier to consume liquidity from
   /// @param _tier The tier number
   /// @param _liquidity The amount of liquidity to consume
-  /// @return An updated Tier struct after consumption
-  function _consumeLiquidity(
-    Tier memory _tierStruct,
-    uint8 _tier,
-    uint104 _liquidity
-  ) internal returns (Tier memory) {
+  function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint104 _liquidity) internal {
     uint8 _shares = tierShares;
     uint104 remainingLiquidity = SafeCast.toUint104(
       convert(
@@ -412,7 +411,6 @@ contract TieredLiquidityDistributor {
       );
     }
     _tiers[_tier] = _tierStruct;
-    return _tierStruct;
   }
 
   /// @notice Computes the prize size of the given tier.
@@ -473,41 +471,6 @@ contract TieredLiquidityDistributor {
   /// @return True if the tier is the canary tier
   function _isCanaryTier(uint8 _tier, uint8 _numberOfTiers) internal pure returns (bool) {
     return _tier == _numberOfTiers - 1;
-  }
-
-  /// @notice Reclaims liquidity from tiers, starting at the highest tier.
-  /// @param _numberOfTiers The existing number of tiers
-  /// @param _nextNumberOfTiers The next number of tiers. Must be less than _numberOfTiers
-  /// @return The total reclaimed liquidity
-  function _getTierLiquidityToReclaim(
-    uint8 _numberOfTiers,
-    uint8 _nextNumberOfTiers,
-    UD60x18 _prizeTokenPerShare
-  ) internal view returns (uint256) {
-    UD60x18 reclaimedLiquidity;
-    // need to redistribute to the canary tier and any new tiers (if expanding)
-    uint8 start;
-    uint8 end;
-    // if we are shrinking, we need to reclaim including the new canary tier
-    if (_nextNumberOfTiers < _numberOfTiers) {
-      start = _nextNumberOfTiers - 1;
-      end = _numberOfTiers;
-    } else {
-      // just reset the canary tier
-      start = _numberOfTiers - 1;
-      end = _numberOfTiers;
-    }
-    for (uint8 i = start; i < end; i++) {
-      Tier memory tierLiquidity = _tiers[i];
-      uint8 shares = tierShares;
-      UD60x18 liq = _getTierRemainingLiquidity(
-        shares,
-        fromUD34x4toUD60x18(tierLiquidity.prizeTokenPerShare),
-        _prizeTokenPerShare
-      );
-      reclaimedLiquidity = reclaimedLiquidity.add(liq);
-    }
-    return convert(reclaimedLiquidity);
   }
 
   /// @notice Computes the remaining liquidity available to a tier.

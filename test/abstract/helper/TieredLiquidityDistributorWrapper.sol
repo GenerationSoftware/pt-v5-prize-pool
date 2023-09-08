@@ -19,9 +19,9 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
     _nextDraw(_nextNumTiers, liquidity);
   }
 
-  function consumeLiquidity(uint8 _tier, uint96 _liquidity) external returns (Tier memory) {
+  function consumeLiquidity(uint8 _tier, uint96 _liquidity) external {
     Tier memory _tierData = _getTier(_tier, numberOfTiers);
-    return _consumeLiquidity(_tierData, _tier, _liquidity);
+    _consumeLiquidity(_tierData, _tier, _liquidity);
   }
 
   function remainingTierLiquidity(uint8 _tier) external view returns (uint112) {
@@ -44,15 +44,6 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   ) external view returns (uint8) {
     uint8 result = _estimateNumberOfTiersUsingPrizeCountPerDraw(_prizeCount);
     return result;
-  }
-
-  function getTierLiquidityToReclaim(uint8 _nextNumberOfTiers) external view returns (uint256) {
-    return
-      _getTierLiquidityToReclaim(
-        numberOfTiers,
-        _nextNumberOfTiers,
-        fromUD34x4toUD60x18(prizeTokenPerShare)
-      );
   }
 
   function sumTierPrizeCounts(uint8 _numTiers) external view returns (uint32) {
