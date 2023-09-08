@@ -108,7 +108,7 @@ contract TieredLiquidityDistributor {
   uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS;
 
   /// @notice The Tier liquidity data.
-  mapping(uint8 => Tier) internal _tiers;
+  mapping(uint8 tierId => Tier tierData) internal _tiers;
 
   /// @notice The frequency of the grand prize
   uint24 public immutable grandPrizePeriodDraws;
