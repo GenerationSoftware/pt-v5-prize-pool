@@ -405,9 +405,9 @@ contract TieredLiquidityDistributor {
       emit ReserveConsumed(excess);
       _tierStruct.prizeTokenPerShare = prizeTokenPerShare;
     } else {
-      UD34x4 delta = fromUD60x18toUD34x4(convert(_liquidity).div(convert(_shares)));
       _tierStruct.prizeTokenPerShare = UD34x4.wrap(
-        UD34x4.unwrap(_tierStruct.prizeTokenPerShare) + UD34x4.unwrap(delta)
+        UD34x4.unwrap(_tierStruct.prizeTokenPerShare) +
+          UD34x4.unwrap(fromUD60x18toUD34x4(convert(_liquidity).div(convert(_shares))))
       );
     }
     _tiers[_tier] = _tierStruct;

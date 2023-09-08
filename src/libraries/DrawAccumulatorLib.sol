@@ -73,8 +73,9 @@ library DrawAccumulatorLib {
     }
     RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
-    uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-    uint24 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
+    uint24 newestDrawId_ = accumulator.drawRingBuffer[
+      RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY)
+    ];
 
     if (_drawId < newestDrawId_) {
       revert DrawClosed(_drawId, newestDrawId_);
@@ -86,28 +87,36 @@ library DrawAccumulatorLib {
 
       uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation_.available);
       uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation_.available);
-      uint256 remainder = newestObservation_.available - (remainingAmount + disbursedAmount);
 
       accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
       accumulator.observations[_drawId] = Observation({
         available: SafeCast.toUint96(_amount + remainingAmount),
-        disbursed: SafeCast.toUint168(newestObservation_.disbursed + disbursedAmount + remainder)
+        disbursed: SafeCast.toUint168(
+          newestObservation_.disbursed +
+            disbursedAmount +
+            newestObservation_.available -
+            (remainingAmount + disbursedAmount)
+        )
       });
-      uint16 nextIndex = uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY));
+
       uint16 cardinality = ringBufferInfo.cardinality;
+
       if (ringBufferInfo.cardinality < MAX_CARDINALITY) {
         cardinality += 1;
       }
+
       accumulator.ringBufferInfo = RingBufferInfo({
-        nextIndex: nextIndex,
+        nextIndex: uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY)),
         cardinality: cardinality
       });
+
       return true;
     } else {
       accumulator.observations[newestDrawId_] = Observation({
         available: SafeCast.toUint96(newestObservation_.available + _amount),
         disbursed: newestObservation_.disbursed
       });
+
       return false;
     }
   }
@@ -124,16 +133,25 @@ library DrawAccumulatorLib {
     SD59x18 _alpha
   ) internal view returns (uint256) {
     RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
+
     if (ringBufferInfo.cardinality == 0) {
       return 0;
     }
-    uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-    uint24 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
+
+    uint24 newestDrawId_ = accumulator.drawRingBuffer[
+      RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY)
+    ];
+
     if (_startDrawId < newestDrawId_) {
       revert DrawClosed(_startDrawId, newestDrawId_);
     }
-    Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
-    return integrateInf(_alpha, _startDrawId - newestDrawId_, newestObservation_.available);
+
+    return
+      integrateInf(
+        _alpha,
+        _startDrawId - newestDrawId_,
+        accumulator.observations[newestDrawId_].available
+      );
   }
 
   /// @notice Returns the newest draw id from the accumulator.
@@ -275,14 +293,17 @@ library DrawAccumulatorLib {
       Observation memory beforeOrAtStart = _accumulator.observations[
         observationDrawIdBeforeOrAtStart
       ];
+
       uint24 headStartDrawId = _startDrawId - observationDrawIdBeforeOrAtStart;
-      uint24 headEndDrawId = headStartDrawId +
-        (firstObservationDrawIdOccurringAtOrAfterStart - _startDrawId);
-      uint256 amount = integrate(_alpha, headStartDrawId, headEndDrawId, beforeOrAtStart.available);
-      total += amount;
+
+      total += integrate(
+        _alpha,
+        headStartDrawId,
+        headStartDrawId + (firstObservationDrawIdOccurringAtOrAfterStart - _startDrawId),
+        beforeOrAtStart.available
+      );
     }
 
-    Observation memory atOrBeforeEnd;
     // if a "body" exists
     if (
       firstObservationDrawIdOccurringAtOrAfterStart > 0 &&
@@ -291,9 +312,10 @@ library DrawAccumulatorLib {
       Observation memory atOrAfterStart = _accumulator.observations[
         firstObservationDrawIdOccurringAtOrAfterStart
       ];
-      atOrBeforeEnd = _accumulator.observations[lastObservationDrawIdOccurringAtOrBeforeEnd];
-      uint256 amount = atOrBeforeEnd.disbursed - atOrAfterStart.disbursed;
-      total += amount;
+
+      total +=
+        _accumulator.observations[lastObservationDrawIdOccurringAtOrBeforeEnd].disbursed -
+        atOrAfterStart.disbursed;
     }
 
     total += _computeTail(
@@ -320,21 +342,17 @@ library DrawAccumulatorLib {
     uint24 _lastObservationDrawIdOccurringAtOrBeforeEnd,
     SD59x18 _alpha
   ) internal view returns (uint256) {
-    Observation memory lastObservation = accumulator.observations[
-      _lastObservationDrawIdOccurringAtOrBeforeEnd
-    ];
-    uint24 tailRangeStartDrawId = (
-      _startDrawId > _lastObservationDrawIdOccurringAtOrBeforeEnd
-        ? _startDrawId
-        : _lastObservationDrawIdOccurringAtOrBeforeEnd
-    ) - _lastObservationDrawIdOccurringAtOrBeforeEnd;
-    uint256 amount = integrate(
-      _alpha,
-      tailRangeStartDrawId,
-      _endDrawId - _lastObservationDrawIdOccurringAtOrBeforeEnd + 1,
-      lastObservation.available
-    );
-    return amount;
+    return
+      integrate(
+        _alpha,
+        (
+          _startDrawId > _lastObservationDrawIdOccurringAtOrBeforeEnd
+            ? _startDrawId
+            : _lastObservationDrawIdOccurringAtOrBeforeEnd
+        ) - _lastObservationDrawIdOccurringAtOrBeforeEnd,
+        _endDrawId - _lastObservationDrawIdOccurringAtOrBeforeEnd + 1,
+        accumulator.observations[_lastObservationDrawIdOccurringAtOrBeforeEnd].available
+      );
   }
 
   /// @notice Computes the first and last indices of observations for the given ring buffer info.
@@ -394,9 +412,10 @@ library DrawAccumulatorLib {
     uint256 _end,
     uint256 _k
   ) internal pure returns (uint256) {
-    int start = unwrap(computeC(_alpha, _start, _k));
-    int end = unwrap(computeC(_alpha, _end, _k));
-    return uint256(convert(sd(start - end)));
+    return
+      uint256(
+        convert(sd(unwrap(computeC(_alpha, _start, _k)) - unwrap(computeC(_alpha, _end, _k))))
+      );
   }
 
   /// @notice Computes the interim value C for the EWA.
