@@ -46,15 +46,6 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
     return result;
   }
 
-  function getTierLiquidityToReclaim(uint8 _nextNumberOfTiers) external view returns (uint256) {
-    return
-      _getTierLiquidityToReclaim(
-        numberOfTiers,
-        _nextNumberOfTiers,
-        fromUD34x4toUD60x18(prizeTokenPerShare)
-      );
-  }
-
   function sumTierPrizeCounts(uint8 _numTiers) external view returns (uint32) {
     uint32 result = _sumTierPrizeCounts(_numTiers);
     return result;
