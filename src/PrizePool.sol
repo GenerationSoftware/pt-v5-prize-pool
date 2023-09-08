@@ -199,15 +199,14 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /* ============ State ============ */
 
   /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault.
-  mapping(address => DrawAccumulatorLib.Accumulator) internal _vaultAccumulator;
+  mapping(address vault => DrawAccumulatorLib.Accumulator accumulator) internal _vaultAccumulator;
 
   /// @notice Records the claim record for a winner.
-  /// @dev vault => account => drawId => tier => prizeIndex => claimed
-  mapping(address => mapping(address => mapping(uint24 => mapping(uint8 => mapping(uint32 => bool)))))
+  mapping(address vault => mapping(address account => mapping(uint24 drawId => mapping(uint8 tier => mapping(uint32 prizeIndex => bool claimed)))))
     internal _claimedPrizes;
 
   /// @notice Tracks the total fees accrued to each claimer.
-  mapping(address => uint256) internal _claimerRewards;
+  mapping(address claimer => uint256 rewards) internal _claimerRewards;
 
   /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing.
   /// @dev Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
@@ -389,7 +388,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       _nextNumberOfTiers,
       _reserve,
       prizeTokenPerShare,
-      _lastClosedDrawStartedAt
+      openDrawStartedAt_
     );
 
     return lastClosedDrawId_;
@@ -476,7 +475,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     if (_fee != 0) {
       emit IncreaseClaimRewards(_feeRecipient, _fee);
       _claimerRewards[_feeRecipient] += _fee;
-      amount = tierLiquidity.prizeSize - _fee;
+
+      unchecked {
+        amount = tierLiquidity.prizeSize - _fee;
+      }
     } else {
       amount = tierLiquidity.prizeSize;
     }
