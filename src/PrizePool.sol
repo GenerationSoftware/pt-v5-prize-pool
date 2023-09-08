@@ -202,7 +202,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   mapping(address vault => DrawAccumulatorLib.Accumulator accumulator) internal _vaultAccumulator;
 
   /// @notice Records the claim record for a winner.
-  /// @dev vault => account => drawId => tier => prizeIndex => claimed
   mapping(address vault => mapping(address account => mapping(uint24 drawId => mapping(uint8 tier => mapping(uint32 prizeIndex => bool claimed)))))
     internal _claimedPrizes;
 
