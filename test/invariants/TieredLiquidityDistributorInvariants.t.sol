@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
-import "forge-std/console2.sol";
 
 import { TieredLiquidityDistributorFuzzHarness } from "./helpers/TieredLiquidityDistributorFuzzHarness.sol";
 
@@ -13,7 +12,7 @@ contract TieredLiquidityDistributorInvariants is Test {
     distributor = new TieredLiquidityDistributorFuzzHarness();
   }
 
-  function invariant_tiers_always_sum() external {
+  function testTiers_always_sum() external {
     uint256 expected = distributor.totalAdded() - distributor.totalConsumed();
     uint256 accounted = distributor.accountedLiquidity();
 

@@ -388,7 +388,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       _nextNumberOfTiers,
       _reserve,
       prizeTokenPerShare,
-      _lastClosedDrawStartedAt
+      openDrawStartedAt_
     );
 
     return lastClosedDrawId_;
