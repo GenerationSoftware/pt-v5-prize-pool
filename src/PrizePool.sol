@@ -476,7 +476,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     if (_fee != 0) {
       emit IncreaseClaimRewards(_feeRecipient, _fee);
       _claimerRewards[_feeRecipient] += _fee;
-      amount = tierLiquidity.prizeSize - _fee;
+
+      unchecked {
+        amount = tierLiquidity.prizeSize - _fee;
+      }
     } else {
       amount = tierLiquidity.prizeSize;
     }
