@@ -24,10 +24,8 @@ error InvalidDrawRange(uint24 startDrawId, uint24 endDrawId);
 error InvalidDisbursedEndDrawId(uint24 endDrawId);
 
 struct Observation {
-  // track the total amount available as of this Observation
-  uint96 available;
-  // track the total accumulated previously
-  uint168 disbursed;
+  uint96 available; // track the total amount available as of this Observation
+  uint160 disbursed; // track the total accumulated previously
 }
 
 /// @title Draw Accumulator Lib
@@ -91,7 +89,7 @@ library DrawAccumulatorLib {
       accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
       accumulator.observations[_drawId] = Observation({
         available: SafeCast.toUint96(_amount + remainingAmount),
-        disbursed: SafeCast.toUint168(
+        disbursed: SafeCast.toUint160(
           newestObservation_.disbursed +
             disbursedAmount +
             newestObservation_.available -
