@@ -274,27 +274,6 @@ contract TieredLiquidityDistributor {
   /// @notice Computes the liquidity that will be distributed for the next draw given the next number of tiers and prize liquidity.
   /// @param _numberOfTiers The current number of tiers
   /// @param _nextNumberOfTiers The next number of tiers to use to compute distribution
-  /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
-  /// @return closedDrawId The drawId that this is for
-  /// @return newReserve The amount of liquidity that should be added to the reserve
-  /// @return newPrizeTokenPerShare The new prize token per share
-  function _computeNewDistributions(
-    uint8 _numberOfTiers,
-    uint8 _nextNumberOfTiers,
-    uint256 _prizeTokenLiquidity
-  ) internal view returns (uint24 closedDrawId, uint96 newReserve, UD60x18 newPrizeTokenPerShare) {
-    return
-      _computeNewDistributions(
-        _numberOfTiers,
-        _nextNumberOfTiers,
-        fromUD34x4toUD60x18(prizeTokenPerShare),
-        _prizeTokenLiquidity
-      );
-  }
-
-  /// @notice Computes the liquidity that will be distributed for the next draw given the next number of tiers and prize liquidity.
-  /// @param _numberOfTiers The current number of tiers
-  /// @param _nextNumberOfTiers The next number of tiers to use to compute distribution
   /// @param _currentPrizeTokenPerShare The current prize token per share
   /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
   /// @return closedDrawId The drawId that this is for
