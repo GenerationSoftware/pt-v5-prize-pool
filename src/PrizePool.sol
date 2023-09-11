@@ -342,7 +342,11 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     if (_amount > _reserve) {
       revert InsufficientReserve(_amount, _reserve);
     }
-    _reserve -= _amount;
+
+    unchecked {
+      _reserve -= _amount;
+    }
+
     _transfer(_to, _amount);
     emit WithdrawReserve(_to, _amount);
   }
@@ -516,7 +520,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert InsufficientRewardsError(_amount, _available);
     }
 
-    _claimerRewards[msg.sender] = _available - _amount;
+    unchecked {
+      _claimerRewards[msg.sender] = _available - _amount;
+    }
+
     _transfer(_to, _amount);
     emit WithdrawClaimRewards(_to, _amount, _available);
   }
@@ -732,12 +739,13 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   ) external view returns (uint64 startTimestamp, uint64 endTimestamp) {
     uint8 _numberOfTiers = numberOfTiers;
     _checkValidTier(_tier, _numberOfTiers);
-    endTimestamp = _lastClosedDrawStartedAt + drawPeriodSeconds;
-    SD59x18 tierOdds = _tierOdds(_tier, _numberOfTiers);
-    uint256 durationInSeconds = TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds) *
-      drawPeriodSeconds;
 
-    startTimestamp = uint64(endTimestamp - durationInSeconds);
+    endTimestamp = _lastClosedDrawStartedAt + drawPeriodSeconds;
+    startTimestamp = uint64(
+      endTimestamp -
+        TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, _numberOfTiers)) *
+        drawPeriodSeconds
+    );
   }
 
   /**
