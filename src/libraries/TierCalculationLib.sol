@@ -19,9 +19,10 @@ library TierCalculationLib {
     uint8 _numberOfTiers,
     uint24 _grandPrizePeriod
   ) internal pure returns (SD59x18) {
+    int8 oneMinusNumTiers = 1 - int8(_numberOfTiers);
     return
       sd(1).div(sd(int24(_grandPrizePeriod))).pow(
-        sd(int8(_tier) - (int8(_numberOfTiers) - 1)).div(sd((-1 * int8(_numberOfTiers) + 1)))
+        sd(int8(_tier) + oneMinusNumTiers).div(sd(oneMinusNumTiers))
       );
   }
 

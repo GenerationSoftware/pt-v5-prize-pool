@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
+import { MINIMUM_NUMBER_OF_TIERS, MAXIMUM_NUMBER_OF_TIERS } from "../../src/abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLibWrapper } from "../wrappers/TierCalculationLibWrapper.sol";
 import { SD59x18, sd, wrap, unwrap, convert } from "prb-math/SD59x18.sol";
 import { UD60x18, ud } from "prb-math/UD60x18.sol";
@@ -16,7 +17,9 @@ contract TierCalculationLibTest is Test {
   }
 
   function testGetTierOdds() public {
-    assertEq(unwrap(wrapper.getTierOdds(0, 4, 365)), 2739726027397260);
+    for (uint8 i = MINIMUM_NUMBER_OF_TIERS - 1; i < MAXIMUM_NUMBER_OF_TIERS; i++) {
+      assertEq(unwrap(wrapper.getTierOdds(0, i, 365)), 2739726027397260);
+    }
     assertEq(unwrap(wrapper.getTierOdds(1, 4, 365)), 19579642462506911);
     assertEq(unwrap(wrapper.getTierOdds(2, 4, 365)), 139927275620255364);
     assertEq(unwrap(wrapper.getTierOdds(3, 4, 365)), 1e18);
