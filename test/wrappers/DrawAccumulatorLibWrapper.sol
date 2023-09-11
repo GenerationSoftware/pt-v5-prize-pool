@@ -33,7 +33,7 @@ contract DrawAccumulatorLibWrapper {
   }
 
   function newestObservation() public view returns (Observation memory) {
-    Observation memory result = DrawAccumulatorLib.newestObservation(accumulator);
+    Observation memory result = accumulator.observations[DrawAccumulatorLib.newestDrawId(accumulator)];
     return result;
   }
 

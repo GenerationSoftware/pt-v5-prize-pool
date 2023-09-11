@@ -79,7 +79,9 @@ library DrawAccumulatorLib {
       revert DrawClosed(_drawId, newestDrawId_);
     }
 
-    Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
+    mapping(uint256 drawId => Observation observation) storage accumulatorObservations = accumulator
+      .observations;
+    Observation memory newestObservation_ = accumulatorObservations[newestDrawId_];
     if (_drawId != newestDrawId_) {
       uint256 relativeDraw = _drawId - newestDrawId_;
 
@@ -87,7 +89,7 @@ library DrawAccumulatorLib {
       uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation_.available);
 
       accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
-      accumulator.observations[_drawId] = Observation({
+      accumulatorObservations[_drawId] = Observation({
         available: SafeCast.toUint96(_amount + remainingAmount),
         disbursed: SafeCast.toUint160(
           newestObservation_.disbursed +
@@ -110,7 +112,7 @@ library DrawAccumulatorLib {
 
       return true;
     } else {
-      accumulator.observations[newestDrawId_] = Observation({
+      accumulatorObservations[newestDrawId_] = Observation({
         available: SafeCast.toUint96(newestObservation_.available + _amount),
         disbursed: newestObservation_.disbursed
       });
@@ -160,15 +162,6 @@ library DrawAccumulatorLib {
       accumulator.drawRingBuffer[
         RingBufferLib.newestIndex(accumulator.ringBufferInfo.nextIndex, MAX_CARDINALITY)
       ];
-  }
-
-  /// @notice Retrieves the newest observation from the accumulator.
-  /// @param accumulator The accumulator to retrieve the newest observation from
-  /// @return The newest observation
-  function newestObservation(
-    Accumulator storage accumulator
-  ) internal view returns (Observation memory) {
-    return accumulator.observations[newestDrawId(accumulator)];
   }
 
   /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
