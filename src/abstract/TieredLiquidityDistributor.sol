@@ -387,6 +387,7 @@ contract TieredLiquidityDistributor {
   /// @param _liquidity The amount of liquidity to consume
   function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint104 _liquidity) internal {
     uint8 _shares = tierShares;
+
     uint104 remainingLiquidity = SafeCast.toUint104(
       convert(
         _getTierRemainingLiquidity(
@@ -396,20 +397,27 @@ contract TieredLiquidityDistributor {
         )
       )
     );
+
     if (_liquidity > remainingLiquidity) {
       uint96 excess = SafeCast.toUint96(_liquidity - remainingLiquidity);
+
       if (excess > _reserve) {
         revert InsufficientLiquidity(_liquidity);
       }
-      _reserve -= excess;
+
+      unchecked {
+        _reserve -= excess;
+      }
+
       emit ReserveConsumed(excess);
       _tierStruct.prizeTokenPerShare = prizeTokenPerShare;
     } else {
-      UD34x4 delta = fromUD60x18toUD34x4(convert(_liquidity).div(convert(_shares)));
       _tierStruct.prizeTokenPerShare = UD34x4.wrap(
-        UD34x4.unwrap(_tierStruct.prizeTokenPerShare) + UD34x4.unwrap(delta)
+        UD34x4.unwrap(_tierStruct.prizeTokenPerShare) +
+          UD34x4.unwrap(fromUD60x18toUD34x4(convert(_liquidity).div(convert(_shares))))
       );
     }
+
     _tiers[_tier] = _tierStruct;
   }
 

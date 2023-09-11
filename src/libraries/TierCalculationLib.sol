@@ -36,9 +36,7 @@ library TierCalculationLib {
   /// @param _tier The tier to compute for
   /// @return The number of prizes
   function prizeCount(uint8 _tier) internal pure returns (uint256) {
-    uint256 _numberOfPrizes = 4 ** _tier;
-
-    return _numberOfPrizes;
+    return 4 ** _tier;
   }
 
   /// @notice Determines if a user won a prize tier.
@@ -58,6 +56,7 @@ library TierCalculationLib {
     if (_vaultTwabTotalSupply == 0) {
       return false;
     }
+
     /*
       The user-held portion of the total supply is the "winning zone".
       If the above pseudo-random number falls within the winning zone, the user has won this tier.
@@ -66,14 +65,10 @@ library TierCalculationLib {
         - Number of prizes
         - Portion of prize that was contributed by the vault
     */
-    // first constrain the random number to be within the vault total supply
-    uint256 constrainedRandomNumber = UniformRandomNumber.uniform(
-      _userSpecificRandomNumber,
-      _vaultTwabTotalSupply
-    );
-    uint256 winningZone = calculateWinningZone(_userTwab, _vaultContributionFraction, _tierOdds);
 
-    return constrainedRandomNumber < winningZone;
+    return
+      UniformRandomNumber.uniform(_userSpecificRandomNumber, _vaultTwabTotalSupply) <
+      calculateWinningZone(_userTwab, _vaultContributionFraction, _tierOdds);
   }
 
   /// @notice Calculates a pseudo-random number that is unique to the user, tier, and winning random number.
