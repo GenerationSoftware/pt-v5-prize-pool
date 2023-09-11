@@ -73,25 +73,31 @@ library DrawAccumulatorLib {
     }
     RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
-    uint256 newestIndex = RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY);
-    uint24 newestDrawId_ = accumulator.drawRingBuffer[newestIndex];
+    uint24 newestDrawId_ = accumulator.drawRingBuffer[
+      RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY)
+    ];
 
     if (_drawId < newestDrawId_) {
       revert DrawClosed(_drawId, newestDrawId_);
     }
 
-    Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
+    mapping(uint256 => Observation) storage accumulatorObservations = accumulator.observations;
+    Observation memory newestObservation_ = accumulatorObservations[newestDrawId_];
     if (_drawId != newestDrawId_) {
       uint256 relativeDraw = _drawId - newestDrawId_;
 
       uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation_.available);
       uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation_.available);
-      uint256 remainder = newestObservation_.available - (remainingAmount + disbursedAmount);
 
       accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
-      accumulator.observations[_drawId] = Observation({
+      accumulatorObservations[_drawId] = Observation({
         available: SafeCast.toUint96(_amount + remainingAmount),
-        disbursed: SafeCast.toUint168(newestObservation_.disbursed + disbursedAmount + remainder)
+        disbursed: SafeCast.toUint168(
+          newestObservation_.disbursed +
+            disbursedAmount +
+            newestObservation_.available -
+            (remainingAmount + disbursedAmount)
+        )
       });
       uint16 nextIndex = uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY));
       uint16 cardinality = ringBufferInfo.cardinality;
@@ -104,7 +110,7 @@ library DrawAccumulatorLib {
       });
       return true;
     } else {
-      accumulator.observations[newestDrawId_] = Observation({
+      accumulatorObservations[newestDrawId_] = Observation({
         available: SafeCast.toUint96(newestObservation_.available + _amount),
         disbursed: newestObservation_.disbursed
       });
@@ -132,8 +138,12 @@ library DrawAccumulatorLib {
     if (_startDrawId < newestDrawId_) {
       revert DrawClosed(_startDrawId, newestDrawId_);
     }
-    Observation memory newestObservation_ = accumulator.observations[newestDrawId_];
-    return integrateInf(_alpha, _startDrawId - newestDrawId_, newestObservation_.available);
+    return
+      integrateInf(
+        _alpha,
+        _startDrawId - newestDrawId_,
+        accumulator.observations[newestDrawId_].available
+      );
   }
 
   /// @notice Returns the newest draw id from the accumulator.
