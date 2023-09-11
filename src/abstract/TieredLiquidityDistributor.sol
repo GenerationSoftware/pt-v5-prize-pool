@@ -609,39 +609,34 @@ contract TieredLiquidityDistributor {
   /// @param _numTiers The number of prize tiers
   /// @return The odds of the tier
   function _tierOdds(uint8 _tier, uint8 _numTiers) internal view returns (SD59x18) {
+    if (_tier == 0) return TIER_ODDS_0;
     if (_numTiers == 3) {
-      if (_tier == 0) return TIER_ODDS_0;
-      else if (_tier == 1) return TIER_ODDS_1_3;
+      if (_tier == 1) return TIER_ODDS_1_3;
       else if (_tier == 2) return TIER_ODDS_2_3;
     } else if (_numTiers == 4) {
-      if (_tier == 0) return TIER_ODDS_0;
-      else if (_tier == 1) return TIER_ODDS_1_4;
+      if (_tier == 1) return TIER_ODDS_1_4;
       else if (_tier == 2) return TIER_ODDS_2_4;
       else if (_tier == 3) return TIER_ODDS_3_4;
     } else if (_numTiers == 5) {
-      if (_tier == 0) return TIER_ODDS_0;
-      else if (_tier == 1) return TIER_ODDS_1_5;
+      if (_tier == 1) return TIER_ODDS_1_5;
       else if (_tier == 2) return TIER_ODDS_2_5;
       else if (_tier == 3) return TIER_ODDS_3_5;
       else if (_tier == 4) return TIER_ODDS_4_5;
     } else if (_numTiers == 6) {
-      if (_tier == 0) return TIER_ODDS_0;
-      else if (_tier == 1) return TIER_ODDS_1_6;
+      if (_tier == 1) return TIER_ODDS_1_6;
       else if (_tier == 2) return TIER_ODDS_2_6;
       else if (_tier == 3) return TIER_ODDS_3_6;
       else if (_tier == 4) return TIER_ODDS_4_6;
       else if (_tier == 5) return TIER_ODDS_5_6;
     } else if (_numTiers == 7) {
-      if (_tier == 0) return TIER_ODDS_0;
-      else if (_tier == 1) return TIER_ODDS_1_7;
+      if (_tier == 1) return TIER_ODDS_1_7;
       else if (_tier == 2) return TIER_ODDS_2_7;
       else if (_tier == 3) return TIER_ODDS_3_7;
       else if (_tier == 4) return TIER_ODDS_4_7;
       else if (_tier == 5) return TIER_ODDS_5_7;
       else if (_tier == 6) return TIER_ODDS_6_7;
     } else if (_numTiers == 8) {
-      if (_tier == 0) return TIER_ODDS_0;
-      else if (_tier == 1) return TIER_ODDS_1_8;
+      if (_tier == 1) return TIER_ODDS_1_8;
       else if (_tier == 2) return TIER_ODDS_2_8;
       else if (_tier == 3) return TIER_ODDS_3_8;
       else if (_tier == 4) return TIER_ODDS_4_8;
@@ -649,8 +644,7 @@ contract TieredLiquidityDistributor {
       else if (_tier == 6) return TIER_ODDS_6_8;
       else if (_tier == 7) return TIER_ODDS_7_8;
     } else if (_numTiers == 9) {
-      if (_tier == 0) return TIER_ODDS_0;
-      else if (_tier == 1) return TIER_ODDS_1_9;
+      if (_tier == 1) return TIER_ODDS_1_9;
       else if (_tier == 2) return TIER_ODDS_2_9;
       else if (_tier == 3) return TIER_ODDS_3_9;
       else if (_tier == 4) return TIER_ODDS_4_9;
@@ -659,8 +653,7 @@ contract TieredLiquidityDistributor {
       else if (_tier == 7) return TIER_ODDS_7_9;
       else if (_tier == 8) return TIER_ODDS_8_9;
     } else if (_numTiers == 10) {
-      if (_tier == 0) return TIER_ODDS_0;
-      else if (_tier == 1) return TIER_ODDS_1_10;
+      if (_tier == 1) return TIER_ODDS_1_10;
       else if (_tier == 2) return TIER_ODDS_2_10;
       else if (_tier == 3) return TIER_ODDS_3_10;
       else if (_tier == 4) return TIER_ODDS_4_10;
