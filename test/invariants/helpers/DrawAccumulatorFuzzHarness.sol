@@ -24,7 +24,7 @@ contract DrawAccumulatorFuzzHarness {
   }
 
   function newestObservation() external view returns (Observation memory) {
-    return accumulator.newestObservation();
+    return accumulator.observations[accumulator.newestDrawId()];
   }
 
   function newestDrawId() external view returns (uint256) {

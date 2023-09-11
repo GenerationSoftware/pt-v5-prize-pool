@@ -783,7 +783,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Computes how many tokens have been accounted for
   /// @return The balance of tokens that have been accounted for
   function _accountedBalance() internal view returns (uint256) {
-    Observation memory obs = DrawAccumulatorLib.newestObservation(_totalAccumulator);
+    Observation memory obs = _totalAccumulator.observations[DrawAccumulatorLib.newestDrawId(_totalAccumulator)];
     return (obs.available + obs.disbursed) + _directlyContributedReserve - _totalWithdrawn;
   }
 

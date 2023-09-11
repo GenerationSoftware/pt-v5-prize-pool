@@ -156,15 +156,6 @@ library DrawAccumulatorLib {
       ];
   }
 
-  /// @notice Retrieves the newest observation from the accumulator.
-  /// @param accumulator The accumulator to retrieve the newest observation from
-  /// @return The newest observation
-  function newestObservation(
-    Accumulator storage accumulator
-  ) internal view returns (Observation memory) {
-    return accumulator.observations[newestDrawId(accumulator)];
-  }
-
   /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
   /// This function has an intentional limitation on the value of `_endDrawId` to save gas, but
   /// prevents historical disbursement queries that end more than one draw before the last
