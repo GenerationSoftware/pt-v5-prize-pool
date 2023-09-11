@@ -79,7 +79,8 @@ library DrawAccumulatorLib {
       revert DrawClosed(_drawId, newestDrawId_);
     }
 
-    mapping(uint256 => Observation) storage accumulatorObservations = accumulator.observations;
+    mapping(uint256 drawId => Observation observation) storage accumulatorObservations = accumulator
+      .observations;
     Observation memory newestObservation_ = accumulatorObservations[newestDrawId_];
     if (_drawId != newestDrawId_) {
       uint256 relativeDraw = _drawId - newestDrawId_;
