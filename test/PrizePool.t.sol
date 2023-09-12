@@ -1238,10 +1238,7 @@ contract PrizePoolTest is Test {
   }
 
   function claimPrize(address sender, uint8 tier, uint32 prizeIndex) public returns (uint256) {
-    uint256 gas = gasleft();
-    uint256 res = claimPrize(sender, tier, prizeIndex, 0, address(this));
-    console2.log("claimPrize gas: ", gas - gasleft());
-    return res;
+    return claimPrize(sender, tier, prizeIndex, 0, address(this));
   }
 
   function claimPrize(
