@@ -15,7 +15,7 @@ contract DrawAccumulatorFuzzHarness {
 
   uint16 currentDrawId = 1;
 
-  function add(uint64 _amount, uint8 _drawInc) public returns (bool) {
+  function add(uint88 _amount, uint8 _drawInc) public returns (bool) {
     currentDrawId += (_drawInc / 16);
     SD59x18 alpha = sd(0.9e18);
     bool result = accumulator.add(_amount, currentDrawId, alpha);
