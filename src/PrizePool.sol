@@ -791,7 +791,9 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Computes how many tokens have been accounted for
   /// @return The balance of tokens that have been accounted for
   function _accountedBalance() internal view returns (uint256) {
-    Observation memory obs = _totalAccumulator.observations[DrawAccumulatorLib.newestDrawId(_totalAccumulator)];
+    Observation memory obs = _totalAccumulator.observations[
+      DrawAccumulatorLib.newestDrawId(_totalAccumulator)
+    ];
     return (obs.available + obs.disbursed) + _directlyContributedReserve - _totalWithdrawn;
   }
 
@@ -971,9 +973,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     address _user,
     uint256 _drawDuration
   ) internal view returns (uint256 twab, uint256 twabTotalSupply) {
-    uint48 _endTimestamp = uint48(_lastClosedDrawStartedAt + drawPeriodSeconds);
-    uint48 durationSeconds = uint48(_drawDuration * drawPeriodSeconds);
-    uint48 _startTimestamp = _endTimestamp > durationSeconds ? _endTimestamp - durationSeconds : 0;
+    uint32 _drawPeriodSeconds = drawPeriodSeconds;
+    uint48 _endTimestamp = SafeCast.toUint48(_lastClosedDrawStartedAt + _drawPeriodSeconds);
+    uint48 _durationSeconds = SafeCast.toUint48(_drawDuration * _drawPeriodSeconds);
+    uint48 _startTimestamp = _endTimestamp > _durationSeconds
+      ? _endTimestamp - _durationSeconds
+      : 0;
 
     twab = twabController.getTwabBetween(_vault, _user, _startTimestamp, _endTimestamp);
 
