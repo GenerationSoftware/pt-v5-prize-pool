@@ -81,7 +81,7 @@ library TierCalculationLib {
   /// @param _winningRandomNumber The winning random number
   /// @return A pseudo-random number
   function calculatePseudoRandomNumber(
-    uint32 _drawId,
+    uint24 _drawId,
     address _vault,
     address _user,
     uint8 _tier,

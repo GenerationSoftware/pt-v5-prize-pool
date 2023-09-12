@@ -38,7 +38,7 @@ contract PrizePoolTest is Test {
   uint RESERVE_SHARES = 10;
 
   uint24 grandPrizePeriodDraws = 365;
-  uint64 firstDrawStartsAt;
+  uint48 firstDrawStartsAt;
   uint32 drawPeriodSeconds;
   uint8 initialNumberOfTiers;
   uint256 winningRandomNumber = 123456;
@@ -62,7 +62,7 @@ contract PrizePoolTest is Test {
     uint8 nextNumTiers,
     uint104 reserve,
     UD34x4 prizeTokensPerShare,
-    uint64 drawStartedAt
+    uint48 drawStartedAt
   );
 
   /// @notice Emitted when any amount of the reserve is withdrawn.
@@ -107,7 +107,7 @@ contract PrizePoolTest is Test {
     drawPeriodSeconds = 1 days;
     twabController = new TwabController(drawPeriodSeconds, uint32(block.timestamp));
 
-    firstDrawStartsAt = uint64(block.timestamp + 1 days); // set draw start 1 day into future
+    firstDrawStartsAt = uint48(block.timestamp + 1 days); // set draw start 1 day into future
     initialNumberOfTiers = 3;
 
     vm.mockCall(
@@ -1017,7 +1017,7 @@ contract PrizePoolTest is Test {
   function testLastClosedDrawAwardedAt() public {
     assertEq(prizePool.lastClosedDrawAwardedAt(), 0);
 
-    uint64 targetTimestamp = prizePool.openDrawEndsAt() + 3 hours;
+    uint48 targetTimestamp = prizePool.openDrawEndsAt() + 3 hours;
 
     vm.warp(targetTimestamp);
     prizePool.closeDraw(winningRandomNumber);
@@ -1113,7 +1113,7 @@ contract PrizePoolTest is Test {
 
   function testOpenDrawIncludesMissedDraws_notFirstDraw() public {
     closeDraw(winningRandomNumber);
-    uint64 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
+    uint48 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
     assertEq(prizePool.getOpenDrawId(), 2);
     vm.warp(_firstDrawStartsAt + drawPeriodSeconds * 2);
     assertEq(prizePool.openDrawStartedAt(), _firstDrawStartsAt + drawPeriodSeconds);
@@ -1127,7 +1127,7 @@ contract PrizePoolTest is Test {
     closeDraw(winningRandomNumber);
     closeDraw(winningRandomNumber);
     closeDraw(winningRandomNumber);
-    uint64 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
+    uint48 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
     assertEq(prizePool.getOpenDrawId(), 5);
     vm.warp(_firstDrawStartsAt + drawPeriodSeconds * 5);
     assertEq(prizePool.openDrawStartedAt(), _firstDrawStartsAt + drawPeriodSeconds * 4);
@@ -1138,7 +1138,7 @@ contract PrizePoolTest is Test {
 
   function testOpenDrawIncludesMissedDraws_notFirstDraw_middleOfDraw() public {
     closeDraw(winningRandomNumber);
-    uint64 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
+    uint48 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
     assertEq(prizePool.getOpenDrawId(), 2);
     vm.warp(_firstDrawStartsAt + (drawPeriodSeconds * 5) / 2);
     assertEq(prizePool.openDrawStartedAt(), _firstDrawStartsAt + drawPeriodSeconds);
@@ -1188,8 +1188,8 @@ contract PrizePoolTest is Test {
   function mockGetAverageBalanceBetween(
     address _vault,
     address _user,
-    uint64 _startTime,
-    uint64 _endTime,
+    uint48 _startTime,
+    uint48 _endTime,
     uint256 _result
   ) internal {
     vm.mockCall(
@@ -1238,7 +1238,10 @@ contract PrizePoolTest is Test {
   }
 
   function claimPrize(address sender, uint8 tier, uint32 prizeIndex) public returns (uint256) {
-    return claimPrize(sender, tier, prizeIndex, 0, address(this));
+    uint256 gas = gasleft();
+    uint256 res = claimPrize(sender, tier, prizeIndex, 0, address(this));
+    console2.log("claimPrize gas: ", gas - gasleft());
+    return res;
   }
 
   function claimPrize(
@@ -1257,7 +1260,7 @@ contract PrizePoolTest is Test {
   }
 
   function mockTwab(address _vault, address _account, uint8 _tier) public {
-    (uint64 startTime, uint64 endTime) = prizePool.calculateTierTwabTimestamps(_tier);
+    (uint48 startTime, uint48 endTime) = prizePool.calculateTierTwabTimestamps(_tier);
     mockTwab(_vault, _account, startTime, endTime);
   }
 }

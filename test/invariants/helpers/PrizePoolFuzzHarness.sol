@@ -31,7 +31,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     address drawManager = address(this);
     uint32 drawPeriodSeconds = 1 hours;
     currentTime = block.timestamp;
-    uint64 nextDrawStartsAt = uint64(currentTime);
+    uint48 nextDrawStartsAt = uint48(currentTime);
     uint8 numberOfTiers = 3;
     uint8 tierShares = 100;
     uint8 reserveShares = 10;
@@ -57,13 +57,13 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     prizePool.setDrawManager(drawManager);
   }
 
-  function contributePrizeTokens(uint64 _amount) public warp {
+  function contributePrizeTokens(uint88 _amount) public warp {
     contributed += _amount;
     token.mint(address(prizePool), _amount);
     prizePool.contributePrizeTokens(address(this), _amount);
   }
 
-  function contributeReserve(uint64 _amount) public warp {
+  function contributeReserve(uint88 _amount) public warp {
     contributed += _amount;
     token.mint(address(this), _amount);
     token.approve(address(prizePool), _amount);
