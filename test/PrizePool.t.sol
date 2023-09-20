@@ -65,10 +65,15 @@ contract PrizePoolTest is Test {
     uint48 drawStartedAt
   );
 
-  /// @notice Emitted when any amount of the reserve is withdrawn.
-  /// @param to The address the assets are transferred to
+  /// @notice Emitted when any amount of the reserve is rewarded to a recipient.
+  /// @param to The recipient of the reward
+  /// @param amount The amount of assets rewarded
+  event AllocateRewardFromReserve(address indexed to, uint256 amount);
+
+  /// @notice Emitted when the reserve is manually increased.
+  /// @param user The user who increased the reserve
   /// @param amount The amount of assets transferred
-  event WithdrawReserve(address indexed to, uint256 amount);
+  event ContributedReserve(address indexed user, uint256 amount);
 
   /// @notice Emitted when a vault contributes prize tokens to the pool.
   /// @param vault The address of the vault that is contributing tokens
@@ -76,25 +81,20 @@ contract PrizePoolTest is Test {
   /// @param amount The amount of tokens contributed
   event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
 
-  /// @notice Emitted when an address withdraws their claim rewards
+  /// @notice Emitted when an address withdraws their prize claim rewards.
   /// @param to The address the rewards are sent to
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
-  event WithdrawClaimRewards(address indexed to, uint256 amount, uint256 available);
+  event WithdrawRewards(address indexed to, uint256 amount, uint256 available);
 
-  /// @notice Emitted when an address receives new claim rewards
+  /// @notice Emitted when an address receives new prize claim rewards.
   /// @param to The address the rewards are given to
   /// @param amount The amount increased
   event IncreaseClaimRewards(address indexed to, uint256 amount);
 
-  /// @notice Emitted when the drawManager is set
+  /// @notice Emitted when the drawManager is set.
   /// @param drawManager The draw manager
   event DrawManagerSet(address indexed drawManager);
-
-  /// @notice Emitted when the reserve is manually increased.
-  /// @param user The user who increased the reserve
-  /// @param amount The amount of assets transferred
-  event ContributedReserve(address indexed user, uint256 amount);
 
   /**********************************************************************************/
 
@@ -282,28 +282,35 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.reserveForOpenDraw(), newReserve);
   }
 
-  function testWithdrawReserve_notManager() public {
+  function testAllocateRewardFromReserve_notManager() public {
     vm.prank(address(0));
     vm.expectRevert(
       abi.encodeWithSelector(CallerNotDrawManager.selector, address(0), address(this))
     );
-    prizePool.withdrawReserve(address(0), 1);
+    prizePool.allocateRewardFromReserve(address(0), 1);
   }
 
-  function testWithdrawReserve_insuff() public {
+  function testAllocateRewardFromReserve_insuff() public {
     vm.expectRevert(abi.encodeWithSelector(InsufficientReserve.selector, 1, 0));
-    prizePool.withdrawReserve(address(this), 1);
+    prizePool.allocateRewardFromReserve(address(this), 1);
   }
 
-  function testWithdrawReserve() public {
+  function testAllocateRewardFromReserve() public {
     contribute(310e18);
     closeDraw(winningRandomNumber);
     assertEq(prizeToken.balanceOf(address(this)), 0);
     vm.expectEmit();
-    emit WithdrawReserve(address(this), 1e18);
-    prizePool.withdrawReserve(address(this), 1e18);
-    assertEq(prizeToken.balanceOf(address(this)), 1e18);
-    assertEq(prizePool.accountedBalance(), 309e18);
+    emit AllocateRewardFromReserve(address(this), 1e18);
+    prizePool.allocateRewardFromReserve(address(this), 1e18);
+    assertEq(prizePool.rewardBalance(address(this)), 1e18);
+    assertEq(prizeToken.balanceOf(address(this)), 0); // still 0 since there shouldn't be a transfer
+    assertEq(prizePool.accountedBalance(), 310e18); // still 310e18 since there were no tokens transferred out yet
+
+    // withdraw rewards:
+    prizePool.withdrawRewards(address(this), 1e17);
+    assertEq(prizePool.rewardBalance(address(this)), 9e17);
+    assertEq(prizeToken.balanceOf(address(this)), 1e17);
+    assertEq(prizePool.accountedBalance(), 3099e17);
   }
 
   function testGetTotalContributedBetween() public {
@@ -346,7 +353,7 @@ contract PrizePoolTest is Test {
       (10e18 * RESERVE_SHARES) / prizePool.getTotalShares(),
       100
     );
-    prizePool.withdrawReserve(address(this), prizePool.reserve());
+    prizePool.allocateRewardFromReserve(address(this), prizePool.reserve());
     assertEq(prizePool.accountedBalance(), prizeToken.balanceOf(address(prizePool)));
     assertEq(prizePool.reserve(), 0);
   }
@@ -878,7 +885,7 @@ contract PrizePoolTest is Test {
     // grand prize is (100/220) * 0.1 * 100e18 = 4.5454...e18
     assertEq(prizeToken.balanceOf(msg.sender), prize - 1e18, "balance is prize less fee");
     assertEq(prizePool.claimCount(), 1);
-    assertEq(prizePool.balanceOfClaimRewards(address(this)), 1e18);
+    assertEq(prizePool.rewardBalance(address(this)), 1e18);
   }
 
   function testClaimPrize_notWinner() public {
@@ -986,6 +993,47 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.claimCount(), 1);
   }
 
+  function testClaimPrize_claimFeesAccountedFor() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    
+    address winner = makeAddr("winner");
+    address recipient = makeAddr("recipient");
+    mockTwab(address(this), winner, 1);
+
+    uint96 fee = 0xfee;
+    uint prizeAmount = 806451612903225800;
+    uint prize = prizeAmount - fee;
+    assertApproxEqAbs(prizeAmount, (10e18 * TIER_SHARES) / (4 * prizePool.getTotalShares()), 100);
+
+    vm.expectEmit();
+    emit ClaimedPrize(address(this), winner, recipient, 1, 1, 0, uint152(prize), fee, address(this));
+    assertEq(prizePool.claimPrize(winner, 1, 0, recipient, fee, address(this)), prizeAmount);
+    assertEq(prizeToken.balanceOf(recipient), prize, "recipient balance is good");
+    assertEq(prizePool.claimCount(), 1);
+
+    // Check if claim fees are accounted for
+    // (if they aren't anyone can call contributePrizes with the unaccounted fee amount and basically take it as their own)
+    uint accountedBalance = prizePool.accountedBalance();
+    uint actualBalance = prizeToken.balanceOf(address(prizePool));
+    console2.log("accounted balance: ", accountedBalance);
+    console2.log("actual balance: ", actualBalance);
+    console2.log("diff: ", actualBalance - accountedBalance);
+
+    // show that the claimer can still withdraw their fees:
+    assertEq(prizeToken.balanceOf(address(this)), 0);
+    vm.expectEmit();
+    emit WithdrawRewards(address(this), fee, fee);
+    prizePool.withdrawRewards(address(this), fee);
+    assertEq(prizeToken.balanceOf(address(this)), fee);
+
+    accountedBalance = prizePool.accountedBalance();
+    actualBalance = prizeToken.balanceOf(address(prizePool));
+    console2.log("accounted balance: ", accountedBalance);
+    console2.log("actual balance: ", actualBalance);
+    console2.log("diff: ", actualBalance - accountedBalance);
+  }
+
   function testTotalWithdrawn() public {
     assertEq(prizePool.totalWithdrawn(), 0);
     contribute(100e18);
@@ -1047,21 +1095,21 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.hasOpenDrawFinished(), true);
   }
 
-  function testWithdrawClaimRewards_sufficient() public {
+  function testWithdrawRewards_sufficient() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
     mockTwab(address(this), msg.sender, 0);
     claimPrize(msg.sender, 0, 0, 1e18, address(this));
-    prizePool.withdrawClaimRewards(address(this), 1e18);
+    prizePool.withdrawRewards(address(this), 1e18);
     assertEq(prizeToken.balanceOf(address(this)), 1e18);
   }
 
-  function testWithdrawClaimRewards_insufficient() public {
+  function testWithdrawRewards_insufficient() public {
     vm.expectRevert(abi.encodeWithSelector(InsufficientRewardsError.selector, 1e18, 0));
-    prizePool.withdrawClaimRewards(address(this), 1e18);
+    prizePool.withdrawRewards(address(this), 1e18);
   }
 
-  function testWithdrawClaimRewards_emitsEvent() public {
+  function testWithdrawRewards_emitsEvent() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
     mockTwab(address(this), msg.sender, 0);
@@ -1069,8 +1117,8 @@ contract PrizePoolTest is Test {
     prizePool.claimPrize(msg.sender, 0, 0, msg.sender, 1e18, address(this));
 
     vm.expectEmit();
-    emit WithdrawClaimRewards(address(this), 5e17, 1e18);
-    prizePool.withdrawClaimRewards(address(this), 5e17);
+    emit WithdrawRewards(address(this), 5e17, 1e18);
+    prizePool.withdrawRewards(address(this), 5e17);
   }
 
   function testOpenDrawStartsAt_zeroDraw() public {

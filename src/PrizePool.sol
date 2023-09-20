@@ -165,10 +165,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint48 drawStartedAt
   );
 
-  /// @notice Emitted when any amount of the reserve is withdrawn.
-  /// @param to The address the assets are transferred to
-  /// @param amount The amount of assets transferred
-  event WithdrawReserve(address indexed to, uint256 amount);
+  /// @notice Emitted when any amount of the reserve is rewarded to a recipient.
+  /// @param to The recipient of the reward
+  /// @param amount The amount of assets rewarded
+  event AllocateRewardFromReserve(address indexed to, uint256 amount);
 
   /// @notice Emitted when the reserve is manually increased.
   /// @param user The user who increased the reserve
@@ -185,7 +185,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param to The address the rewards are sent to
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
-  event WithdrawClaimRewards(address indexed to, uint256 amount, uint256 available);
+  event WithdrawRewards(address indexed to, uint256 amount, uint256 available);
 
   /// @notice Emitted when an address receives new prize claim rewards.
   /// @param to The address the rewards are given to
@@ -205,8 +205,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   mapping(address vault => mapping(address account => mapping(uint24 drawId => mapping(uint8 tier => mapping(uint32 prizeIndex => bool claimed)))))
     internal _claimedPrizes;
 
-  /// @notice Tracks the total fees accrued to each claimer.
-  mapping(address claimer => uint256 rewards) internal _claimerRewards;
+  /// @notice Tracks the total rewards accrued for a claimer or draw completer.
+  mapping(address recipient => uint256 rewards) internal _rewards;
 
   /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing.
   /// @dev Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
@@ -335,10 +335,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     return _deltaBalance;
   }
 
-  /// @notice Allows the Manager to withdraw tokens from the reserve.
-  /// @param _to The address to send the tokens to
-  /// @param _amount The amount of tokens to withdraw
-  function withdrawReserve(address _to, uint96 _amount) external onlyDrawManager {
+  /// @notice Allows the Manager to allocate a reward from the reserve to a recipient.
+  /// @param _to The address to allocate the rewards to
+  /// @param _amount The amount of tokens for the reward
+  function allocateRewardFromReserve(address _to, uint96 _amount) external onlyDrawManager {
     if (_amount > _reserve) {
       revert InsufficientReserve(_amount, _reserve);
     }
@@ -347,8 +347,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       _reserve -= _amount;
     }
 
-    _transfer(_to, _amount);
-    emit WithdrawReserve(_to, _amount);
+    _rewards[_to] += _amount;
+    emit AllocateRewardFromReserve(_to, _amount);
   }
 
   /// @notice Allows the Manager to close the current open draw and open the next one.
@@ -480,7 +480,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint256 amount;
     if (_fee != 0) {
       emit IncreaseClaimRewards(_feeRecipient, _fee);
-      _claimerRewards[_feeRecipient] += _fee;
+      _rewards[_feeRecipient] += _fee;
 
       unchecked {
         amount = tierLiquidity.prizeSize - _fee;
@@ -491,7 +491,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
     // co-locate to save gas
     claimCount++;
-    _totalWithdrawn = SafeCast.toUint160(_totalWithdrawn + amount);
+    _totalWithdrawn = SafeCast.toUint160(_totalWithdrawn + amount); // TODO: check if we need to change this to tierLiquidity.prizeSize instead of amount to account for allocated, but not withdrawn claim fees
 
     emit ClaimedPrize(
       msg.sender,
@@ -511,23 +511,23 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   }
 
   /**
-   * @notice Withdraws the claim fees for the caller.
-   * @param _to The address to transfer the claim fees to.
-   * @param _amount The amount of claim fees to withdraw
+   * @notice Withdraws earned rewards for the caller.
+   * @param _to The address to transfer the rewards to
+   * @param _amount The amount of rewards to withdraw
    */
-  function withdrawClaimRewards(address _to, uint256 _amount) external {
-    uint256 _available = _claimerRewards[msg.sender];
+  function withdrawRewards(address _to, uint256 _amount) external {
+    uint256 _available = _rewards[msg.sender];
 
     if (_amount > _available) {
       revert InsufficientRewardsError(_amount, _available);
     }
 
     unchecked {
-      _claimerRewards[msg.sender] = _available - _amount;
+      _rewards[msg.sender] = _available - _amount;
     }
 
     _transfer(_to, _amount);
-    emit WithdrawClaimRewards(_to, _amount, _available);
+    emit WithdrawRewards(_to, _amount, _available);
   }
 
   /// @notice Allows anyone to deposit directly into the Prize Pool reserve.
@@ -686,12 +686,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   }
 
   /**
-   * @notice Returns the balance of fees for a given claimer
-   * @param _claimer The claimer to retrieve the fee balance for
-   * @return The balance of fees for the given claimer
+   * @notice Returns the balance of rewards earned for the given address.
+   * @param _recipient The recipient to retrieve the reward balance for
+   * @return The balance of rewards for the given recipient
    */
-  function balanceOfClaimRewards(address _claimer) external view returns (uint256) {
-    return _claimerRewards[_claimer];
+  function rewardBalance(address _recipient) external view returns (uint256) {
+    return _rewards[_recipient];
   }
 
   /**

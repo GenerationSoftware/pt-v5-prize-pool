@@ -15,7 +15,7 @@ contract PrizePoolInvariants is Test {
     bytes4[] memory selectors = new bytes4[](6);
     selectors[0] = prizePoolHarness.contributePrizeTokens.selector;
     selectors[1] = prizePoolHarness.contributeReserve.selector;
-    selectors[2] = prizePoolHarness.withdrawReserve.selector;
+    selectors[2] = prizePoolHarness.allocateRewardFromReserve.selector;
     selectors[3] = prizePoolHarness.withdrawClaimReward.selector;
     selectors[4] = prizePoolHarness.claimPrizes.selector;
     selectors[5] = prizePoolHarness.closeDraw.selector;
