@@ -491,7 +491,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
     // co-locate to save gas
     claimCount++;
-    _totalWithdrawn = SafeCast.toUint160(_totalWithdrawn + amount); // TODO: check if we need to change this to tierLiquidity.prizeSize instead of amount to account for allocated, but not withdrawn claim fees
+    _totalWithdrawn = SafeCast.toUint160(_totalWithdrawn + amount);
 
     emit ClaimedPrize(
       msg.sender,
