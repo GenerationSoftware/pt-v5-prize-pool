@@ -14,7 +14,7 @@ import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { TierCalculationLib } from "../src/libraries/TierCalculationLib.sol";
 import { MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../src/abstract/TieredLiquidityDistributor.sol";
-import { PrizePool, PrizeIsZero, ConstructorParams, InsufficientRewardsError, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerIsZeroAddress, CallerNotDrawManager, NotDeployer, FeeRecipientZeroAddress, FirstDrawStartsInPast, IncompatibleTwabPeriodLength, IncompatibleTwabPeriodOffset } from "../src/PrizePool.sol";
+import { PrizePool, PrizeIsZero, ConstructorParams, InsufficientRewardsError, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, DrawNotFinished, InvalidPrizeIndex, NoClosedDraw, InvalidTier, DrawManagerIsZeroAddress, CallerNotDrawManager, NotDeployer, FeeRecipientZeroAddress, FirstDrawStartsInPast, IncompatibleTwabPeriodLength, IncompatibleTwabPeriodOffset, ClaimPeriodExpired } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -855,6 +855,40 @@ contract PrizePoolTest is Test {
     prizePool.claimPrize(winner, 1, 0, winner, 0, address(this));
   }
 
+  function testClaimPrize_ClaimPeriodExpired() public {
+    contribute(100e18);
+    closeDraw(winningRandomNumber);
+    address winner = makeAddr("winner");
+    mockTwab(address(this), winner, 1);
+    uint periodStart = prizePool.openDrawStartedAt();
+
+    // warp to end of open draw (end of claim period)
+    vm.warp(periodStart + drawPeriodSeconds);
+    vm.expectRevert(abi.encodeWithSelector(ClaimPeriodExpired.selector));
+    prizePool.claimPrize(winner, 1, 0, winner, 0, address(this));
+
+    // warp to end of open draw (end of claim period) + 1 sec
+    vm.warp(periodStart + drawPeriodSeconds + 1);
+    vm.expectRevert(abi.encodeWithSelector(ClaimPeriodExpired.selector));
+    prizePool.claimPrize(winner, 1, 0, winner, 0, address(this));
+
+    // warp to right before end of open draw (end of claim period)
+    vm.warp(periodStart + drawPeriodSeconds - 1);
+    vm.expectEmit();
+    emit ClaimedPrize(
+      address(this),
+      winner,
+      winner,
+      1,
+      1,
+      0,
+      uint152(prizePool.getTierPrizeSize(1)),
+      0,
+      address(this)
+    );
+    prizePool.claimPrize(winner, 1, 0, winner, 0, address(this));
+  }
+
   function testClaimPrize_single() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
@@ -997,7 +1031,7 @@ contract PrizePoolTest is Test {
   function testClaimPrize_claimFeesAccountedFor() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    
+
     address winner = makeAddr("winner");
     address recipient = makeAddr("recipient");
     mockTwab(address(this), winner, 1);
@@ -1008,7 +1042,17 @@ contract PrizePoolTest is Test {
     assertApproxEqAbs(prizeAmount, (10e18 * TIER_SHARES) / (4 * prizePool.getTotalShares()), 100);
 
     vm.expectEmit();
-    emit ClaimedPrize(address(this), winner, recipient, 1, 1, 0, uint152(prize), fee, address(this));
+    emit ClaimedPrize(
+      address(this),
+      winner,
+      recipient,
+      1,
+      1,
+      0,
+      uint152(prize),
+      fee,
+      address(this)
+    );
     assertEq(prizePool.claimPrize(winner, 1, 0, recipient, fee, address(this)), prizeAmount);
     assertEq(prizeToken.balanceOf(recipient), prize, "recipient balance is good");
     assertEq(prizePool.claimCount(), 1);
