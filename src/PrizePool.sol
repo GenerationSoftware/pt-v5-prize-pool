@@ -182,10 +182,11 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
 
   /// @notice Emitted when an address withdraws their prize claim rewards.
+  /// @param account The account that is withdrawing rewards
   /// @param to The address the rewards are sent to
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
-  event WithdrawRewards(address indexed to, uint256 amount, uint256 available);
+  event WithdrawRewards(address indexed account, address indexed to, uint256 amount, uint256 available);
 
   /// @notice Emitted when an address receives new prize claim rewards.
   /// @param to The address the rewards are given to
@@ -527,7 +528,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     }
 
     _transfer(_to, _amount);
-    emit WithdrawRewards(_to, _amount, _available);
+    emit WithdrawRewards(msg.sender, _to, _amount, _available);
   }
 
   /// @notice Allows anyone to deposit directly into the Prize Pool reserve.

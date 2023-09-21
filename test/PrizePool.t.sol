@@ -82,10 +82,11 @@ contract PrizePoolTest is Test {
   event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
 
   /// @notice Emitted when an address withdraws their prize claim rewards.
+  /// @param account The account that is withdrawing rewards
   /// @param to The address the rewards are sent to
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
-  event WithdrawRewards(address indexed to, uint256 amount, uint256 available);
+  event WithdrawRewards(address indexed account, address indexed to, uint256 amount, uint256 available);
 
   /// @notice Emitted when an address receives new prize claim rewards.
   /// @param to The address the rewards are given to
@@ -1013,7 +1014,7 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.claimCount(), 1);
 
     // Check if claim fees are accounted for
-    // (if they aren't anyone can call contributePrizes with the unaccounted fee amount and basically take it as their own)
+    // (if they aren't anyone can call contributePrizeTokens with the unaccounted fee amount and basically take it as their own)
     uint accountedBalance = prizePool.accountedBalance();
     uint actualBalance = prizeToken.balanceOf(address(prizePool));
     console2.log("accounted balance: ", accountedBalance);
@@ -1023,7 +1024,7 @@ contract PrizePoolTest is Test {
     // show that the claimer can still withdraw their fees:
     assertEq(prizeToken.balanceOf(address(this)), 0);
     vm.expectEmit();
-    emit WithdrawRewards(address(this), fee, fee);
+    emit WithdrawRewards(address(this), address(this), fee, fee);
     prizePool.withdrawRewards(address(this), fee);
     assertEq(prizeToken.balanceOf(address(this)), fee);
 
@@ -1117,8 +1118,8 @@ contract PrizePoolTest is Test {
     prizePool.claimPrize(msg.sender, 0, 0, msg.sender, 1e18, address(this));
 
     vm.expectEmit();
-    emit WithdrawRewards(address(this), 5e17, 1e18);
-    prizePool.withdrawRewards(address(this), 5e17);
+    emit WithdrawRewards(address(this), address(1), 5e17, 1e18);
+    prizePool.withdrawRewards(address(1), 5e17);
   }
 
   function testOpenDrawStartsAt_zeroDraw() public {
