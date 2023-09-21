@@ -475,6 +475,18 @@ contract PrizePoolTest is Test {
     prizePool.closeDraw(winningRandomNumber);
   }
 
+  function testCloseAndOpenNextDraw_emittedDrawIdSameAsReturnedDrawId() public {
+    contribute(510e18);
+    uint24 expectedDrawId = 1;
+
+    vm.expectEmit(true, true, true, false);
+    emit DrawClosed(expectedDrawId, 12345, 3, 3, 0, UD34x4.wrap(0), firstDrawStartsAt);
+    vm.warp(prizePool.openDrawEndsAt());
+    uint24 closedDrawId = prizePool.closeDraw(12345);
+
+    assertEq(closedDrawId, expectedDrawId, "closed draw ID matches expected");
+  }
+
   function testCloseAndOpenNextDraw_notElapsed_openDrawPartway() public {
     vm.warp(firstDrawStartsAt + drawPeriodSeconds);
     prizePool.closeDraw(winningRandomNumber);

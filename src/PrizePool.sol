@@ -365,7 +365,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     }
 
     uint24 lastClosedDrawId_ = _lastClosedDrawId;
-    uint24 nextDrawId = lastClosedDrawId_ + 1;
+    uint24 closingDrawId = lastClosedDrawId_ + 1;
     uint32 _claimCount = claimCount;
     uint8 _numTiers = numberOfTiers;
     uint8 _nextNumberOfTiers = _numTiers;
@@ -376,7 +376,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
     uint48 openDrawStartedAt_ = _openDrawStartedAt();
 
-    _nextDraw(_nextNumberOfTiers, _contributionsForDraw(nextDrawId));
+    _nextDraw(_nextNumberOfTiers, _contributionsForDraw(closingDrawId));
 
     _winningRandomNumber = winningRandomNumber_;
     if (_claimCount != 0) {
@@ -386,7 +386,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     _lastClosedDrawAwardedAt = uint48(block.timestamp);
 
     emit DrawClosed(
-      nextDrawId,
+      closingDrawId,
       winningRandomNumber_,
       _numTiers,
       _nextNumberOfTiers,
@@ -395,7 +395,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       openDrawStartedAt_
     );
 
-    return lastClosedDrawId_;
+    return closingDrawId;
   }
 
   /**
