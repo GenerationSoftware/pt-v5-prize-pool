@@ -93,6 +93,9 @@ error PrizeIsZero();
 /// @notice Emitted when someone tries to claim a prize, but sets the fee recipient address to the zero address.
 error FeeRecipientZeroAddress();
 
+/// @notice Emitted when a claim is attempted after the claiming period has expired.
+error ClaimPeriodExpired();
+
 /**
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
@@ -426,6 +429,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint96 _fee,
     address _feeRecipient
   ) external returns (uint256) {
+    /// @dev Claims cannot occur after the draw auctions have begun for the open draw since a claim might dip into
+    /// the reserve and cause auction results to be inaccurate. By limiting the claim period to 1 period after the
+    /// draw ends, we provide a predictable environment for draw auctions to operate in.
+    if (block.timestamp >= _openDrawEndsAt()) {
+      revert ClaimPeriodExpired();
+    }
     if (_feeRecipient == address(0) && _fee > 0) {
       revert FeeRecipientZeroAddress();
     }
