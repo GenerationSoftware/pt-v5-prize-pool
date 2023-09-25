@@ -70,15 +70,15 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     prizePool.contributeReserve(_amount);
   }
 
-  function withdrawReserve() public warp {
+  function allocateRewardFromReserve() public warp {
     uint96 amount = prizePool.reserve();
     withdrawn += amount;
-    prizePool.withdrawReserve(address(msg.sender), amount);
+    prizePool.allocateRewardFromReserve(address(msg.sender), amount);
   }
 
   function withdrawClaimReward() public warp {
     vm.startPrank(claimer);
-    prizePool.withdrawClaimRewards(address(claimer), prizePool.balanceOfClaimRewards(claimer));
+    prizePool.withdrawRewards(address(claimer), prizePool.rewardBalance(claimer));
     vm.stopPrank();
   }
 
