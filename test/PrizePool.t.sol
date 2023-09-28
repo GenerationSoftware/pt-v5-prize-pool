@@ -50,16 +50,16 @@ contract PrizePoolTest is Test {
   /// @notice Emitted when a draw is closed.
   /// @param drawId The ID of the draw that was closed
   /// @param winningRandomNumber The winning random number for the closed draw
-  /// @param numTiers The number of prize tiers in the closed draw
-  /// @param nextNumTiers The number of tiers for the next draw
-  /// @param reserve The resulting reserve available for the next draw
-  /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
+  /// @param lastNumTiers The number of prize tiers for the draw before this one
+  /// @param numTiers The number of prize tiers in this closed draw
+  /// @param reserve The resulting reserve available for the closed draw
+  /// @param prizeTokensPerShare The amount of prize tokens per share for the closed draw
   /// @param drawStartedAt The start timestamp of the draw
   event DrawClosed(
     uint24 indexed drawId,
     uint256 winningRandomNumber,
+    uint8 lastNumTiers,
     uint8 numTiers,
-    uint8 nextNumTiers,
     uint104 reserve,
     UD34x4 prizeTokensPerShare,
     uint48 drawStartedAt
@@ -622,6 +622,10 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.reserve(), 1e18, "reserve after first draw");
 
+    assertEq(prizePool.numberOfTiers(), startingTiers);
+    vm.expectEmit();
+    emit DrawClosed(2, 4567, startingTiers, 3, 3448387096774193470/*reserve from output*/, UD34x4.wrap(3448387096774193330000)/*prize tokens per share from output*/, firstDrawStartsAt + drawPeriodSeconds);
+
     // close second draw
     closeDraw(4567);
 
@@ -656,6 +660,9 @@ contract PrizePoolTest is Test {
       claimPrize(sender2, 2, i);
     }
 
+    assertEq(prizePool.numberOfTiers(), 3);
+    vm.expectEmit();
+    emit DrawClosed(2, 245, 3, 4, 5612826466581395/*reserve from output*/, UD34x4.wrap(5612826466580940000)/*prize tokens per share from output*/, firstDrawStartsAt + drawPeriodSeconds);
     closeDraw(245);
     assertEq(prizePool.numberOfTiers(), 4);
   }

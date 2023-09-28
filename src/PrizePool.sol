@@ -153,16 +153,16 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Emitted when a draw is closed.
   /// @param drawId The ID of the draw that was closed
   /// @param winningRandomNumber The winning random number for the closed draw
-  /// @param numTiers The number of prize tiers in the closed draw
-  /// @param nextNumTiers The number of tiers for the next draw
-  /// @param reserve The resulting reserve available for the next draw
-  /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
+  /// @param lastNumTiers The number of prize tiers for the draw before this one
+  /// @param numTiers The number of prize tiers in this closed draw
+  /// @param reserve The resulting reserve available for the closed draw
+  /// @param prizeTokensPerShare The amount of prize tokens per share for the closed draw
   /// @param drawStartedAt The start timestamp of the draw
   event DrawClosed(
     uint24 indexed drawId,
     uint256 winningRandomNumber,
+    uint8 lastNumTiers,
     uint8 numTiers,
-    uint8 nextNumTiers,
     uint104 reserve,
     UD34x4 prizeTokensPerShare,
     uint48 drawStartedAt
