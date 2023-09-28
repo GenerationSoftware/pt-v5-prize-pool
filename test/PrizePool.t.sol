@@ -86,7 +86,12 @@ contract PrizePoolTest is Test {
   /// @param to The address the rewards are sent to
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
-  event WithdrawRewards(address indexed account, address indexed to, uint256 amount, uint256 available);
+  event WithdrawRewards(
+    address indexed account,
+    address indexed to,
+    uint256 amount,
+    uint256 available
+  );
 
   /// @notice Emitted when an address receives new prize claim rewards.
   /// @param to The address the rewards are given to
@@ -624,7 +629,15 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.numberOfTiers(), startingTiers);
     vm.expectEmit();
-    emit DrawClosed(2, 4567, startingTiers, 3, 3448387096774193470/*reserve from output*/, UD34x4.wrap(3448387096774193330000)/*prize tokens per share from output*/, firstDrawStartsAt + drawPeriodSeconds);
+    emit DrawClosed(
+      2,
+      4567,
+      startingTiers,
+      3,
+      3448387096774193470 /*reserve from output*/,
+      UD34x4.wrap(3448387096774193330000) /*prize tokens per share from output*/,
+      firstDrawStartsAt + drawPeriodSeconds
+    );
 
     // close second draw
     closeDraw(4567);
@@ -662,7 +675,15 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.numberOfTiers(), 3);
     vm.expectEmit();
-    emit DrawClosed(2, 245, 3, 4, 5612826466581395/*reserve from output*/, UD34x4.wrap(5612826466580940000)/*prize tokens per share from output*/, firstDrawStartsAt + drawPeriodSeconds);
+    emit DrawClosed(
+      2,
+      245,
+      3,
+      4,
+      5612826466581395 /*reserve from output*/,
+      UD34x4.wrap(5612826466580940000) /*prize tokens per share from output*/,
+      firstDrawStartsAt + drawPeriodSeconds
+    );
     closeDraw(245);
     assertEq(prizePool.numberOfTiers(), 4);
   }

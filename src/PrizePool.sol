@@ -189,7 +189,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param to The address the rewards are sent to
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
-  event WithdrawRewards(address indexed account, address indexed to, uint256 amount, uint256 available);
+  event WithdrawRewards(
+    address indexed account,
+    address indexed to,
+    uint256 amount,
+    uint256 available
+  );
 
   /// @notice Emitted when an address receives new prize claim rewards.
   /// @param to The address the rewards are given to
