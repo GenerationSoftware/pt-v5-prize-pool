@@ -333,6 +333,34 @@ contract PrizePoolTest is Test {
     assertEq(prizeToken.balanceOf(address(prizePool)), 100);
   }
 
+  function testContributePrizeTokens_contributesToCurrentDrawNotOpenDraw() public {
+    // warp 1 draw ahead so that the current draw is +1 from the open draw
+    vm.warp(firstDrawStartsAt + drawPeriodSeconds);
+    assertEq(prizePool.getOpenDrawId(), 1);
+
+    // contribute and verify that contributions go to current draw (not open draw)
+    contribute(1e18);
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 0);
+    assertEq(prizePool.getTotalContributedBetween(2, 2), 1e17); // e17 since smoothing is in effect
+    assertEq(prizePool.getTotalContributedBetween(1, 2), 1e17); // e17 since smoothing is in effect
+  }
+
+  function testContributePrizeTokens_notLostOnSkippedDraw() public {
+    contribute(310e18);
+    assertEq(prizeToken.balanceOf(address(prizePool)), 310e18);
+    assertEq(prizePool.getOpenDrawId(), 1);
+
+    // warp to skip a draw:
+    vm.warp(firstDrawStartsAt + drawPeriodSeconds * 2);
+    assertEq(prizePool.getOpenDrawId(), 2);
+
+    // close draw:
+    closeDraw(1234);
+
+    // check if tier liquidity includes contribution from draws 1 + 2
+    assertApproxEqAbs(prizePool.getTierRemainingLiquidity(0), 10e18 + 9e18, 10000);
+  }
+
   function testContributePrizeTokens_emitsEvent() public {
     prizeToken.mint(address(prizePool), 100);
     vm.expectEmit();
@@ -366,7 +394,11 @@ contract PrizePoolTest is Test {
 
   function testAccountedBalance_oneClaim() public {
     contribute(100e18);
+    console2.log(prizePool.getOpenDrawId());
+    console2.log(prizePool.openDrawEndsAt());
+    console2.log(firstDrawStartsAt + drawPeriodSeconds);
     closeDraw(1);
+    console2.log(prizePool.getOpenDrawId());
     mockTwab(address(this), msg.sender, 0);
     uint prize = claimPrize(msg.sender, 0, 0);
     assertEq(prizePool.accountedBalance(), 100e18 - prize);
@@ -555,17 +587,17 @@ contract PrizePoolTest is Test {
     uint reserve = remainder + RESERVE_SHARES * liquidityPerShare;
 
     assertEq(prizePool.reserve(), reserve, "reserve"); // remainder of the complex fraction
-    assertEq(prizePool.getTotalContributionsForClosedDraw(), 10e18); // ensure not a single wei is lost!
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 10e18); // ensure not a single wei is lost!
   }
 
   function testTotalContributionsForClosedDraw_noClaims() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
-    assertEq(prizePool.getTotalContributionsForClosedDraw(), 10e18, "first draw"); // 10e18
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 10e18, "first draw"); // 10e18
     closeDraw(winningRandomNumber);
     // liquidity should carry over!
     assertEq(
-      prizePool.getTotalContributionsForClosedDraw(),
+      prizePool.getTotalContributedBetween(2, 2),
       8.999999999999998700e18,
       "second draw"
     ); // 10e18 + 9e18
@@ -1132,14 +1164,6 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.lastClosedDrawAwardedAt(), targetTimestamp);
   }
 
-  function testHasOpenDrawFinished() public {
-    assertEq(prizePool.hasOpenDrawFinished(), false);
-    vm.warp(prizePool.openDrawEndsAt() - 1);
-    assertEq(prizePool.hasOpenDrawFinished(), false);
-    vm.warp(prizePool.openDrawEndsAt());
-    assertEq(prizePool.hasOpenDrawFinished(), true);
-  }
-
   function testWithdrawRewards_sufficient() public {
     contribute(100e18);
     closeDraw(winningRandomNumber);
@@ -1195,7 +1219,7 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.openDrawStartedAt(), firstDrawStartsAt + drawPeriodSeconds);
     assertEq(prizePool.openDrawEndsAt(), firstDrawStartsAt + drawPeriodSeconds * 2);
     closeDraw(winningRandomNumber);
-    assertEq(prizePool.getOpenDrawId(), 2);
+    assertEq(prizePool.getOpenDrawId(), 3);
   }
 
   function testOpenDrawIncludesMissedDraws_middleOfDraw() public {
@@ -1204,7 +1228,7 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.openDrawStartedAt(), firstDrawStartsAt + drawPeriodSeconds);
     assertEq(prizePool.openDrawEndsAt(), firstDrawStartsAt + drawPeriodSeconds * 2);
     closeDraw(winningRandomNumber);
-    assertEq(prizePool.getOpenDrawId(), 2);
+    assertEq(prizePool.getOpenDrawId(), 3);
   }
 
   function testNextDrawIncludesMissedDraws_2Draws() public {
@@ -1213,18 +1237,18 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.openDrawStartedAt(), firstDrawStartsAt + drawPeriodSeconds * 2);
     assertEq(prizePool.openDrawEndsAt(), firstDrawStartsAt + drawPeriodSeconds * 3);
     closeDraw(winningRandomNumber);
-    assertEq(prizePool.getOpenDrawId(), 2);
+    assertEq(prizePool.getOpenDrawId(), 4);
   }
 
   function testOpenDrawIncludesMissedDraws_notFirstDraw() public {
     closeDraw(winningRandomNumber);
-    uint48 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
+    uint48 _lastDrawClosedAt = prizePool.lastClosedDrawEndedAt();
     assertEq(prizePool.getOpenDrawId(), 2);
-    vm.warp(_firstDrawStartsAt + drawPeriodSeconds * 2);
-    assertEq(prizePool.openDrawStartedAt(), _firstDrawStartsAt + drawPeriodSeconds);
-    assertEq(prizePool.openDrawEndsAt(), _firstDrawStartsAt + drawPeriodSeconds * 2);
+    vm.warp(_lastDrawClosedAt + drawPeriodSeconds * 2);
+    assertEq(prizePool.openDrawStartedAt(), _lastDrawClosedAt + drawPeriodSeconds);
+    assertEq(prizePool.openDrawEndsAt(), _lastDrawClosedAt + drawPeriodSeconds * 2);
     closeDraw(winningRandomNumber);
-    assertEq(prizePool.getOpenDrawId(), 3);
+    assertEq(prizePool.getOpenDrawId(), 4);
   }
 
   function testOpenDrawIncludesMissedDraws_manyDrawsIn_manyMissed() public {
@@ -1232,24 +1256,25 @@ contract PrizePoolTest is Test {
     closeDraw(winningRandomNumber);
     closeDraw(winningRandomNumber);
     closeDraw(winningRandomNumber);
-    uint48 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
+    uint48 _lastDrawClosedAt = prizePool.lastClosedDrawEndedAt();
     assertEq(prizePool.getOpenDrawId(), 5);
-    vm.warp(_firstDrawStartsAt + drawPeriodSeconds * 5);
-    assertEq(prizePool.openDrawStartedAt(), _firstDrawStartsAt + drawPeriodSeconds * 4);
-    assertEq(prizePool.openDrawEndsAt(), _firstDrawStartsAt + drawPeriodSeconds * 5);
+    vm.warp(_lastDrawClosedAt + drawPeriodSeconds * 5);
+    assertEq(prizePool.openDrawStartedAt(), _lastDrawClosedAt + drawPeriodSeconds * 4);
+    assertEq(prizePool.openDrawEndsAt(), _lastDrawClosedAt + drawPeriodSeconds * 5);
     closeDraw(winningRandomNumber);
-    assertEq(prizePool.getOpenDrawId(), 6);
+    assertEq(prizePool.getOpenDrawId(), 10);
   }
 
   function testOpenDrawIncludesMissedDraws_notFirstDraw_middleOfDraw() public {
     closeDraw(winningRandomNumber);
-    uint48 _firstDrawStartsAt = prizePool.lastClosedDrawStartedAt();
+    uint48 _lastDrawClosedAt = prizePool.lastClosedDrawEndedAt();
     assertEq(prizePool.getOpenDrawId(), 2);
-    vm.warp(_firstDrawStartsAt + (drawPeriodSeconds * 5) / 2);
-    assertEq(prizePool.openDrawStartedAt(), _firstDrawStartsAt + drawPeriodSeconds);
-    assertEq(prizePool.openDrawEndsAt(), _firstDrawStartsAt + drawPeriodSeconds * 2);
-    closeDraw(winningRandomNumber);
+    vm.warp(_lastDrawClosedAt + (drawPeriodSeconds * 5) / 2); // warp 2.5 draws in the future
     assertEq(prizePool.getOpenDrawId(), 3);
+    assertEq(prizePool.openDrawStartedAt(), _lastDrawClosedAt + drawPeriodSeconds);
+    assertEq(prizePool.openDrawEndsAt(), _lastDrawClosedAt + drawPeriodSeconds * 2);
+    closeDraw(winningRandomNumber);
+    assertEq(prizePool.getOpenDrawId(), 4);
   }
 
   function testGetVaultUserBalanceAndTotalSupplyTwab() public {
