@@ -193,10 +193,10 @@ library DrawAccumulatorLib {
     Pair48 memory drawIds = readDrawIds(_accumulator, indexes);
 
     /**
-            This check intentionally limits the `_endDrawId` to be no more than one draw before the
-            latest observation. This allows us to make assumptions on the value of `lastObservationDrawIdOccurringAtOrBeforeEnd` and removes the need to run a additional
-            binary search to find it.
-         */
+      This check intentionally limits the `_endDrawId` to be no more than one draw before the
+      latest observation. This allows us to make assumptions on the value of `lastObservationDrawIdOccurringAtOrBeforeEnd` and removes the need to run a additional
+      binary search to find it.
+    */
     if (_endDrawId < drawIds.second - 1) {
       revert InvalidDisbursedEndDrawId(_endDrawId);
     }
@@ -205,35 +205,33 @@ library DrawAccumulatorLib {
       return 0;
     }
 
-    /*
+    /**
+      head: residual accrual from observation before start. (if any)
+      body: if there is more than one observations between start and current, then take the past _accumulator diff
+      tail: accrual between the newest observation and current.  if card > 1 there is a tail (almost always)
 
-        head: residual accrual from observation before start. (if any)
-        body: if there is more than one observations between start and current, then take the past _accumulator diff
-        tail: accrual between the newest observation and current.  if card > 1 there is a tail (almost always)
+      let:
+          - s = start draw id
+          - e = end draw id
+          - o = observation
+          - h = "head". residual balance from the last o occurring before s.  head is the disbursed amount between (o, s)
+          - t = "tail". the residual balance from the last o occuring before e.  tail is the disbursed amount between (o, e)
+          - b = "body". if there are *two* observations between s and e we calculate how much was disbursed. body is (last obs disbursed - first obs disbursed)
 
-        let:
-            - s = start draw id
-            - e = end draw id
-            - o = observation
-            - h = "head". residual balance from the last o occurring before s.  head is the disbursed amount between (o, s)
-            - t = "tail". the residual balance from the last o occuring before e.  tail is the disbursed amount between (o, e)
-            - b = "body". if there are *two* observations between s and e we calculate how much was disbursed. body is (last obs disbursed - first obs disbursed)
-
-        total = head + body + tail
+      total = head + body + tail
 
 
-        lastObservationOccurringAtOrBeforeEnd
-        firstObservationOccurringAtOrAfterStart
+      lastObservationOccurringAtOrBeforeEnd
+      firstObservationOccurringAtOrAfterStart
 
-        Like so
+      Like so
 
-           s        e
-        o  <h>  o  <t>  o
+          s        e
+      o  <h>  o  <t>  o
 
-           s                 e
-        o  <h> o   <b>  o  <t>  o
-
-         */
+          s                 e
+      o  <h> o   <b>  o  <t>  o
+    */
 
     uint24 lastObservationDrawIdOccurringAtOrBeforeEnd;
     if (_endDrawId >= drawIds.second) {
