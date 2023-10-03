@@ -812,7 +812,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Returns the open draw ID.
   /// @dev It's possible for draws to be missed, so the open draw ID may be more than one
   /// draw ahead of the last closed draw ID.
-  /// @dev The open draw is the next draw that can be closed.
+  /// @dev The open draw is the draw that can be closed next.
   /// @return The open draw ID
   function _openDrawId() internal view returns (uint24) {
     uint24 currentDrawId_ = _currentDrawId();
