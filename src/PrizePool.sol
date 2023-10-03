@@ -794,7 +794,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @return The draw period ID that the current block is in
   function _currentDrawId() internal view returns (uint24) {
     uint48 _firstDrawStartsAt = firstDrawStartsAt;
-    return (block.timestamp < _firstDrawStartsAt) ? 1 : (uint24((block.timestamp - firstDrawStartsAt) / drawPeriodSeconds) + 1);
+    return (block.timestamp < _firstDrawStartsAt) ? 1 : (uint24((block.timestamp - _firstDrawStartsAt) / drawPeriodSeconds) + 1);
   }
 
   /// @notice Returns the open draw ID.
