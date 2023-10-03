@@ -189,7 +189,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param to The address the rewards are sent to
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
-  event WithdrawRewards(address indexed account, address indexed to, uint256 amount, uint256 available);
+  event WithdrawRewards(
+    address indexed account,
+    address indexed to,
+    uint256 amount,
+    uint256 available
+  );
 
   /// @notice Emitted when an address receives new prize claim rewards.
   /// @param to The address the rewards are given to
@@ -377,7 +382,11 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       @dev If any draws were skipped from `lastClosedDrawId_` to `_openDrawId`, the contribution from those draws will
       be included.
      */
-    _nextDraw(openDrawId_, _nextNumberOfTiers, _getTotalContributedBetween(lastClosedDrawId_ + 1, openDrawId_));
+    _nextDraw(
+      openDrawId_,
+      _nextNumberOfTiers,
+      _getTotalContributedBetween(lastClosedDrawId_ + 1, openDrawId_)
+    );
 
     _winningRandomNumber = winningRandomNumber_;
     if (_claimCount != 0) {
@@ -623,7 +632,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   }
 
   /// @notice Returns the open draw ID.
-  /// @dev It's possible for draws to be missed, so the open draw ID may be more than one 
+  /// @dev It's possible for draws to be missed, so the open draw ID may be more than one
   /// draw ahead of the last closed draw ID.
   /// @dev The open draw is the next draw that can be closed.
   /// @return The open draw ID
@@ -794,11 +803,14 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @return The draw period ID that the current block is in
   function _currentDrawId() internal view returns (uint24) {
     uint48 _firstDrawStartsAt = firstDrawStartsAt;
-    return (block.timestamp < _firstDrawStartsAt) ? 1 : (uint24((block.timestamp - _firstDrawStartsAt) / drawPeriodSeconds) + 1);
+    return
+      (block.timestamp < _firstDrawStartsAt)
+        ? 1
+        : (uint24((block.timestamp - _firstDrawStartsAt) / drawPeriodSeconds) + 1);
   }
 
   /// @notice Returns the open draw ID.
-  /// @dev It's possible for draws to be missed, so the open draw ID may be more than one 
+  /// @dev It's possible for draws to be missed, so the open draw ID may be more than one
   /// draw ahead of the last closed draw ID.
   /// @dev The open draw is the next draw that can be closed.
   /// @return The open draw ID

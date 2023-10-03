@@ -181,7 +181,11 @@ contract TieredLiquidityDistributor {
   /// @param _closingDraw The draw that is closing
   /// @param _nextNumberOfTiers The new number of tiers. Must be greater than minimum
   /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
-  function _nextDraw(uint24 _closingDraw, uint8 _nextNumberOfTiers, uint256 _prizeTokenLiquidity) internal {
+  function _nextDraw(
+    uint24 _closingDraw,
+    uint8 _nextNumberOfTiers,
+    uint256 _prizeTokenLiquidity
+  ) internal {
     if (_nextNumberOfTiers < MINIMUM_NUMBER_OF_TIERS) {
       revert NumberOfTiersLessThanMinimum(_nextNumberOfTiers);
     }
@@ -189,15 +193,12 @@ contract TieredLiquidityDistributor {
     uint8 numTiers = numberOfTiers;
     UD34x4 _prizeTokenPerShare = prizeTokenPerShare;
     UD60x18 _prizeTokenPerShareUD60x18 = fromUD34x4toUD60x18(_prizeTokenPerShare);
-    (
-      uint96 newReserve,
-      UD60x18 newPrizeTokenPerShare
-    ) = _computeNewDistributions(
-        numTiers,
-        _nextNumberOfTiers,
-        _prizeTokenPerShareUD60x18,
-        _prizeTokenLiquidity
-      );
+    (uint96 newReserve, UD60x18 newPrizeTokenPerShare) = _computeNewDistributions(
+      numTiers,
+      _nextNumberOfTiers,
+      _prizeTokenPerShareUD60x18,
+      _prizeTokenLiquidity
+    );
 
     // need to redistribute to the canary tier and any new tiers (if expanding)
     uint8 start;
