@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
 import { CommonBase } from "forge-std/Base.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
@@ -83,20 +81,17 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
   }
 
   function claimPrizes() public warp {
-    // console2.log("claimPrizes current time ", block.timestamp);
     if (prizePool.getLastClosedDrawId() == 0) {
       return;
     }
     for (uint8 i = 0; i < prizePool.numberOfTiers(); i++) {
       for (uint32 p = 0; p < prizePool.getTierPrizeCount(i); i++) {
-        // console2.log("checking...", i, p);
         if (
           prizePool.isWinner(address(this), address(this), i, p) &&
           !prizePool.wasClaimed(address(this), address(this), i, p)
         ) {
           uint prizeSize = prizePool.getTierPrizeSize(i);
           if (prizeSize > 0) {
-            // console2.log("claiming...");
             claimed += prizePool.claimPrize(
               address(this),
               i,

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
-import "forge-std/console2.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { TieredLiquidityDistributorWrapper } from "./helper/TieredLiquidityDistributorWrapper.sol";
@@ -201,7 +200,6 @@ contract TieredLiquidityDistributorTest is Test {
       numTiers++
     ) {
       prizeCount = distributor.estimatedPrizeCount(numTiers);
-      console2.log("estimatedPrizeCount: tier %s count %s", numTiers, prizeCount);
       assertEq(
         distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount - 1),
         numTiers,

@@ -13,7 +13,6 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
     uint8 nextNumTiers = _nextNumTiers / 16; // map to [0, 15]
     nextNumTiers = nextNumTiers < 3 ? 3 : nextNumTiers; // ensure min tiers
     totalAdded += liquidity;
-    // console2.log("nextDraw", nextNumTiers, liquidity);
     _nextDraw(_lastClosedDrawId + 1, nextNumTiers, liquidity);
   }
 

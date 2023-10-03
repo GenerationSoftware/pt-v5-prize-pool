@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
-import "forge-std/console2.sol";
 
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
@@ -86,7 +85,12 @@ contract PrizePoolTest is Test {
   /// @param to The address the rewards are sent to
   /// @param amount The amount withdrawn
   /// @param available The total amount that was available to withdraw before the transfer
-  event WithdrawRewards(address indexed account, address indexed to, uint256 amount, uint256 available);
+  event WithdrawRewards(
+    address indexed account,
+    address indexed to,
+    uint256 amount,
+    uint256 available
+  );
 
   /// @notice Emitted when an address receives new prize claim rewards.
   /// @param to The address the rewards are given to
@@ -271,14 +275,10 @@ contract PrizePoolTest is Test {
     // new liq + reclaimed canary
     uint draw2Liquidity = 8999999999999998700;
     uint reclaimedLiquidity = (TIER_SHARES * firstPrizesPerShare);
-    // console2.log("????? reclaimedLiquidity", reclaimedLiquidity);
     uint newLiquidity = draw2Liquidity + reclaimedLiquidity;
-    // console2.log("????? newLiquidity", newLiquidity);
     uint newPrizesPerShare = newLiquidity / prizePool.getTotalShares();
     uint remainder = newLiquidity - newPrizesPerShare * prizePool.getTotalShares();
-    // console2.log("????? remainder", remainder);
     uint newReserve = (newPrizesPerShare * RESERVE_SHARES) + remainder;
-    // console2.log("????? newReserve: ", newReserve);
 
     assertEq(prizePool.reserveForOpenDraw(), newReserve);
   }
@@ -394,11 +394,7 @@ contract PrizePoolTest is Test {
 
   function testAccountedBalance_oneClaim() public {
     contribute(100e18);
-    console2.log(prizePool.getOpenDrawId());
-    console2.log(prizePool.openDrawEndsAt());
-    console2.log(firstDrawStartsAt + drawPeriodSeconds);
     closeDraw(1);
-    console2.log(prizePool.getOpenDrawId());
     mockTwab(address(this), msg.sender, 0);
     uint prize = claimPrize(msg.sender, 0, 0);
     assertEq(prizePool.accountedBalance(), 100e18 - prize);
@@ -596,11 +592,7 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.getTotalContributedBetween(1, 1), 10e18, "first draw"); // 10e18
     closeDraw(winningRandomNumber);
     // liquidity should carry over!
-    assertEq(
-      prizePool.getTotalContributedBetween(2, 2),
-      8.999999999999998700e18,
-      "second draw"
-    ); // 10e18 + 9e18
+    assertEq(prizePool.getTotalContributedBetween(2, 2), 8.999999999999998700e18, "second draw"); // 10e18 + 9e18
   }
 
   function testCloseAndOpenNextDraw_shouldNotShrinkOnFirst() public {
@@ -1093,9 +1085,6 @@ contract PrizePoolTest is Test {
     // (if they aren't anyone can call contributePrizeTokens with the unaccounted fee amount and basically take it as their own)
     uint accountedBalance = prizePool.accountedBalance();
     uint actualBalance = prizeToken.balanceOf(address(prizePool));
-    console2.log("accounted balance: ", accountedBalance);
-    console2.log("actual balance: ", actualBalance);
-    console2.log("diff: ", actualBalance - accountedBalance);
 
     // show that the claimer can still withdraw their fees:
     assertEq(prizeToken.balanceOf(address(this)), 0);
@@ -1106,9 +1095,6 @@ contract PrizePoolTest is Test {
 
     accountedBalance = prizePool.accountedBalance();
     actualBalance = prizeToken.balanceOf(address(prizePool));
-    console2.log("accounted balance: ", accountedBalance);
-    console2.log("actual balance: ", actualBalance);
-    console2.log("diff: ", actualBalance - accountedBalance);
   }
 
   function testTotalWithdrawn() public {
