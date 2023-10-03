@@ -985,7 +985,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint256 _drawDuration
   ) internal view returns (uint256 twab, uint256 twabTotalSupply) {
     uint32 _drawPeriodSeconds = drawPeriodSeconds;
-    uint48 _endTimestamp = SafeCast.toUint48(_drawEndsAt(_lastClosedDrawId));
+    uint48 _endTimestamp = _drawEndsAt(_lastClosedDrawId);
     uint48 _durationSeconds = SafeCast.toUint48(_drawDuration * _drawPeriodSeconds);
     uint48 _startTimestamp = _endTimestamp > _durationSeconds
       ? _endTimestamp - _durationSeconds
