@@ -358,6 +358,8 @@ contract PrizePoolTest is Test {
     closeDraw(1234);
 
     // check if tier liquidity includes contribution from draws 1 + 2
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 31e18);
+    assertApproxEqAbs(prizePool.getTotalContributedBetween(2, 2), 279e17, 10000);
     assertApproxEqAbs(prizePool.getTierRemainingLiquidity(0), 10e18 + 9e18, 10000);
   }
 
