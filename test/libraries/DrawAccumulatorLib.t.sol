@@ -75,6 +75,18 @@ contract DrawAccumulatorLibTest is Test {
     assertEq(accumulator.observations[3].available, 281);
   }
 
+  function testAddOne_deleteExpired() public {
+    // set up accumulator as if we had just completed a buffer loop:
+    accumulator.drawRingBuffer[0] = 101; // set to some draw ID that isn't 0 or the one we'll be writing
+    accumulator.observations[101] = Observation(2, 3);
+
+    DrawAccumulatorLib.add(accumulator, 100, 1, alpha);
+    assertEq(accumulator.ringBufferInfo.cardinality, 1);
+    assertEq(accumulator.ringBufferInfo.nextIndex, 1);
+    assertEq(accumulator.drawRingBuffer[0], 1);
+    assertEq(accumulator.observations[1].available, 100);
+  }
+
   function testGetTotalRemaining() public {
     add(1);
 

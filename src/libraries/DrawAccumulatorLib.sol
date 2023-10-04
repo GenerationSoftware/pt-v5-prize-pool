@@ -88,6 +88,15 @@ library DrawAccumulatorLib {
       uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation_.available);
       uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation_.available);
 
+      uint16 cardinality = ringBufferInfo.cardinality;
+      if (ringBufferInfo.cardinality < MAX_CARDINALITY) {
+        cardinality += 1;
+      } else {
+        // Delete the old observation to save gas (older than 1 year)
+        uint24 overwritingDrawId = accumulator.drawRingBuffer[ringBufferInfo.nextIndex];
+        delete accumulatorObservations[overwritingDrawId];
+      }
+
       accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
       accumulatorObservations[_drawId] = Observation({
         available: SafeCast.toUint96(_amount + remainingAmount),
@@ -98,12 +107,6 @@ library DrawAccumulatorLib {
             (remainingAmount + disbursedAmount)
         )
       });
-
-      uint16 cardinality = ringBufferInfo.cardinality;
-
-      if (ringBufferInfo.cardinality < MAX_CARDINALITY) {
-        cardinality += 1;
-      }
 
       accumulator.ringBufferInfo = RingBufferInfo({
         nextIndex: uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY)),
