@@ -93,8 +93,7 @@ library DrawAccumulatorLib {
         cardinality += 1;
       } else {
         // Delete the old observation to save gas (older than 1 year)
-        uint24 overwritingDrawId = accumulator.drawRingBuffer[ringBufferInfo.nextIndex];
-        delete accumulatorObservations[overwritingDrawId];
+        delete accumulatorObservations[accumulator.drawRingBuffer[ringBufferInfo.nextIndex]];
       }
 
       accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
