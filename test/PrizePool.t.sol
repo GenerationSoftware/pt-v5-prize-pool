@@ -49,8 +49,8 @@ contract PrizePoolTest is Test {
   event DrawAwarded(
     uint24 indexed drawId,
     uint256 winningRandomNumber,
+    uint8 lastNumTiers,
     uint8 numTiers,
-    uint8 nextNumTiers,
     uint104 reserve,
     UD34x4 prizeTokensPerShare,
     uint48 drawOpenedAt
@@ -623,6 +623,18 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.reserve(), 1e18, "reserve after first draw");
 
+    assertEq(prizePool.numberOfTiers(), startingTiers);
+    vm.expectEmit();
+    emit DrawClosed(
+      2,
+      4567,
+      startingTiers,
+      3,
+      3448387096774193470 /*reserve from output*/,
+      UD34x4.wrap(3448387096774193330000) /*prize tokens per share from output*/,
+      firstDrawStartsAt + drawPeriodSeconds
+    );
+
     // award second draw
     awardDraw(4567);
 
@@ -657,6 +669,17 @@ contract PrizePoolTest is Test {
       claimPrize(sender2, 2, i);
     }
 
+    assertEq(prizePool.numberOfTiers(), 3);
+    vm.expectEmit();
+    emit DrawClosed(
+      2,
+      245,
+      3,
+      4,
+      5612826466581395 /*reserve from output*/,
+      UD34x4.wrap(5612826466580940000) /*prize tokens per share from output*/,
+      firstDrawStartsAt + drawPeriodSeconds
+    );
     awardDraw(245);
     assertEq(prizePool.numberOfTiers(), 4);
   }

@@ -152,16 +152,16 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Emitted when a draw is awarded.
   /// @param drawId The ID of the draw that was awarded
   /// @param winningRandomNumber The winning random number for the awarded draw
-  /// @param numTiers The number of prize tiers in the awarded draw
-  /// @param nextNumTiers The number of tiers for the next draw
-  /// @param reserve The resulting reserve available for the next draw
-  /// @param prizeTokensPerShare The amount of prize tokens per share for the next draw
+  /// @param lastNumTiers The previous number of prize tiers
+  /// @param numTiers The number of prize tiers for the awarded draw
+  /// @param reserve The resulting reserve available
+  /// @param prizeTokensPerShare The amount of prize tokens per share for the awarded draw
   /// @param drawOpenedAt The start timestamp of the awarded draw
   event DrawAwarded(
     uint24 indexed drawId,
     uint256 winningRandomNumber,
+    uint8 lastNumTiers,
     uint8 numTiers,
-    uint8 nextNumTiers,
     uint104 reserve,
     UD34x4 prizeTokensPerShare,
     uint48 drawOpenedAt
