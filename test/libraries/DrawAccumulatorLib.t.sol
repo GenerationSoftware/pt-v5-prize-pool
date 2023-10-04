@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 
-import { DrawAccumulatorLib, AddToDrawZero, DrawClosed, InvalidDrawRange, InvalidDisbursedEndDrawId } from "../../src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, AddToDrawZero, DrawAwarded, InvalidDrawRange, InvalidDisbursedEndDrawId, Observation } from "../../src/libraries/DrawAccumulatorLib.sol";
 import { DrawAccumulatorLibWrapper } from "../wrappers/DrawAccumulatorLibWrapper.sol";
 
 contract DrawAccumulatorLibTest is Test {
@@ -37,9 +37,9 @@ contract DrawAccumulatorLibTest is Test {
     add(0);
   }
 
-  function testAdd_emitsDrawCLosed() public {
+  function testAdd_emitsDrawAwarded() public {
     add(4);
-    vm.expectRevert(abi.encodeWithSelector(DrawClosed.selector, 3, 4));
+    vm.expectRevert(abi.encodeWithSelector(DrawAwarded.selector, 3, 4));
     add(3);
   }
 
@@ -87,7 +87,7 @@ contract DrawAccumulatorLibTest is Test {
 
   function testGetTotalRemaining_invalidDraw() public {
     add(4);
-    vm.expectRevert(abi.encodeWithSelector(DrawClosed.selector, 2, 4));
+    vm.expectRevert(abi.encodeWithSelector(DrawAwarded.selector, 2, 4));
     wrapper.getTotalRemaining(2, alpha);
   }
 

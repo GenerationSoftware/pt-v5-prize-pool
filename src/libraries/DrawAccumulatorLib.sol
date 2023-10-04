@@ -12,7 +12,7 @@ error AddToDrawZero();
 /// @notice Emitted when an action can't be done on a closed draw.
 /// @param drawId The ID of the closed draw
 /// @param newestDrawId The newest draw ID
-error DrawClosed(uint24 drawId, uint24 newestDrawId);
+error DrawAwarded(uint24 drawId, uint24 newestDrawId);
 
 /// @notice Emitted when a draw range is not strictly increasing.
 /// @param startDrawId The start draw ID of the range
@@ -76,7 +76,7 @@ library DrawAccumulatorLib {
     ];
 
     if (_drawId < newestDrawId_) {
-      revert DrawClosed(_drawId, newestDrawId_);
+      revert DrawAwarded(_drawId, newestDrawId_);
     }
 
     mapping(uint256 drawId => Observation observation) storage accumulatorObservations = accumulator
@@ -143,7 +143,7 @@ library DrawAccumulatorLib {
     ];
 
     if (_startDrawId < newestDrawId_) {
-      revert DrawClosed(_startDrawId, newestDrawId_);
+      revert DrawAwarded(_startDrawId, newestDrawId_);
     }
 
     return
@@ -417,12 +417,12 @@ library DrawAccumulatorLib {
   }
 
   /// @notice Binary searches an array of draw ids for the given target draw id.
-  /// @dev The _targetLastClosedDrawId MUST exist in the buffer between _oldestIndex and _newestIndex (inclusive)
+  /// @dev The _targetDrawId MUST exist in the buffer between _oldestIndex and _newestIndex (inclusive)
   /// @param _drawRingBuffer The array of draw ids to search
   /// @param _oldestIndex The oldest index in the ring buffer
   /// @param _newestIndex The newest index in the ring buffer
   /// @param _cardinality The number of items in the ring buffer
-  /// @param _targetLastClosedDrawId The target draw id to search for
+  /// @param _targetDrawId The target draw id to search for
   /// @return beforeOrAtIndex The index of the observation occurring at or before the target draw id
   /// @return beforeOrAtDrawId The draw id of the observation occurring at or before the target draw id
   /// @return afterOrAtIndex The index of the observation occurring at or after the target draw id
@@ -432,7 +432,7 @@ library DrawAccumulatorLib {
     uint16 _oldestIndex,
     uint16 _newestIndex,
     uint16 _cardinality,
-    uint24 _targetLastClosedDrawId
+    uint24 _targetDrawId
   )
     internal
     view
@@ -458,10 +458,10 @@ library DrawAccumulatorLib {
       afterOrAtIndex = uint16(RingBufferLib.nextIndex(currentIndex, _cardinality));
       afterOrAtDrawId = _drawRingBuffer[afterOrAtIndex];
 
-      bool targetAtOrAfter = beforeOrAtDrawId <= _targetLastClosedDrawId;
+      bool targetAtOrAfter = beforeOrAtDrawId <= _targetDrawId;
 
       // Check if we've found the corresponding Observation.
-      if (targetAtOrAfter && _targetLastClosedDrawId <= afterOrAtDrawId) {
+      if (targetAtOrAfter && _targetDrawId <= afterOrAtDrawId) {
         break;
       }
 

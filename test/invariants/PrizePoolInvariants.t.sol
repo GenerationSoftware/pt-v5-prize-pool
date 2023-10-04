@@ -18,7 +18,7 @@ contract PrizePoolInvariants is Test {
     selectors[2] = prizePoolHarness.allocateRewardFromReserve.selector;
     selectors[3] = prizePoolHarness.withdrawClaimReward.selector;
     selectors[4] = prizePoolHarness.claimPrizes.selector;
-    selectors[5] = prizePoolHarness.closeDraw.selector;
+    selectors[5] = prizePoolHarness.awardDraw.selector;
     targetSelector(FuzzSelector({ addr: address(prizePoolHarness), selectors: selectors }));
     targetContract(address(prizePoolHarness));
   }

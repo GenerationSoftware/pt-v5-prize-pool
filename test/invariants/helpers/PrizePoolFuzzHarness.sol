@@ -29,14 +29,14 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     address drawManager = address(this);
     uint32 drawPeriodSeconds = 1 hours;
     currentTime = block.timestamp;
-    uint48 nextDrawStartsAt = uint48(currentTime);
+    uint48 awardDrawStartsAt = uint48(currentTime);
     uint8 numberOfTiers = 3;
     uint8 tierShares = 100;
     uint8 reserveShares = 10;
     SD1x18 smoothing = SD1x18.wrap(0.9e18);
 
     token = new ERC20Mintable("name", "SYMBOL");
-    TwabController twabController = new TwabController(drawPeriodSeconds, uint32(nextDrawStartsAt));
+    TwabController twabController = new TwabController(drawPeriodSeconds, uint32(awardDrawStartsAt));
     // arbitrary mint
     twabController.mint(address(this), 100e18);
 
@@ -44,7 +44,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
       token,
       twabController,
       drawPeriodSeconds,
-      nextDrawStartsAt,
+      awardDrawStartsAt,
       smoothing,
       365,
       numberOfTiers,
@@ -81,7 +81,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
   }
 
   function claimPrizes() public warp {
-    if (prizePool.getLastClosedDrawId() == 0) {
+    if (prizePool.getLastAwardedDrawId() == 0) {
       return;
     }
     for (uint8 i = 0; i < prizePool.numberOfTiers(); i++) {
@@ -106,11 +106,11 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     }
   }
 
-  function closeDraw() public {
-    uint openDrawEndsAt = prizePool.openDrawEndsAt();
-    currentTime = openDrawEndsAt;
+  function awardDraw() public {
+    uint256 drawToAwardClosesAt = prizePool.drawClosesAt(prizePool.getDrawIdToAward());
+    currentTime = drawToAwardClosesAt;
     vm.warp(currentTime);
-    prizePool.closeDraw(uint256(keccak256(abi.encode(block.timestamp))));
+    prizePool.awardDraw(uint256(keccak256(abi.encode(block.timestamp))));
   }
 
   modifier warp() {
