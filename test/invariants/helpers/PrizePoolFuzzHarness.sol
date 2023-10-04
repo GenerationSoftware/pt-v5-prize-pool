@@ -36,7 +36,10 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     SD1x18 smoothing = SD1x18.wrap(0.9e18);
 
     token = new ERC20Mintable("name", "SYMBOL");
-    TwabController twabController = new TwabController(drawPeriodSeconds, uint32(awardDrawStartsAt));
+    TwabController twabController = new TwabController(
+      drawPeriodSeconds,
+      uint32(awardDrawStartsAt)
+    );
     // arbitrary mint
     twabController.mint(address(this), 100e18);
 
