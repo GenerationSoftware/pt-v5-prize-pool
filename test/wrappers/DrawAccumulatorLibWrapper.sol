@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
 import { DrawAccumulatorLib, Observation } from "../../src/libraries/DrawAccumulatorLib.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap } from "prb-math/SD59x18.sol";
@@ -13,13 +11,29 @@ import { E, SD59x18, sd, unwrap } from "prb-math/SD59x18.sol";
 contract DrawAccumulatorLibWrapper {
   DrawAccumulatorLib.Accumulator public accumulator;
 
+  function getDrawRingBuffer(uint16 index) public view returns (uint24) {
+    return accumulator.drawRingBuffer[index];
+  }
+
   function setDrawRingBuffer(uint16 index, uint8 value) public {
     accumulator.drawRingBuffer[index] = value;
+  }
+
+  function getCardinality() public view returns (uint16) {
+    return accumulator.ringBufferInfo.cardinality;
+  }
+
+  function getNextIndex() public view returns (uint16) {
+    return accumulator.ringBufferInfo.nextIndex;
   }
 
   function setRingBufferInfo(uint16 nextIndex, uint16 cardinality) public {
     accumulator.ringBufferInfo.cardinality = cardinality;
     accumulator.ringBufferInfo.nextIndex = nextIndex;
+  }
+
+  function getObservation(uint24 drawId) public view returns (Observation memory) {
+    return accumulator.observations[drawId];
   }
 
   function add(uint256 _amount, uint24 _drawId, SD59x18 _alpha) public returns (bool) {

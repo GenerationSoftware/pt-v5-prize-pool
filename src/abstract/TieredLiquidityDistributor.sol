@@ -100,11 +100,14 @@ contract TieredLiquidityDistributor {
   /// @notice The current number of prize tokens per share.
   UD34x4 public prizeTokenPerShare;
 
-  /// @notice The number of tiers for the last closed draw. The last tier is the canary tier.
+  /// @notice The number of tiers for the last awarded draw. The last tier is the canary tier.
   uint8 public numberOfTiers;
 
-  /// @notice The draw id of the last closed draw.
-  uint24 internal _lastClosedDrawId;
+  /// @notice The draw id of the last awarded draw.
+  uint24 internal _lastAwardedDrawId;
+
+  /// @notice The timestamp at which the last awarded draw was awarded.
+  uint48 public lastAwardedDrawAwardedAt;
 
   /// @notice The amount of available reserve.
   uint96 internal _reserve;
@@ -175,9 +178,14 @@ contract TieredLiquidityDistributor {
   }
 
   /// @notice Adjusts the number of tiers and distributes new liquidity.
+  /// @param _awardingDraw The ID of the draw that is being awarded
   /// @param _nextNumberOfTiers The new number of tiers. Must be greater than minimum
   /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
-  function _nextDraw(uint8 _nextNumberOfTiers, uint256 _prizeTokenLiquidity) internal {
+  function _awardDraw(
+    uint24 _awardingDraw,
+    uint8 _nextNumberOfTiers,
+    uint256 _prizeTokenLiquidity
+  ) internal {
     if (_nextNumberOfTiers < MINIMUM_NUMBER_OF_TIERS) {
       revert NumberOfTiersLessThanMinimum(_nextNumberOfTiers);
     }
@@ -185,16 +193,12 @@ contract TieredLiquidityDistributor {
     uint8 numTiers = numberOfTiers;
     UD34x4 _prizeTokenPerShare = prizeTokenPerShare;
     UD60x18 _prizeTokenPerShareUD60x18 = fromUD34x4toUD60x18(_prizeTokenPerShare);
-    (
-      uint24 closedDrawId,
-      uint96 newReserve,
-      UD60x18 newPrizeTokenPerShare
-    ) = _computeNewDistributions(
-        numTiers,
-        _nextNumberOfTiers,
-        _prizeTokenPerShareUD60x18,
-        _prizeTokenLiquidity
-      );
+    (uint96 newReserve, UD60x18 newPrizeTokenPerShare) = _computeNewDistributions(
+      numTiers,
+      _nextNumberOfTiers,
+      _prizeTokenPerShareUD60x18,
+      _prizeTokenLiquidity
+    );
 
     // need to redistribute to the canary tier and any new tiers (if expanding)
     uint8 start;
@@ -210,7 +214,7 @@ contract TieredLiquidityDistributor {
     }
     for (uint8 i = start; i < end; i++) {
       _tiers[i] = Tier({
-        drawId: closedDrawId,
+        drawId: _awardingDraw,
         prizeTokenPerShare: _prizeTokenPerShare,
         prizeSize: _computePrizeSize(
           i,
@@ -223,16 +227,16 @@ contract TieredLiquidityDistributor {
 
     prizeTokenPerShare = fromUD60x18toUD34x4(newPrizeTokenPerShare);
     numberOfTiers = _nextNumberOfTiers;
-    _lastClosedDrawId = closedDrawId;
+    _lastAwardedDrawId = _awardingDraw;
+    lastAwardedDrawAwardedAt = uint48(block.timestamp);
     _reserve += newReserve;
   }
 
-  /// @notice Computes the liquidity that will be distributed for the next draw given the next number of tiers and prize liquidity.
+  /// @notice Computes the liquidity that will be distributed for the next awarded draw given the next number of tiers and prize liquidity.
   /// @param _numberOfTiers The current number of tiers
   /// @param _nextNumberOfTiers The next number of tiers to use to compute distribution
   /// @param _currentPrizeTokenPerShare The current prize token per share
   /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
-  /// @return closedDrawId The drawId that this is for
   /// @return newReserve The amount of liquidity that will be added to the reserve
   /// @return newPrizeTokenPerShare The new prize token per share
   function _computeNewDistributions(
@@ -240,8 +244,7 @@ contract TieredLiquidityDistributor {
     uint8 _nextNumberOfTiers,
     UD60x18 _currentPrizeTokenPerShare,
     uint256 _prizeTokenLiquidity
-  ) internal view returns (uint24 closedDrawId, uint96 newReserve, UD60x18 newPrizeTokenPerShare) {
-    closedDrawId = _lastClosedDrawId + 1;
+  ) internal view returns (uint96 newReserve, UD60x18 newPrizeTokenPerShare) {
     UD60x18 reclaimedLiquidity;
     {
       // need to redistribute to the canary tier and any new tiers (if expanding)
@@ -308,12 +311,12 @@ contract TieredLiquidityDistributor {
   /// @notice Retrieves an up-to-date Tier struct for the given tier.
   /// @param _tier The tier to retrieve
   /// @param _numberOfTiers The number of tiers, should match the current. Passed explicitly as an optimization
-  /// @return An up-to-date Tier struct; if the prize is outdated then it is recomputed based on available liquidity and the draw id updated.
+  /// @return An up-to-date Tier struct; if the prize is outdated then it is recomputed based on available liquidity and the draw ID is updated.
   function _getTier(uint8 _tier, uint8 _numberOfTiers) internal view returns (Tier memory) {
     Tier memory tier = _tiers[_tier];
-    uint24 lastClosedDrawId_ = _lastClosedDrawId;
-    if (tier.drawId != lastClosedDrawId_) {
-      tier.drawId = lastClosedDrawId_;
+    uint24 lastAwardedDrawId_ = _lastAwardedDrawId;
+    if (tier.drawId != lastAwardedDrawId_) {
+      tier.drawId = lastAwardedDrawId_;
       tier.prizeSize = _computePrizeSize(
         _tier,
         _numberOfTiers,
@@ -469,12 +472,6 @@ contract TieredLiquidityDistributor {
       _tierPrizeTokenPerShare.gte(_prizeTokenPerShare)
         ? ud(0)
         : _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(_shares));
-  }
-
-  /// @notice Retrieves the id of the next draw to be closed.
-  /// @return The next draw id
-  function getOpenDrawId() external view returns (uint24) {
-    return _lastClosedDrawId + 1;
   }
 
   /// @notice Estimates the number of prizes for the current number of tiers, including the canary tier

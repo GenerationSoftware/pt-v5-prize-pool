@@ -9,12 +9,11 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
 
   constructor() TieredLiquidityDistributor(3, 100, 10, 365) {}
 
-  function nextDraw(uint8 _nextNumTiers, uint96 liquidity) external {
+  function awardDraw(uint8 _nextNumTiers, uint96 liquidity) external {
     uint8 nextNumTiers = _nextNumTiers / 16; // map to [0, 15]
     nextNumTiers = nextNumTiers < 3 ? 3 : nextNumTiers; // ensure min tiers
     totalAdded += liquidity;
-    // console2.log("nextDraw", nextNumTiers, liquidity);
-    _nextDraw(nextNumTiers, liquidity);
+    _awardDraw(_lastAwardedDrawId + 1, nextNumTiers, liquidity);
   }
 
   function net() external view returns (uint256) {

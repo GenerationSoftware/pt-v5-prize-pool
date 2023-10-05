@@ -17,7 +17,7 @@ contract TierCalculationFuzzHarness is CommonBase {
   uint public winnerCount;
   uint32 public draws;
 
-  function nextDraw(uint256 winningRandomNumber) public returns (uint) {
+  function awardDraw(uint256 winningRandomNumber) public returns (uint) {
     uint drawPrizeCount;
     for (uint8 t = 0; t < numberOfTiers; t++) {
       uint32 prizeCount = uint32(TierCalculationLib.prizeCount(t));

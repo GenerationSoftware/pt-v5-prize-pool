@@ -66,10 +66,8 @@ contract TierCalculationLibTest is Test {
     vm.assume(tier < numberOfTiers);
     uint16 grandPrizePeriod = 365;
     SD59x18 tierOdds = TierCalculationLib.getTierOdds(tier, numberOfTiers, grandPrizePeriod);
-    // console2.log("tierOdds", SD59x18.unwrap(tierOdds));
     uint32 prizeCount = uint32(TierCalculationLib.prizeCount(tier));
     SD59x18 vaultContribution = convert(int256(1));
-    // console2.log("vaultContribution", SD59x18.unwrap(vaultContribution));
 
     uint wins;
     for (uint i = 0; i < prizeCount; i++) {
@@ -95,10 +93,8 @@ contract TierCalculationLibTest is Test {
     vm.assume(tier < numberOfTiers);
     uint16 grandPrizePeriod = 365;
     SD59x18 tierOdds = TierCalculationLib.getTierOdds(tier, numberOfTiers, grandPrizePeriod);
-    // console2.log("tierOdds", SD59x18.unwrap(tierOdds));
     uint32 prizeCount = uint32(TierCalculationLib.prizeCount(tier));
     SD59x18 vaultContribution = convert(int256(1));
-    // console2.log("vaultContribution", SD59x18.unwrap(vaultContribution));
 
     uint wins;
     for (uint i = 0; i < prizeCount; i++) {

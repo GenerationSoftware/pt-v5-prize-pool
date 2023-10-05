@@ -12,7 +12,7 @@ error AddToDrawZero();
 /// @notice Emitted when an action can't be done on a closed draw.
 /// @param drawId The ID of the closed draw
 /// @param newestDrawId The newest draw ID
-error DrawClosed(uint24 drawId, uint24 newestDrawId);
+error DrawAwarded(uint24 drawId, uint24 newestDrawId);
 
 /// @notice Emitted when a draw range is not strictly increasing.
 /// @param startDrawId The start draw ID of the range
@@ -76,7 +76,7 @@ library DrawAccumulatorLib {
     ];
 
     if (_drawId < newestDrawId_) {
-      revert DrawClosed(_drawId, newestDrawId_);
+      revert DrawAwarded(_drawId, newestDrawId_);
     }
 
     mapping(uint256 drawId => Observation observation) storage accumulatorObservations = accumulator
@@ -88,6 +88,14 @@ library DrawAccumulatorLib {
       uint256 remainingAmount = integrateInf(_alpha, relativeDraw, newestObservation_.available);
       uint256 disbursedAmount = integrate(_alpha, 0, relativeDraw, newestObservation_.available);
 
+      uint16 cardinality = ringBufferInfo.cardinality;
+      if (ringBufferInfo.cardinality < MAX_CARDINALITY) {
+        cardinality += 1;
+      } else {
+        // Delete the old observation to save gas (older than 1 year)
+        delete accumulatorObservations[accumulator.drawRingBuffer[ringBufferInfo.nextIndex]];
+      }
+
       accumulator.drawRingBuffer[ringBufferInfo.nextIndex] = _drawId;
       accumulatorObservations[_drawId] = Observation({
         available: SafeCast.toUint96(_amount + remainingAmount),
@@ -98,12 +106,6 @@ library DrawAccumulatorLib {
             (remainingAmount + disbursedAmount)
         )
       });
-
-      uint16 cardinality = ringBufferInfo.cardinality;
-
-      if (ringBufferInfo.cardinality < MAX_CARDINALITY) {
-        cardinality += 1;
-      }
 
       accumulator.ringBufferInfo = RingBufferInfo({
         nextIndex: uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY)),
@@ -143,7 +145,7 @@ library DrawAccumulatorLib {
     ];
 
     if (_startDrawId < newestDrawId_) {
-      revert DrawClosed(_startDrawId, newestDrawId_);
+      revert DrawAwarded(_startDrawId, newestDrawId_);
     }
 
     return
@@ -193,10 +195,10 @@ library DrawAccumulatorLib {
     Pair48 memory drawIds = readDrawIds(_accumulator, indexes);
 
     /**
-            This check intentionally limits the `_endDrawId` to be no more than one draw before the
-            latest observation. This allows us to make assumptions on the value of `lastObservationDrawIdOccurringAtOrBeforeEnd` and removes the need to run a additional
-            binary search to find it.
-         */
+      This check intentionally limits the `_endDrawId` to be no more than one draw before the
+      latest observation. This allows us to make assumptions on the value of `lastObservationDrawIdOccurringAtOrBeforeEnd` and removes the need to run a additional
+      binary search to find it.
+    */
     if (_endDrawId < drawIds.second - 1) {
       revert InvalidDisbursedEndDrawId(_endDrawId);
     }
@@ -205,35 +207,33 @@ library DrawAccumulatorLib {
       return 0;
     }
 
-    /*
+    /**
+      head: residual accrual from observation before start. (if any)
+      body: if there is more than one observations between start and current, then take the past _accumulator diff
+      tail: accrual between the newest observation and current.  if card > 1 there is a tail (almost always)
 
-        head: residual accrual from observation before start. (if any)
-        body: if there is more than one observations between start and current, then take the past _accumulator diff
-        tail: accrual between the newest observation and current.  if card > 1 there is a tail (almost always)
+      let:
+          - s = start draw id
+          - e = end draw id
+          - o = observation
+          - h = "head". residual balance from the last o occurring before s.  head is the disbursed amount between (o, s)
+          - t = "tail". the residual balance from the last o occuring before e.  tail is the disbursed amount between (o, e)
+          - b = "body". if there are *two* observations between s and e we calculate how much was disbursed. body is (last obs disbursed - first obs disbursed)
 
-        let:
-            - s = start draw id
-            - e = end draw id
-            - o = observation
-            - h = "head". residual balance from the last o occurring before s.  head is the disbursed amount between (o, s)
-            - t = "tail". the residual balance from the last o occuring before e.  tail is the disbursed amount between (o, e)
-            - b = "body". if there are *two* observations between s and e we calculate how much was disbursed. body is (last obs disbursed - first obs disbursed)
-
-        total = head + body + tail
+      total = head + body + tail
 
 
-        lastObservationOccurringAtOrBeforeEnd
-        firstObservationOccurringAtOrAfterStart
+      lastObservationOccurringAtOrBeforeEnd
+      firstObservationOccurringAtOrAfterStart
 
-        Like so
+      Like so
 
-           s        e
-        o  <h>  o  <t>  o
+          s        e
+      o  <h>  o  <t>  o
 
-           s                 e
-        o  <h> o   <b>  o  <t>  o
-
-         */
+          s                 e
+      o  <h> o   <b>  o  <t>  o
+    */
 
     uint24 lastObservationDrawIdOccurringAtOrBeforeEnd;
     if (_endDrawId >= drawIds.second) {
@@ -419,12 +419,12 @@ library DrawAccumulatorLib {
   }
 
   /// @notice Binary searches an array of draw ids for the given target draw id.
-  /// @dev The _targetLastClosedDrawId MUST exist in the buffer between _oldestIndex and _newestIndex (inclusive)
+  /// @dev The _targetDrawId MUST exist in the buffer between _oldestIndex and _newestIndex (inclusive)
   /// @param _drawRingBuffer The array of draw ids to search
   /// @param _oldestIndex The oldest index in the ring buffer
   /// @param _newestIndex The newest index in the ring buffer
   /// @param _cardinality The number of items in the ring buffer
-  /// @param _targetLastClosedDrawId The target draw id to search for
+  /// @param _targetDrawId The target draw id to search for
   /// @return beforeOrAtIndex The index of the observation occurring at or before the target draw id
   /// @return beforeOrAtDrawId The draw id of the observation occurring at or before the target draw id
   /// @return afterOrAtIndex The index of the observation occurring at or after the target draw id
@@ -434,7 +434,7 @@ library DrawAccumulatorLib {
     uint16 _oldestIndex,
     uint16 _newestIndex,
     uint16 _cardinality,
-    uint24 _targetLastClosedDrawId
+    uint24 _targetDrawId
   )
     internal
     view
@@ -460,10 +460,10 @@ library DrawAccumulatorLib {
       afterOrAtIndex = uint16(RingBufferLib.nextIndex(currentIndex, _cardinality));
       afterOrAtDrawId = _drawRingBuffer[afterOrAtIndex];
 
-      bool targetAtOrAfter = beforeOrAtDrawId <= _targetLastClosedDrawId;
+      bool targetAtOrAfter = beforeOrAtDrawId <= _targetDrawId;
 
       // Check if we've found the corresponding Observation.
-      if (targetAtOrAfter && _targetLastClosedDrawId <= afterOrAtDrawId) {
+      if (targetAtOrAfter && _targetDrawId <= afterOrAtDrawId) {
         break;
       }
 

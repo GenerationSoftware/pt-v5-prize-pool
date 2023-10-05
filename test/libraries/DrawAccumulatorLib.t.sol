@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 
-import { DrawAccumulatorLib, AddToDrawZero, DrawClosed, InvalidDrawRange, InvalidDisbursedEndDrawId } from "../../src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, AddToDrawZero, DrawAwarded, InvalidDrawRange, InvalidDisbursedEndDrawId, Observation } from "../../src/libraries/DrawAccumulatorLib.sol";
 import { DrawAccumulatorLibWrapper } from "../wrappers/DrawAccumulatorLibWrapper.sol";
 
 contract DrawAccumulatorLibTest is Test {
@@ -37,9 +37,9 @@ contract DrawAccumulatorLibTest is Test {
     add(0);
   }
 
-  function testAdd_emitsDrawCLosed() public {
+  function testAdd_emitsDrawAwarded() public {
     add(4);
-    vm.expectRevert(abi.encodeWithSelector(DrawClosed.selector, 3, 4));
+    vm.expectRevert(abi.encodeWithSelector(DrawAwarded.selector, 3, 4));
     add(3);
   }
 
@@ -75,6 +75,26 @@ contract DrawAccumulatorLibTest is Test {
     assertEq(accumulator.observations[3].available, 281);
   }
 
+  function testAddOne_deleteExpired() public {
+    // set up accumulator as if we had just completed a buffer loop:
+    for (uint16 i = 0; i < 366; i++) {
+      wrapper.add(100, i + 1, alpha);
+      assertEq(wrapper.getCardinality(), i + 1);
+      assertEq(wrapper.getNextIndex(), i == 365 ? 0 : i + 1);
+      assertEq(wrapper.getDrawRingBuffer(i), i + 1);
+      assertGe(wrapper.getObservation(i + 1).available, wrapper.getObservation(i).available);
+    }
+
+    assertEq(wrapper.getCardinality(), 366);
+
+    wrapper.add(200, 367, alpha);
+    assertEq(wrapper.getCardinality(), 366);
+    assertEq(wrapper.getNextIndex(), 1);
+    assertEq(wrapper.getDrawRingBuffer(0), 367);
+    assertGt(wrapper.getObservation(367).available, wrapper.getObservation(366).available);
+    assertEq(wrapper.getObservation(1).available, 0); // deleted draw 1
+  }
+
   function testGetTotalRemaining() public {
     add(1);
 
@@ -87,7 +107,7 @@ contract DrawAccumulatorLibTest is Test {
 
   function testGetTotalRemaining_invalidDraw() public {
     add(4);
-    vm.expectRevert(abi.encodeWithSelector(DrawClosed.selector, 2, 4));
+    vm.expectRevert(abi.encodeWithSelector(DrawAwarded.selector, 2, 4));
     wrapper.getTotalRemaining(2, alpha);
   }
 

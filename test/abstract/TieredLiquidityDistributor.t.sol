@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
-import "forge-std/console2.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { TieredLiquidityDistributorWrapper } from "./helper/TieredLiquidityDistributorWrapper.sol";
@@ -30,9 +29,9 @@ contract TieredLiquidityDistributorTest is Test {
     );
   }
 
-  function testNextDraw_invalid_num_tiers() public {
+  function testAwardDraw_invalid_num_tiers() public {
     vm.expectRevert(abi.encodeWithSelector(NumberOfTiersLessThanMinimum.selector, 1));
-    distributor.nextDraw(1, 100);
+    distributor.awardDraw(1, 100);
   }
 
   function testConstructor_numberOfTiersTooLarge() public {
@@ -46,26 +45,26 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testRemainingTierLiquidity() public {
-    distributor.nextDraw(3, 310e18);
+    distributor.awardDraw(3, 310e18);
     assertEq(distributor.remainingTierLiquidity(0), 100e18);
     assertEq(distributor.remainingTierLiquidity(1), 100e18);
     assertEq(distributor.remainingTierLiquidity(2), 100e18);
   }
 
   function testConsumeLiquidity_partial() public {
-    distributor.nextDraw(3, 310e18);
+    distributor.awardDraw(3, 310e18);
     distributor.consumeLiquidity(1, 50e18); // consume full liq for tier 1
     assertEq(distributor.remainingTierLiquidity(1), 50e18);
   }
 
   function testConsumeLiquidity_full() public {
-    distributor.nextDraw(3, 310e18);
+    distributor.awardDraw(3, 310e18);
     distributor.consumeLiquidity(1, 100e18); // consume full liq for tier 1
     assertEq(distributor.remainingTierLiquidity(1), 0);
   }
 
   function testConsumeLiquidity_and_empty_reserve() public {
-    distributor.nextDraw(3, 310e18); // reserve should be 10e18
+    distributor.awardDraw(3, 310e18); // reserve should be 10e18
     uint256 reserve = distributor.reserve();
     distributor.consumeLiquidity(1, 110e18); // consume full liq for tier 1 and reserve
     assertEq(distributor.remainingTierLiquidity(1), 0);
@@ -74,7 +73,7 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testConsumeLiquidity_and_partial_reserve() public {
-    distributor.nextDraw(3, 310e18); // reserve should be 10e18
+    distributor.awardDraw(3, 310e18); // reserve should be 10e18
     uint256 reserve = distributor.reserve();
     distributor.consumeLiquidity(1, 105e18); // consume full liq for tier 1 and reserve
     assertEq(distributor.remainingTierLiquidity(1), 0);
@@ -83,7 +82,7 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testConsumeLiquidity_insufficient() public {
-    distributor.nextDraw(3, 310e18); // reserve should be 10e18
+    distributor.awardDraw(3, 310e18); // reserve should be 10e18
     vm.expectRevert(abi.encodeWithSelector(InsufficientLiquidity.selector, 120e18));
     distributor.consumeLiquidity(1, 120e18);
   }
@@ -93,45 +92,45 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testGetTierPrizeSize_invalid() public {
-    distributor.nextDraw(3, 310e18);
+    distributor.awardDraw(3, 310e18);
     assertEq(distributor.getTierPrizeSize(4), 0);
   }
 
   function testGetTierPrizeSize_grandPrize() public {
-    distributor.nextDraw(3, 310e18);
+    distributor.awardDraw(3, 310e18);
     assertEq(distributor.getTierPrizeSize(0), 100e18);
   }
 
   function testGetTierPrizeSize_overflow() public {
     distributor = new TieredLiquidityDistributorWrapper(numberOfTiers, tierShares, 0, 365);
 
-    distributor.nextDraw(3, type(uint104).max);
-    distributor.nextDraw(4, type(uint104).max);
-    distributor.nextDraw(5, type(uint104).max);
-    distributor.nextDraw(6, type(uint104).max);
+    distributor.awardDraw(3, type(uint104).max);
+    distributor.awardDraw(4, type(uint104).max);
+    distributor.awardDraw(5, type(uint104).max);
+    distributor.awardDraw(6, type(uint104).max);
 
     assertEq(distributor.getTierPrizeSize(0), type(uint104).max);
   }
 
   function testGetRemainingTierLiquidity() public {
-    distributor.nextDraw(3, 310e18);
+    distributor.awardDraw(3, 310e18);
     assertEq(distributor.getTierRemainingLiquidity(0), 100e18);
   }
 
   function testGetTierRemainingLiquidity() public {
-    distributor.nextDraw(3, 310e18);
+    distributor.awardDraw(3, 310e18);
     assertEq(distributor.getTierRemainingLiquidity(0), 100e18);
   }
 
   function testGetTierRemainingLiquidity_invalid() public {
-    distributor.nextDraw(3, 310e18);
+    distributor.awardDraw(3, 310e18);
     assertEq(distributor.getTierRemainingLiquidity(5), 0);
   }
 
   function testExpansionTierLiquidity() public {
-    distributor.nextDraw(3, 310e18); // canary gets 100e18
+    distributor.awardDraw(3, 310e18); // canary gets 100e18
     assertEq(distributor.getTierRemainingLiquidity(2), 100e18, "canary initial liquidity");
-    distributor.nextDraw(5, 410e18); // should be 510 distributed
+    distributor.awardDraw(5, 410e18); // should be 510 distributed
 
     assertEq(distributor.getTierRemainingLiquidity(3), 100e18, "new tier liquidity");
     assertEq(distributor.getTierRemainingLiquidity(4), 100e18, "canary liquidity");
@@ -140,7 +139,7 @@ contract TieredLiquidityDistributorTest is Test {
   function testExpansionTierLiquidity_max() public {
     uint96 amount = 79228162514264337593543950333;
     // uint96 amount = 100e18;
-    distributor.nextDraw(15, amount);
+    distributor.awardDraw(15, amount);
 
     UD60x18 prizeTokenPerShare = fromUD34x4toUD60x18(distributor.prizeTokenPerShare());
     uint256 total = convert(
@@ -201,7 +200,6 @@ contract TieredLiquidityDistributorTest is Test {
       numTiers++
     ) {
       prizeCount = distributor.estimatedPrizeCount(numTiers);
-      console2.log("estimatedPrizeCount: tier %s count %s", numTiers, prizeCount);
       assertEq(
         distributor.estimateNumberOfTiersUsingPrizeCountPerDraw(prizeCount - 1),
         numTiers,
@@ -276,15 +274,15 @@ contract TieredLiquidityDistributorTest is Test {
     uint96 amount3 = 79228162514264337593543950333;
     uint total = amount1 + amount2 + uint(amount3);
 
-    distributor.nextDraw(3, amount1);
+    distributor.awardDraw(3, amount1);
 
     assertEq(summedLiquidity(), amount1, "after amount1");
 
-    distributor.nextDraw(3, amount2);
+    distributor.awardDraw(3, amount2);
 
     assertEq(summedLiquidity(), amount1 + uint(amount2), "after amount2");
 
-    distributor.nextDraw(15, amount3);
+    distributor.awardDraw(15, amount3);
 
     assertEq(summedLiquidity(), total, "after amount3");
   }
