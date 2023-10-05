@@ -446,7 +446,7 @@ contract PrizePoolTest is Test {
     assertEq(openDrawId, 1);
   }
 
-  function testisDrawFinalized() public {
+  function testIsDrawFinalized() public {
     assertEq(prizePool.isDrawFinalized(1), false);
     awardDraw(12345);
     assertEq(prizePool.isDrawFinalized(1), false);
