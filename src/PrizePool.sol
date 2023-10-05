@@ -634,14 +634,14 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     return _drawIdToAward();
   }
 
-  /// @notice Returns the time at which a draw opens.
+  /// @notice Returns the time at which a draw opens / opened at.
   /// @param drawId The draw to get the timestamp for
   /// @return The start time of the draw in seconds
   function drawOpensAt(uint24 drawId) external view returns (uint48) {
     return _drawOpensAt(drawId);
   }
 
-  /// @notice Returns the time at which a draw closes.
+  /// @notice Returns the time at which a draw closes / closed at.
   /// @param drawId The draw to get the timestamp for
   /// @return The end time of the draw in seconds
   function drawClosesAt(uint24 drawId) external view returns (uint48) {
@@ -821,16 +821,16 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     return (openDrawId_ - _lastAwardedDrawId) > 1 ? openDrawId_ - 1 : openDrawId_;
   }
 
-  /// @notice Returns the time at which given draw opened.
+  /// @notice Returns the time at which a draw opens / opened at.
   /// @param drawId The draw to get the timestamp for
-  /// @return The timestamp at which the given draw opened in seconds
+  /// @return The start time of the draw in seconds
   function _drawOpensAt(uint24 drawId) internal view returns (uint48) {
     return firstDrawOpensAt + (drawId - 1) * drawPeriodSeconds;
   }
 
-  /// @notice Returns the time at which the given draw closed.
+  /// @notice Returns the time at which a draw closes / closed at.
   /// @param drawId The draw to get the timestamp for
-  /// @return The timestamp at which the given draw closed in seconds
+  /// @return The end time of the draw in seconds
   function _drawClosesAt(uint24 drawId) internal view returns (uint48) {
     return firstDrawOpensAt + drawId * drawPeriodSeconds;
   }
