@@ -446,20 +446,20 @@ contract PrizePoolTest is Test {
     assertEq(openDrawId, 1);
   }
 
-  function testIsFinalized() public {
-    assertEq(prizePool.isFinalized(1), false);
+  function testisDrawFinalized() public {
+    assertEq(prizePool.isDrawFinalized(1), false);
     awardDraw(12345);
-    assertEq(prizePool.isFinalized(1), false);
+    assertEq(prizePool.isDrawFinalized(1), false);
     vm.warp(firstDrawOpensAt + drawPeriodSeconds);
-    assertEq(prizePool.isFinalized(1), false);
+    assertEq(prizePool.isDrawFinalized(1), false);
     vm.warp(firstDrawOpensAt + drawPeriodSeconds * 2 - 1);
-    assertEq(prizePool.isFinalized(1), false);
+    assertEq(prizePool.isDrawFinalized(1), false);
     vm.warp(firstDrawOpensAt + drawPeriodSeconds * 2);
-    assertEq(prizePool.isFinalized(1), true);
+    assertEq(prizePool.isDrawFinalized(1), true);
     vm.warp(firstDrawOpensAt + drawPeriodSeconds * 2 + 1);
-    assertEq(prizePool.isFinalized(1), true);
+    assertEq(prizePool.isDrawFinalized(1), true);
     vm.warp(firstDrawOpensAt + drawPeriodSeconds * 2 + 100 days);
-    assertEq(prizePool.isFinalized(1), true);
+    assertEq(prizePool.isDrawFinalized(1), true);
   }
 
   function testAwardDraw_notManager() public {

@@ -437,7 +437,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
      * the reserve from changing while the following draw is being awarded.
      */
     uint24 lastAwardedDrawId_ = _lastAwardedDrawId;
-    if (_isFinalized(lastAwardedDrawId_)) {
+    if (_isDrawFinalized(lastAwardedDrawId_)) {
       revert ClaimPeriodExpired();
     }
     if (_feeRecipient == address(0) && _fee > 0) {
@@ -651,8 +651,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Checks if the given draw is finalized.
   /// @param drawId The draw to check
   /// @return True if the draw is finalized, false otherwise
-  function isFinalized(uint24 drawId) external view returns (bool) {
-    return _isFinalized(drawId);
+  function isDrawFinalized(uint24 drawId) external view returns (bool) {
+    return _isDrawFinalized(drawId);
   }
 
   /// @notice Returns the amount of tokens that will be added to the reserve when next draw to award is awarded.
@@ -838,7 +838,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Checks if the given draw is finalized.
   /// @param drawId The draw to check
   /// @return True if the draw is finalized, false otherwise
-  function _isFinalized(uint24 drawId) internal view returns (bool) {
+  function _isDrawFinalized(uint24 drawId) internal view returns (bool) {
     return block.timestamp >= _drawClosesAt(drawId + 1);
   }
 
