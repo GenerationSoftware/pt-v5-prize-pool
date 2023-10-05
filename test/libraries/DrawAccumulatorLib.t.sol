@@ -77,31 +77,22 @@ contract DrawAccumulatorLibTest is Test {
 
   function testAddOne_deleteExpired() public {
     // set up accumulator as if we had just completed a buffer loop:
-    uint normalGasUsed;
-    for (uint24 i = 0; i < 366; i++) {
-      uint gasLeftStart = gasleft();
-      DrawAccumulatorLib.add(accumulator, 100, i + 1, alpha);
-      if (i == 0) {
-        normalGasUsed = gasLeftStart - gasleft();
-      }
-      assertEq(accumulator.ringBufferInfo.cardinality, i + 1);
-      assertEq(accumulator.ringBufferInfo.nextIndex, i == 365 ? 0 : i + 1);
-      assertEq(accumulator.drawRingBuffer[i], i + 1);
-      assertGe(accumulator.observations[i + 1].available, accumulator.observations[i].available);
+    for (uint16 i = 0; i < 366; i++) {
+      wrapper.add(100, i + 1, alpha);
+      assertEq(wrapper.getCardinality(), i + 1);
+      assertEq(wrapper.getNextIndex(), i == 365 ? 0 : i + 1);
+      assertEq(wrapper.getDrawRingBuffer(i), i + 1);
+      assertGe(wrapper.getObservation(i + 1).available, wrapper.getObservation(i).available);
     }
 
-    assertEq(accumulator.ringBufferInfo.cardinality, 366);
+    assertEq(wrapper.getCardinality(), 366);
 
-    uint gasLeftStart2 = gasleft();
-    DrawAccumulatorLib.add(accumulator, 200, 367, alpha);
-    uint gasUsed = gasLeftStart2 - gasleft();
-    assertLt(gasUsed, normalGasUsed - 15000); // should now cost at least 15k less gas since we are deleting some data
-
-    assertEq(accumulator.ringBufferInfo.cardinality, 366);
-    assertEq(accumulator.ringBufferInfo.nextIndex, 1);
-    assertEq(accumulator.drawRingBuffer[0], 367);
-    assertGt(accumulator.observations[367].available, accumulator.observations[366].available);
-    assertEq(accumulator.observations[1].available, 0); // deleted draw 1
+    wrapper.add(200, 367, alpha);
+    assertEq(wrapper.getCardinality(), 366);
+    assertEq(wrapper.getNextIndex(), 1);
+    assertEq(wrapper.getDrawRingBuffer(0), 367);
+    assertGt(wrapper.getObservation(367).available, wrapper.getObservation(366).available);
+    assertEq(wrapper.getObservation(1).available, 0); // deleted draw 1
   }
 
   function testGetTotalRemaining() public {

@@ -625,14 +625,14 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.numberOfTiers(), startingTiers);
     vm.expectEmit();
-    emit DrawClosed(
+    emit DrawAwarded(
       2,
       4567,
       startingTiers,
       3,
       3448387096774193470 /*reserve from output*/,
       UD34x4.wrap(3448387096774193330000) /*prize tokens per share from output*/,
-      firstDrawStartsAt + drawPeriodSeconds
+      firstDrawOpensAt + drawPeriodSeconds
     );
 
     // award second draw
@@ -671,14 +671,14 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.numberOfTiers(), 3);
     vm.expectEmit();
-    emit DrawClosed(
+    emit DrawAwarded(
       2,
       245,
       3,
       4,
       5612826466581395 /*reserve from output*/,
       UD34x4.wrap(5612826466580940000) /*prize tokens per share from output*/,
-      firstDrawStartsAt + drawPeriodSeconds
+      firstDrawOpensAt + drawPeriodSeconds
     );
     awardDraw(245);
     assertEq(prizePool.numberOfTiers(), 4);
