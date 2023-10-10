@@ -10,18 +10,15 @@
 	path = lib/prb-math
 	url = https://github.com/PaulRBerg/prb-math
 	branch = v4
-[submodule "lib/owner-manager-contracts"]
-	path = lib/owner-manager-contracts
-	url = https://github.com/pooltogether/owner-manager-contracts
 [submodule "lib/ring-buffer-lib"]
 	path = lib/ring-buffer-lib
 	url = https://github.com/GenerationSoftware/ring-buffer-lib
-	branch = prod-deploy-1
+	branch = prod-testnet-2
 [submodule "lib/uniform-random-number"]
 	path = lib/uniform-random-number
 	url = https://github.com/generationsoftware/uniform-random-number
-	branch = prod-deploy-1
+	branch = prod-testnet-2
 [submodule "lib/pt-v5-twab-controller"]
 	path = lib/pt-v5-twab-controller
 	url = https://github.com/generationsoftware/pt-v5-twab-controller
-	branch = prod-deploy-1
+	branch = prod-testnet-2
