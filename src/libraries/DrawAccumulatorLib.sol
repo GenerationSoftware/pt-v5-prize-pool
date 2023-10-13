@@ -163,12 +163,9 @@ library DrawAccumulatorLib {
   }
 
   /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
-  /// This function has an intentional limitation on the value of `_endDrawId` to save gas, but
-  /// prevents historical disbursement queries that end more than one draw before the last
-  /// accumulator observation.
   /// @param _accumulator The accumulator to get the disbursed balance from
   /// @param _startDrawId The start draw id, inclusive
-  /// @param _endDrawId The end draw id, inclusive (limitation: cannot be more than one draw before the last observed draw)
+  /// @param _endDrawId The end draw id, inclusive
   /// @param _alpha The alpha value to use for the exponential weighted average
   /// @return The disbursed balance between the given start and end draw ids, inclusive
   function getDisbursedBetween(
