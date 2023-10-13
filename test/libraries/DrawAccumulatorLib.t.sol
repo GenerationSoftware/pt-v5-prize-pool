@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 
-import { DrawAccumulatorLib, AddToDrawZero, DrawAwarded, InvalidDrawRange, InvalidDisbursedEndDrawId, Observation } from "../../src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, AddToDrawZero, DrawAwarded, InvalidDrawRange, Observation } from "../../src/libraries/DrawAccumulatorLib.sol";
 import { DrawAccumulatorLibWrapper } from "../wrappers/DrawAccumulatorLibWrapper.sol";
 
 contract DrawAccumulatorLibTest is Test {
@@ -120,10 +120,65 @@ contract DrawAccumulatorLibTest is Test {
     getDisbursedBetween(2, 1);
   }
 
-  function testGetDisbursedBetween_invalidEnd() public {
-    add(3);
-    vm.expectRevert(abi.encodeWithSelector(InvalidDisbursedEndDrawId.selector, 1));
-    getDisbursedBetween(1, 1);
+  function testGetDisbursedBetween_endMoreThanOneBeforeLast() public {
+    add(1);
+    add(2);
+    add(4);
+    assertEq(getDisbursedBetween(1, 2), 2900); // end draw ID is more than 2 before last observation (4)
+  }
+
+  function testGetDisbursedBetween_endOneLessThanLast() public {
+    add(1); // 1000
+    add(2); // 1000 + 900
+    // 900 + 810
+    add(4); // 1000 + 810 + 729
+    assertApproxEqAbs(getDisbursedBetween(1, 3), 4610, 1); // end draw ID is 1 before last observation (4)
+  }
+
+  function testGetDisbursedBetween_binarySearchBothStartAndEnd() public {
+    // here we want to test a case where the algorithm must binary search both the start and end observations
+    add(1); // 1000
+    add(2); // 1000 + 900
+    add(3); // 1000 + 900 + 810
+    add(4); // 1000 + 900 + 810 + 729
+    add(5);
+    add(6);
+    assertApproxEqAbs(getDisbursedBetween(3, 4), 6149, 1); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
+  }
+
+  function testGetDisbursedBetween_binarySearchBothStartAndEnd_2ndScenario() public {
+    // here we want to test a case where the algorithm must binary search both the start and end observations
+    add(1); // 1000
+    add(2); // 1000 + 900
+    add(3); // 1000 + 900 + 810
+    add(4); // 1000 + 900 + 810 + 729
+    add(5);
+    add(6);
+    assertApproxEqAbs(getDisbursedBetween(2, 4), 8049, 1); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
+  }
+
+  function testGetDisbursedBetween_binarySearchBothStartAndEnd_3rdScenario() public {
+    // here we want to test a case where the algorithm must binary search both the start and end observations
+    add(1); // 1000
+    add(2); // 1000 + 900
+    add(3); // 1000 + 900 + 810
+    add(4); // 1000 + 900 + 810 + 729
+    add(5); // 1000 + 900 + 810 + 729 + 656
+    add(6);
+    add(7);
+    assertApproxEqAbs(getDisbursedBetween(2, 5), 12144, 2); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
+  }
+
+  function testGetDisbursedBetween_binarySearchBothStartAndEnd_4thScenario() public {
+    // here we want to test a case where the algorithm must binary search both the start and end observations
+    add(1); // 1000
+    add(2); // 1000 + 900
+    // 900 + 810
+    // 810 + 729
+    add(5); // 1000 + 729 + 656
+    add(6);
+    add(7);
+    assertApproxEqAbs(getDisbursedBetween(2, 5), 7534, 2); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
   }
 
   function testGetDisbursedBetween_onOne() public {
