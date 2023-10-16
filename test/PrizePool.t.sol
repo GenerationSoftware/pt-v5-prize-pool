@@ -285,6 +285,14 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.getTotalContributedBetween(1, 1), 1e18);
   }
 
+  function testGetTotalContributedBetween_oneBeforeLastContribution() public {
+    contribute(10e18); // 1
+    awardDraw(12345); // award 1
+    awardDraw(123456); // award 2
+    contribute(10e18); // 3
+    assertApproxEqAbs(prizePool.getTotalContributedBetween(1, 2), 19e17, 1000);
+  }
+
   function testGetContributedBetween() public {
     contribute(10e18);
     assertEq(prizePool.getContributedBetween(address(this), 1, 1), 1e18);

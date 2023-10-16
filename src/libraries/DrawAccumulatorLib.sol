@@ -19,17 +19,13 @@ error DrawAwarded(uint24 drawId, uint24 newestDrawId);
 /// @param endDrawId The end draw ID of the range
 error InvalidDrawRange(uint24 startDrawId, uint24 endDrawId);
 
-/// @notice Emitted when the end draw ID for a disbursed range is invalid (too old).
-/// @param endDrawId The end draw ID for the range
-error InvalidDisbursedEndDrawId(uint24 endDrawId);
-
 struct Observation {
   uint96 available; // track the total amount available as of this Observation
   uint160 disbursed; // track the total accumulated previously
 }
 
 /// @title Draw Accumulator Lib
-/// @author PoolTogether Inc. Team
+/// @author G9 Software Inc.
 /// @notice This contract distributes tokens over time according to an exponential weighted average. Time is divided into discrete "draws", of which each is allocated tokens.
 library DrawAccumulatorLib {
   /// @notice The maximum number of observations that can be recorded.
@@ -167,12 +163,9 @@ library DrawAccumulatorLib {
   }
 
   /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
-  /// This function has an intentional limitation on the value of `_endDrawId` to save gas, but
-  /// prevents historical disbursement queries that end more than one draw before the last
-  /// accumulator observation.
   /// @param _accumulator The accumulator to get the disbursed balance from
   /// @param _startDrawId The start draw id, inclusive
-  /// @param _endDrawId The end draw id, inclusive (limitation: cannot be more than one draw before the last observed draw)
+  /// @param _endDrawId The end draw id, inclusive
   /// @param _alpha The alpha value to use for the exponential weighted average
   /// @return The disbursed balance between the given start and end draw ids, inclusive
   function getDisbursedBetween(
@@ -194,15 +187,6 @@ library DrawAccumulatorLib {
     Pair48 memory indexes = computeIndices(ringBufferInfo);
     Pair48 memory drawIds = readDrawIds(_accumulator, indexes);
 
-    /**
-      This check intentionally limits the `_endDrawId` to be no more than one draw before the
-      latest observation. This allows us to make assumptions on the value of `lastObservationDrawIdOccurringAtOrBeforeEnd` and removes the need to run a additional
-      binary search to find it.
-    */
-    if (_endDrawId < drawIds.second - 1) {
-      revert InvalidDisbursedEndDrawId(_endDrawId);
-    }
-
     if (_endDrawId < drawIds.first) {
       return 0;
     }
@@ -217,7 +201,7 @@ library DrawAccumulatorLib {
           - e = end draw id
           - o = observation
           - h = "head". residual balance from the last o occurring before s.  head is the disbursed amount between (o, s)
-          - t = "tail". the residual balance from the last o occuring before e.  tail is the disbursed amount between (o, e)
+          - t = "tail". the residual balance from the last o occurring before e.  tail is the disbursed amount between (o, e)
           - b = "body". if there are *two* observations between s and e we calculate how much was disbursed. body is (last obs disbursed - first obs disbursed)
 
       total = head + body + tail
@@ -239,11 +223,28 @@ library DrawAccumulatorLib {
     if (_endDrawId >= drawIds.second) {
       // then it must be the end
       lastObservationDrawIdOccurringAtOrBeforeEnd = drawIds.second;
-    } else {
-      // otherwise it must be the previous one
+    } else if (_endDrawId == drawIds.first) {
+      // then it must be the first
+      lastObservationDrawIdOccurringAtOrBeforeEnd = drawIds.first;
+    } else if (_endDrawId == drawIds.second - 1) {
+      // then it must be the one before the end
+      // (we check this case since it is common and we want to avoid the extra binary search)
       lastObservationDrawIdOccurringAtOrBeforeEnd = _accumulator.drawRingBuffer[
         uint16(RingBufferLib.offset(indexes.second, 1, ringBufferInfo.cardinality))
       ];
+    } else {
+      // The last obs before or at end must be between newest and oldest
+      // binary search
+      (, uint24 beforeOrAtDrawId, , uint24 afterOrAtDrawId) = binarySearch(
+        _accumulator.drawRingBuffer,
+        uint16(indexes.first),
+        uint16(indexes.second),
+        ringBufferInfo.cardinality,
+        _endDrawId
+      );
+      lastObservationDrawIdOccurringAtOrBeforeEnd = afterOrAtDrawId == _endDrawId
+        ? afterOrAtDrawId
+        : beforeOrAtDrawId;
     }
 
     uint24 observationDrawIdBeforeOrAtStart;
@@ -309,7 +310,7 @@ library DrawAccumulatorLib {
         atOrAfterStart.disbursed;
     }
 
-    total += _computeTail(
+    total += computeTail(
       _accumulator,
       _startDrawId,
       _endDrawId,
@@ -326,7 +327,7 @@ library DrawAccumulatorLib {
   /// @param _endDrawId The end draw id, inclusive
   /// @param _lastObservationDrawIdOccurringAtOrBeforeEnd The last observation draw id occurring at or before the end draw id
   /// @return The total balance of the tail of the range.
-  function _computeTail(
+  function computeTail(
     Accumulator storage accumulator,
     uint24 _startDrawId,
     uint24 _endDrawId,
@@ -419,7 +420,7 @@ library DrawAccumulatorLib {
   }
 
   /// @notice Binary searches an array of draw ids for the given target draw id.
-  /// @dev The _targetDrawId MUST exist in the buffer between _oldestIndex and _newestIndex (inclusive)
+  /// @dev The _targetDrawId MUST exist between the range of draws at _oldestIndex and _newestIndex (inclusive)
   /// @param _drawRingBuffer The array of draw ids to search
   /// @param _oldestIndex The oldest index in the ring buffer
   /// @param _newestIndex The newest index in the ring buffer
