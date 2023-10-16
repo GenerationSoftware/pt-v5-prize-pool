@@ -776,7 +776,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint24 _startDrawId,
     uint24 _endDrawId
   ) external view returns (SD59x18) {
-    return _getVaultPortion(_vault, _startDrawId, _endDrawId, smoothing.intoSD59x18());
+    return _getVaultPortion(_vault, _startDrawId, _endDrawId);
   }
 
   /**
@@ -976,8 +976,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       SafeCast.toUint24(
         drawDuration > lastAwardedDrawId_ ? 1 : lastAwardedDrawId_ - drawDuration + 1
       ),
-      lastAwardedDrawId_,
-      smoothing.intoSD59x18()
+      lastAwardedDrawId_
     );
   }
 
@@ -1016,15 +1015,14 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
    * @param _vault The address of the vault for which to calculate the portion.
    * @param _startDrawId The starting draw ID (inclusive) of the draw range to calculate the contribution portion for.
    * @param _endDrawId The ending draw ID (inclusive) of the draw range to calculate the contribution portion for.
-   * @param _smoothing The smoothing value to use for calculating the portion.
    * @return The portion of the vault's contribution to the prize pool over the specified duration in draws.
    */
   function _getVaultPortion(
     address _vault,
     uint24 _startDrawId,
-    uint24 _endDrawId,
-    SD59x18 _smoothing
+    uint24 _endDrawId
   ) internal view returns (SD59x18) {
+    SD59x18 _smoothing = smoothing.intoSD59x18();
     uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(
       _totalAccumulator,
       _startDrawId,
