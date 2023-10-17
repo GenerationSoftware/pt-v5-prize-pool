@@ -1438,7 +1438,10 @@ contract PrizePoolTest is Test {
   }
 
   function mockTwab(address _vault, address _account, uint8 _tier) public {
-    (uint48 startTime, uint48 endTime) = prizePool.calculateTierTwabTimestamps(_tier);
+    uint48 endTime = prizePool.drawClosesAt(prizePool.getLastAwardedDrawId());
+    uint48 startTime = uint48(
+      endTime - prizePool.getTierAccrualDurationInDraws(_tier) * drawPeriodSeconds
+    );
     mockTwab(_vault, _account, startTime, endTime);
   }
 }
