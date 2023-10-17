@@ -14,20 +14,20 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
   PrizePool public prizePool;
   ERC20Mintable public token;
 
-  uint public contributed;
-  uint public withdrawn;
-  uint public claimed;
+  uint256 public contributed;
+  uint256 public withdrawn;
+  uint256 public claimed;
 
   address claimer;
 
-  uint currentTime;
+  uint256 currentTime;
 
   constructor() {
     vm.warp(365 days);
 
     claimer = makeAddr("claimer");
     address drawManager = address(this);
-    uint32 drawPeriodSeconds = 1 hours;
+    uint48 drawPeriodSeconds = 1 hours;
     currentTime = block.timestamp;
     uint48 awardDrawStartsAt = uint48(currentTime);
     uint8 numberOfTiers = 3;
@@ -93,7 +93,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
           prizePool.isWinner(address(this), address(this), i, p) &&
           !prizePool.wasClaimed(address(this), address(this), i, p)
         ) {
-          uint prizeSize = prizePool.getTierPrizeSize(i);
+          uint256 prizeSize = prizePool.getTierPrizeSize(i);
           if (prizeSize > 0) {
             claimed += prizePool.claimPrize(
               address(this),

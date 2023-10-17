@@ -109,7 +109,7 @@ error ClaimPeriodExpired();
 struct ConstructorParams {
   IERC20 prizeToken;
   TwabController twabController;
-  uint32 drawPeriodSeconds;
+  uint48 drawPeriodSeconds;
   uint48 firstDrawOpensAt;
   SD1x18 smoothing;
   uint24 grandPrizePeriodDraws;
@@ -230,7 +230,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   address public drawManager;
 
   /// @notice The number of seconds between draws.
-  uint32 public immutable drawPeriodSeconds;
+  uint48 public immutable drawPeriodSeconds;
 
   /// @notice The timestamp at which the first draw will open.
   uint48 public immutable firstDrawOpensAt;
@@ -975,9 +975,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     address _user,
     uint256 _drawDuration
   ) internal view returns (uint256 twab, uint256 twabTotalSupply) {
-    uint32 _drawPeriodSeconds = drawPeriodSeconds;
     uint48 _endTimestamp = _drawClosesAt(_lastAwardedDrawId);
-    uint48 _durationSeconds = SafeCast.toUint48(_drawDuration * _drawPeriodSeconds);
+    uint48 _durationSeconds = SafeCast.toUint48(_drawDuration * drawPeriodSeconds);
     uint48 _startTimestamp = _endTimestamp > _durationSeconds
       ? _endTimestamp - _durationSeconds
       : 0;
