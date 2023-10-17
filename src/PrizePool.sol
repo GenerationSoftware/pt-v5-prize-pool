@@ -730,25 +730,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       );
   }
 
-  /***
-   * @notice Calculates the start and end timestamps of the time-weighted average balance (TWAB) for the specified tier.
-   * @param _tier The tier for which to calculate the TWAB timestamps.
-   * @return The start and end timestamps of the TWAB.
-   */
-  function calculateTierTwabTimestamps(
-    uint8 _tier
-  ) external view returns (uint48 startTimestamp, uint48 endTimestamp) {
-    uint8 _numberOfTiers = numberOfTiers;
-    _checkValidTier(_tier, _numberOfTiers);
-
-    endTimestamp = _drawClosesAt(_lastAwardedDrawId);
-    startTimestamp = uint48(
-      endTimestamp -
-        TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, _numberOfTiers)) *
-        drawPeriodSeconds
-    );
-  }
-
   /**
    * @notice Returns the time-weighted average balance (TWAB) and the TWAB total supply for the specified user in the given vault over a specified period.
    * @param _vault The address of the vault for which to get the TWAB.
