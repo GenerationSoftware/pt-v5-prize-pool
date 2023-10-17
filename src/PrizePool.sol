@@ -245,10 +245,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   uint32 public claimCount;
 
   /// @notice The total amount of prize tokens that have been claimed for all time.
-  uint160 internal _totalWithdrawn;
+  uint128 internal _totalWithdrawn;
 
   /// @notice Tracks reserve that was contributed directly to the reserve. Always increases.
-  uint192 internal _directlyContributedReserve;
+  uint96 internal _directlyContributedReserve;
 
   /* ============ Constructor ============ */
 
@@ -504,7 +504,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
     // co-locate to save gas
     claimCount++;
-    _totalWithdrawn = SafeCast.toUint160(_totalWithdrawn + amount);
+    _totalWithdrawn = SafeCast.toUint128(_totalWithdrawn + amount);
 
     emit ClaimedPrize(
       msg.sender,
@@ -795,7 +795,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     Observation memory obs = _totalAccumulator.observations[
       DrawAccumulatorLib.newestDrawId(_totalAccumulator)
     ];
-    return (obs.available + obs.disbursed) + _directlyContributedReserve - _totalWithdrawn;
+    return (obs.available + obs.disbursed) + uint256(_directlyContributedReserve) - uint256(_totalWithdrawn);
   }
 
   /// @notice Returns the open draw ID based on the current block timestamp.
@@ -892,7 +892,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
    * @param _amount The amount to transfer
    */
   function _transfer(address _to, uint256 _amount) internal {
-    _totalWithdrawn = SafeCast.toUint160(_totalWithdrawn + _amount);
+    _totalWithdrawn = SafeCast.toUint128(_totalWithdrawn + _amount);
     prizeToken.safeTransfer(_to, _amount);
   }
 
