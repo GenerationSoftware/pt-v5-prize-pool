@@ -13,12 +13,12 @@
 [submodule "lib/ring-buffer-lib"]
 	path = lib/ring-buffer-lib
 	url = https://github.com/GenerationSoftware/ring-buffer-lib
-	branch = prod-testnet-2
+	branch = prod-testnet-3
 [submodule "lib/uniform-random-number"]
 	path = lib/uniform-random-number
 	url = https://github.com/generationsoftware/uniform-random-number
-	branch = prod-testnet-2
+	branch = prod-testnet-3
 [submodule "lib/pt-v5-twab-controller"]
 	path = lib/pt-v5-twab-controller
 	url = https://github.com/generationsoftware/pt-v5-twab-controller
-	branch = prod-testnet-2
+	branch = prod-testnet-3
