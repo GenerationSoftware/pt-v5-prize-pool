@@ -76,7 +76,7 @@ contract PrizePoolTest is Test {
 
     prizeToken = new ERC20Mintable("PoolTogether POOL token", "POOL");
     drawPeriodSeconds = 1 days;
-    twabController = new TwabController(drawPeriodSeconds, uint32(block.timestamp));
+    twabController = new TwabController(uint32(drawPeriodSeconds), uint32(block.timestamp));
 
     firstDrawOpensAt = uint48(block.timestamp + 1 days); // set draw start 1 day into future
     initialNumberOfTiers = 3;
