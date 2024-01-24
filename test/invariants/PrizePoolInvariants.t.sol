@@ -12,22 +12,16 @@ contract PrizePoolInvariants is Test {
   function setUp() external {
     prizePoolHarness = new PrizePoolFuzzHarness();
 
-    bytes4[] memory selectors = new bytes4[](6);
-    selectors[0] = prizePoolHarness.contributePrizeTokens.selector;
-    selectors[1] = prizePoolHarness.contributeReserve.selector;
-    selectors[2] = prizePoolHarness.allocateRewardFromReserve.selector;
-    selectors[3] = prizePoolHarness.withdrawClaimReward.selector;
-    selectors[4] = prizePoolHarness.claimPrizes.selector;
-    selectors[5] = prizePoolHarness.awardDraw.selector;
-    targetSelector(FuzzSelector({ addr: address(prizePoolHarness), selectors: selectors }));
     targetContract(address(prizePoolHarness));
   }
 
-  function invariant_balance_equals_accountedBalance() external {
+  function invariant_balance_equals_accounted() external {
     uint balance = prizePoolHarness.token().balanceOf(address(prizePoolHarness.prizePool()));
+    uint accounted = prizePoolHarness.prizePool().accountedBalance();
+
     assertEq(
       balance,
-      prizePoolHarness.prizePool().accountedBalance(),
+      accounted,
       "balance does not match accountedBalance"
     );
   }
