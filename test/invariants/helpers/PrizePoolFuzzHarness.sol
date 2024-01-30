@@ -23,17 +23,17 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
   uint256 currentTime;
 
   constructor() {
-    vm.warp(365 days);
-
+    currentTime = 365 days;
     claimer = makeAddr("claimer");
     address drawManager = address(this);
     uint48 drawPeriodSeconds = 1 hours;
-    currentTime = block.timestamp;
     uint48 awardDrawStartsAt = uint48(currentTime);
     uint8 numberOfTiers = 3;
     uint8 tierShares = 100;
     uint8 reserveShares = 10;
     SD1x18 smoothing = SD1x18.wrap(0.9e18);
+    
+    vm.warp(currentTime);
 
     token = new ERC20Mintable("name", "SYMBOL");
     TwabController twabController = new TwabController(
@@ -54,6 +54,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
       tierShares,
       reserveShares
     );
+    vm.startPrank(address(this));
     prizePool = new PrizePool(params);
     prizePool.setDrawManager(drawManager);
   }
@@ -109,10 +110,11 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     }
   }
 
-  function awardDraw() public {
+  function awardDraw() public warp {
     uint256 drawToAwardClosesAt = prizePool.drawClosesAt(prizePool.getDrawIdToAward());
     currentTime = drawToAwardClosesAt;
     vm.warp(currentTime);
+    // vm.startPrank(address(this));
     prizePool.awardDraw(uint256(keccak256(abi.encode(block.timestamp))));
   }
 
