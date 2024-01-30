@@ -625,8 +625,13 @@ contract PrizePoolTest is Test {
 
     contribute(510e18);
 
-    assertEq(prizePool.estimateNextNumberOfTiers(), 3, "will reduce to 3");
+    assertEq(prizePool.estimateNextNumberOfTiers(), 4, "will reduce to 4");
 
+    // first draw (same num tiers)
+    // total for first draw = 0.1 * 510e18 = 51e18
+    // 5th tier (canary tier) = (100/510)*51e18 = 10e18
+    // 4th tier (daily tier) = (100/510)*51.18 = 10e18
+    // reserve = 51e18 * (10 / 510) = 1e18
     awardDraw(1234);
 
     assertEq(prizePool.reserve(), 1e18, "reserve after first draw");
@@ -637,16 +642,20 @@ contract PrizePoolTest is Test {
       2,
       4567,
       startingTiers,
-      3,
-      3448387096774193470 /*reserve from output*/,
-      UD34x4.wrap(3448387096774193330000) /*prize tokens per share from output*/,
+      4, // change is limited to 1 tier
+      2607317073170731770 /*reserve from output*/,
+      UD34x4.wrap(2607317073170731540000) /*prize tokens per share from output*/,
       firstDrawOpensAt + drawPeriodSeconds
     );
 
     // award second draw
+    // reclaimed tiers: 10e18 + 10e18 = 20e18
+    // liquidity for second draw = 0.1 * (510e18 - 51e18) + 20e18 = 65.9e18
+    // reserve for second draw = 65.9e18 * (10 / 410) = 1607317073170731800
+    // total reserve = 1e18 + 1607317073170731800 = 2607317073170732000
     awardDraw(4567);
 
-    assertEq(prizePool.numberOfTiers(), 3, "number of tiers");
+    assertEq(prizePool.numberOfTiers(), 4, "number of tiers");
 
     // two tiers + canary tier = 30e18
     // total liquidity for second draw is 45.9e18
@@ -654,7 +663,7 @@ contract PrizePoolTest is Test {
     // reserve for second draw = (10/310)*75.9e18 = 2.445e18
     // total reserve = 3.445e18
 
-    assertEq(prizePool.reserve(), 3.44838709677419347e18, "size of reserve");
+    assertEq(prizePool.reserve(), 2607317073170731770, "size of reserve");
   }
 
   function testAwardDraw_expandingTiers() public {
@@ -1003,19 +1012,26 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.computeNextNumberOfTiers(24), 4);
   }
 
-  function testComputeNextNumberOfTiers_beyondMinimum() public {
+  function testComputeNextNumberOfTiers_beyondMinimum_maxIncreaseBy1() public {
     // canary prizes were taken for tier 4!
-    assertEq(prizePool.computeNextNumberOfTiers(80), 5);
+    // should crank up to 5, but limit increasee to 1
+    assertEq(prizePool.computeNextNumberOfTiers(80), 4);
   }
 
-  function testComputeNextNumberOfTiers_beyondMinimum_bigDeviation() public {
+  function testComputeNextNumberOfTiers_beyondMinimum_bigDeviation_maxIncreaseBy1() public {
     // half the canary prizes were taken
-    assertEq(prizePool.computeNextNumberOfTiers(150), 5);
+    assertEq(prizePool.computeNextNumberOfTiers(150), 4);
   }
 
-  function testComputeNextNumberOfTiers_beyondMinimum_nextLevelUp() public {
+  function testComputeNextNumberOfTiers_beyondMinimum_nextLevelUp_maxIncreaseBy1() public {
     // half the canary prizes were taken
-    assertEq(prizePool.computeNextNumberOfTiers(200), 6);
+    assertEq(prizePool.computeNextNumberOfTiers(200), 4);
+  }
+
+  function testComputeNextNumberOfTiers_drop_maxDecreaseBy1() public {
+    params.numberOfTiers = 5;
+    prizePool = new PrizePool(params);
+    assertEq(prizePool.computeNextNumberOfTiers(0), 4);
   }
 
   function testClaimPrize_secondTier_claimTwice() public {

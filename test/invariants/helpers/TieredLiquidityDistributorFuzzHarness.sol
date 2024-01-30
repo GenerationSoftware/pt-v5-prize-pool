@@ -27,7 +27,6 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
       Tier memory tier = _getTier(i, numberOfTiers);
       availableLiquidity += convert(
         _getTierRemainingLiquidity(
-          tierShares,
           fromUD34x4toUD60x18(tier.prizeTokenPerShare),
           fromUD34x4toUD60x18(prizeTokenPerShare)
         )
@@ -43,11 +42,9 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
     uint8 tier = _tier % numberOfTiers;
 
     Tier memory tier_ = _getTier(tier, numberOfTiers);
-    uint8 shares = tierShares;
     uint104 liq = uint104(
       convert(
         _getTierRemainingLiquidity(
-          shares,
           fromUD34x4toUD60x18(tier_.prizeTokenPerShare),
           fromUD34x4toUD60x18(prizeTokenPerShare)
         )
