@@ -240,7 +240,8 @@ contract PrizePoolTest is Test {
 
     // new liq + reclaimed canary
     uint256 draw2Liquidity = 8999999999999998700;
-    uint256 reclaimedLiquidity = (TIER_SHARES * firstPrizesPerShare);
+    // reclaim from two tiers
+    uint256 reclaimedLiquidity = (2 * TIER_SHARES * firstPrizesPerShare);
     uint256 newLiquidity = draw2Liquidity + reclaimedLiquidity;
     uint256 newPrizesPerShare = newLiquidity / prizePool.getTotalShares();
     uint256 remainder = newLiquidity - newPrizesPerShare * prizePool.getTotalShares();
@@ -643,27 +644,16 @@ contract PrizePoolTest is Test {
       4567,
       startingTiers,
       4, // change is limited to 1 tier
-      2607317073170731770 /*reserve from output*/,
-      UD34x4.wrap(2607317073170731540000) /*prize tokens per share from output*/,
+      2851219512195122170 /*reserve from output*/,
+      UD34x4.wrap(2851219512195121780000) /*prize tokens per share from output*/,
       firstDrawOpensAt + drawPeriodSeconds
     );
 
-    // award second draw
-    // reclaimed tiers: 10e18 + 10e18 = 20e18
-    // liquidity for second draw = 0.1 * (510e18 - 51e18) + 20e18 = 65.9e18
-    // reserve for second draw = 65.9e18 * (10 / 410) = 1607317073170731800
-    // total reserve = 1e18 + 1607317073170731800 = 2607317073170732000
     awardDraw(4567);
 
     assertEq(prizePool.numberOfTiers(), 4, "number of tiers");
 
-    // two tiers + canary tier = 30e18
-    // total liquidity for second draw is 45.9e18
-    // new liquidity for second draw = 75.9e18
-    // reserve for second draw = (10/310)*75.9e18 = 2.445e18
-    // total reserve = 3.445e18
-
-    assertEq(prizePool.reserve(), 2607317073170731770, "size of reserve");
+    assertEq(prizePool.reserve(), 2851219512195122170, "size of reserve");
   }
 
   function testAwardDraw_expandingTiers() public {

@@ -203,13 +203,13 @@ contract TieredLiquidityDistributor {
     // need to redistribute to the canary tier and any new tiers (if expanding)
     uint8 start;
     uint8 end;
-    // if we are expanding, need to reset the canary tier and all of the new tiers
+    // if we are expanding, need to reset the daily tier, canary tier and all of the new tiers
     if (_nextNumberOfTiers > numTiers) {
-      start = numTiers - 1;
+      start = numTiers - 2;
       end = _nextNumberOfTiers;
     } else {
-      // just reset the canary tier
-      start = _nextNumberOfTiers - 1;
+      // just reset the daily and canary tiers
+      start = _nextNumberOfTiers - 2;
       end = _nextNumberOfTiers;
     }
     for (uint8 i = start; i < end; i++) {
@@ -252,11 +252,11 @@ contract TieredLiquidityDistributor {
       uint8 end;
       // if we are shrinking, we need to reclaim including the new canary tier
       if (_nextNumberOfTiers < _numberOfTiers) {
-        start = _nextNumberOfTiers - 1;
+        start = _nextNumberOfTiers - 2;
         end = _numberOfTiers;
       } else {
         // just reset the canary tier
-        start = _numberOfTiers - 1;
+        start = _numberOfTiers - 2;
         end = _numberOfTiers;
       }
       for (uint8 i = start; i < end; i++) {

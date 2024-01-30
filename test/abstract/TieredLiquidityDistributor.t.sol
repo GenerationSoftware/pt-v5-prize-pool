@@ -35,15 +35,32 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testAwardDraw_liquidity_shrinkTiers1() public {
-    distributor.awardDraw(5, 100e18);
-    distributor.awardDraw(4, 100e18);
-    assertEq(_computeLiquidity(), 200e18);
+    distributor.awardDraw(5, 510e18); // will reclaim 3 tiers
+    distributor.awardDraw(4, 110e18);
+
+    assertEq(distributor.remainingTierLiquidity(0), 200e18);
+    assertEq(distributor.remainingTierLiquidity(1), 200e18);
+    assertEq(distributor.remainingTierLiquidity(2), 100e18);
+    assertEq(distributor.remainingTierLiquidity(3), 100e18);
+    assertEq(distributor.remainingTierLiquidity(4), 0);
+    assertEq(distributor.reserve(), 20e18);
+
+    assertEq(_computeLiquidity(), 620e18);
   }
 
   function testAwardDraw_liquidity_shrinkTiers2() public {
-    distributor.awardDraw(5, 100e18);
-    distributor.awardDraw(3, 100e18);
-    assertEq(_computeLiquidity(), 200e18);
+    distributor.awardDraw(7, 710e18); // will reclaim 4 tiers: (3,4,5,6)
+    distributor.awardDraw(5, 110e18);
+
+    assertEq(distributor.remainingTierLiquidity(0), 200e18);
+    assertEq(distributor.remainingTierLiquidity(1), 200e18);
+    assertEq(distributor.remainingTierLiquidity(2), 200e18);
+    assertEq(distributor.remainingTierLiquidity(3), 100e18);
+    assertEq(distributor.remainingTierLiquidity(4), 100e18);
+    assertEq(distributor.remainingTierLiquidity(5), 0);
+    assertEq(distributor.reserve(), 20e18);
+
+    assertEq(_computeLiquidity(), 820e18);
   }
 
   function testAwardDraw_liquidity_sameTiers() public {
@@ -159,11 +176,20 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testExpansionTierLiquidity() public {
     distributor.awardDraw(3, 310e18); // canary gets 100e18
-    assertEq(distributor.getTierRemainingLiquidity(2), 100e18, "canary initial liquidity");
-    distributor.awardDraw(5, 410e18); // should be 510 distributed
+    assertEq(distributor.getTierRemainingLiquidity(0), 100e18, "grand prize liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(1), 100e18, "tier 1 liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(2), 100e18, "canary liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(3), 0, "last tier");
+    assertEq(distributor.reserve(), 10e18, "reserve");
 
-    assertEq(distributor.getTierRemainingLiquidity(3), 100e18, "new tier liquidity");
-    assertEq(distributor.getTierRemainingLiquidity(4), 100e18, "canary liquidity");
+    // 200e18 will be reclaimed from tier 1 and canary
+    distributor.awardDraw(4, 210e18); // total will be 200e18 + 210e18 = 410e18
+
+    assertEq(distributor.getTierRemainingLiquidity(0), 200e18, "grand prize liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(1), 100e18, "tier 1 liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(2), 100e18, "tier 2 liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(3), 100e18, "tier 3 liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(4), 0, "last tier out");
   }
 
   function testExpansionTierLiquidity_max() public {
