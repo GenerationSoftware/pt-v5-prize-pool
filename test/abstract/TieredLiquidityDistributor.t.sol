@@ -76,9 +76,18 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testAwardDraw_liquidity_growTiers2() public {
-    distributor.awardDraw(5, 100e18);
-    distributor.awardDraw(7, 100e18);
-    assertEq(_computeLiquidity(), 200e18);
+    distributor.awardDraw(5, 510e18); // will reclaim canary + 100e18
+    distributor.awardDraw(7, 610e18);
+
+    assertEq(distributor.remainingTierLiquidity(0), 200e18, "old tier continues to accrue");
+    assertEq(distributor.remainingTierLiquidity(1), 200e18, "old tier continues to accrue");
+    assertEq(distributor.remainingTierLiquidity(2), 200e18, "old tier continues to accrue");
+    assertEq(distributor.remainingTierLiquidity(3), 200e18, "old tier continues to accrue");
+    assertEq(distributor.remainingTierLiquidity(4), 100e18, "old canary gets reclaimed");
+    assertEq(distributor.remainingTierLiquidity(5), 100e18, "new tier who dis");
+    assertEq(distributor.remainingTierLiquidity(6), 100e18, "new tier who dis");
+
+    assertEq(_computeLiquidity(), 1120e18);
   }
 
   function testConstructor_numberOfTiersTooLarge() public {
@@ -183,10 +192,10 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.reserve(), 10e18, "reserve");
 
     // 200e18 will be reclaimed from tier 1 and canary
-    distributor.awardDraw(4, 210e18); // total will be 200e18 + 210e18 = 410e18
+    distributor.awardDraw(4, 310e18); // total will be 200e18 + 210e18 = 410e18
 
     assertEq(distributor.getTierRemainingLiquidity(0), 200e18, "grand prize liquidity");
-    assertEq(distributor.getTierRemainingLiquidity(1), 100e18, "tier 1 liquidity");
+    assertEq(distributor.getTierRemainingLiquidity(1), 200e18, "tier 1 liquidity");
     assertEq(distributor.getTierRemainingLiquidity(2), 100e18, "tier 2 liquidity");
     assertEq(distributor.getTierRemainingLiquidity(3), 100e18, "tier 3 liquidity");
     assertEq(distributor.getTierRemainingLiquidity(4), 0, "last tier out");
