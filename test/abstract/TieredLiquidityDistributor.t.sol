@@ -34,6 +34,36 @@ contract TieredLiquidityDistributorTest is Test {
     distributor.awardDraw(1, 100);
   }
 
+  function testAwardDraw_liquidity_shrinkTiers1() public {
+    distributor.awardDraw(5, 100e18);
+    distributor.awardDraw(4, 100e18);
+    assertEq(_computeLiquidity(), 200e18);
+  }
+
+  function testAwardDraw_liquidity_shrinkTiers2() public {
+    distributor.awardDraw(5, 100e18);
+    distributor.awardDraw(3, 100e18);
+    assertEq(_computeLiquidity(), 200e18);
+  }
+
+  function testAwardDraw_liquidity_sameTiers() public {
+    distributor.awardDraw(5, 100e18);
+    distributor.awardDraw(5, 100e18);
+    assertEq(_computeLiquidity(), 200e18);
+  }
+
+  function testAwardDraw_liquidity_growTiers1() public {
+    distributor.awardDraw(5, 100e18);
+    distributor.awardDraw(6, 100e18);
+    assertEq(_computeLiquidity(), 200e18);
+  }
+
+  function testAwardDraw_liquidity_growTiers2() public {
+    distributor.awardDraw(5, 100e18);
+    distributor.awardDraw(7, 100e18);
+    assertEq(_computeLiquidity(), 200e18);
+  }
+
   function testConstructor_numberOfTiersTooLarge() public {
     vm.expectRevert(abi.encodeWithSelector(NumberOfTiersGreaterThanMaximum.selector, 16));
     new TieredLiquidityDistributorWrapper(16, tierShares, reserveShares, 365);
@@ -294,5 +324,19 @@ contract TieredLiquidityDistributorTest is Test {
     }
     summed += distributor.reserve();
     return summed;
+  }
+
+  function _computeLiquidity() internal view returns (uint256) {
+    uint256 liquidity = _getTierLiquidity(distributor.numberOfTiers(), fromUD34x4toUD60x18(distributor.prizeTokenPerShare()));
+    liquidity += distributor.reserve();
+    return liquidity;
+  }
+
+  function _getTierLiquidity(uint8 _numberOfTiers, UD60x18 _prizeTokenPerShare) internal view returns (uint256) {
+    uint256 liquidity = 0;
+    for (uint8 i = 0; i < _numberOfTiers; i++) {
+      liquidity += distributor.getTierRemainingLiquidity(i, _prizeTokenPerShare);
+    }
+    return liquidity;
   }
 }

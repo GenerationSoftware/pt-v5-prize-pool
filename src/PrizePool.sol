@@ -838,7 +838,15 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @return The estimated number of tiers + the canary tier
   function _computeNextNumberOfTiers(uint32 _claimCount) internal view returns (uint8) {
     // claimCount is expected to be the estimated number of claims for the current prize tier.
-    return _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount) + 1;
+    uint8 nextNumberOfTiers = _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount) + 1;
+    // limit change to 1 tier
+    uint8 _numTiers = numberOfTiers;
+    if (nextNumberOfTiers > _numTiers) {
+      nextNumberOfTiers = _numTiers + 1;
+    } else if (nextNumberOfTiers < _numTiers) {
+      nextNumberOfTiers = _numTiers - 1;
+    }
+    return nextNumberOfTiers;
   }
 
   /// @notice Calculates the number of tiers given the number of prize claims

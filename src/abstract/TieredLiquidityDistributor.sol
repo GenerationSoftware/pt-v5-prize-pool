@@ -250,7 +250,6 @@ contract TieredLiquidityDistributor {
       // need to redistribute to the canary tier and any new tiers (if expanding)
       uint8 start;
       uint8 end;
-      uint8 shares = tierShares;
       // if we are shrinking, we need to reclaim including the new canary tier
       if (_nextNumberOfTiers < _numberOfTiers) {
         start = _nextNumberOfTiers - 1;
@@ -263,7 +262,6 @@ contract TieredLiquidityDistributor {
       for (uint8 i = start; i < end; i++) {
         reclaimedLiquidity = reclaimedLiquidity.add(
           _getTierRemainingLiquidity(
-            shares,
             fromUD34x4toUD60x18(_tiers[i].prizeTokenPerShare),
             _currentPrizeTokenPerShare
           )
@@ -350,7 +348,6 @@ contract TieredLiquidityDistributor {
     uint104 remainingLiquidity = SafeCast.toUint104(
       convert(
         _getTierRemainingLiquidity(
-          _shares,
           fromUD34x4toUD60x18(_tierStruct.prizeTokenPerShare),
           fromUD34x4toUD60x18(prizeTokenPerShare)
         )
@@ -443,35 +440,42 @@ contract TieredLiquidityDistributor {
   /// @notice Computes the remaining liquidity available to a tier.
   /// @param _tier The tier to compute the liquidity for
   /// @return The remaining liquidity
-  function getTierRemainingLiquidity(uint8 _tier) external view returns (uint256) {
-    uint8 _numTiers = numberOfTiers;
+  function getTierRemainingLiquidity(uint8 _tier) public view returns (uint256) {
+    return _getTierRemainingLiquidity(_tier, fromUD34x4toUD60x18(prizeTokenPerShare));
+  }
 
+  /// @notice Computes the remaining liquidity available to a tier.
+  /// @param _tier The tier to compute the liquidity for
+  /// @param _prizeTokenPerShare The global prizeTokenPerShare
+  /// @return The remaining liquidity
+  function _getTierRemainingLiquidity(
+    uint8 _tier,
+    UD60x18 _prizeTokenPerShare
+  ) internal view returns (uint256) {
+    uint8 _numTiers = numberOfTiers;
     return
       !TierCalculationLib.isValidTier(_tier, _numTiers)
         ? 0
         : convert(
           _getTierRemainingLiquidity(
-            tierShares,
             fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare),
-            fromUD34x4toUD60x18(prizeTokenPerShare)
+            _prizeTokenPerShare
           )
         );
   }
 
   /// @notice Computes the remaining tier liquidity.
-  /// @param _shares The number of shares that the tier has (can be tierShares or canaryShares)
   /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
   /// @param _prizeTokenPerShare The global prizeTokenPerShare
   /// @return The remaining available liquidity
   function _getTierRemainingLiquidity(
-    uint256 _shares,
     UD60x18 _tierPrizeTokenPerShare,
     UD60x18 _prizeTokenPerShare
-  ) internal pure returns (UD60x18) {
+  ) internal view returns (UD60x18) {
     return
       _tierPrizeTokenPerShare.gte(_prizeTokenPerShare)
         ? ud(0)
-        : _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(_shares));
+        : _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(tierShares));
   }
 
   /// @notice Estimates the number of prizes for the current number of tiers, including the canary tier
