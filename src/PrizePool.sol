@@ -607,8 +607,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)));
   }
 
-  /// @notice The total amount of prize tokens that have been claimed for all time
-  /// @return The total amount of prize tokens that have been claimed for all time
+  /// @notice The total amount of claim fees that have been withdrawn
+  /// @return The total amount of claim fees that have been withdrawn
   function totalWithdrawn() external view returns (uint256) {
     return _totalWithdrawn;
   }
