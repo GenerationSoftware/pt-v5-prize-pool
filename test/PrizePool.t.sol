@@ -13,7 +13,7 @@ import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { TierCalculationLib } from "../src/libraries/TierCalculationLib.sol";
 import { MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../src/abstract/TieredLiquidityDistributor.sol";
-import { PrizePool, PrizeIsZero, ConstructorParams, InsufficientRewardsError, DidNotWin, FeeTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, AwardingDrawNotClosed, InvalidPrizeIndex, NoDrawsAwarded, InvalidTier, DrawManagerIsZeroAddress, CallerNotDrawManager, NotDeployer, FeeRecipientZeroAddress, FirstDrawOpensInPast, IncompatibleTwabPeriodLength, IncompatibleTwabPeriodOffset, ClaimPeriodExpired } from "../src/PrizePool.sol";
+import { PrizePool, PrizeIsZero, ConstructorParams, InsufficientRewardsError, DidNotWin, RewardTooLarge, SmoothingGTEOne, ContributionGTDeltaBalance, InsufficientReserve, RandomNumberIsZero, AwardingDrawNotClosed, InvalidPrizeIndex, NoDrawsAwarded, InvalidTier, DrawManagerIsZeroAddress, CallerNotDrawManager, NotDeployer, RewardRecipientZeroAddress, FirstDrawOpensInPast, IncompatibleTwabPeriodLength, IncompatibleTwabPeriodOffset, ClaimPeriodExpired } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
 contract PrizePoolTest is Test {
@@ -967,7 +967,7 @@ contract PrizePoolTest is Test {
     awardDraw(winningRandomNumber);
     mockTwab(address(this), msg.sender, 0);
     uint256 prize = prizePool.getTierPrizeSize(0);
-    vm.expectRevert(abi.encodeWithSelector(FeeTooLarge.selector, 10e18, prize));
+    vm.expectRevert(abi.encodeWithSelector(RewardTooLarge.selector, 10e18, prize));
     claimPrize(msg.sender, 0, 0, 10e18, address(this));
   }
 
@@ -1055,7 +1055,7 @@ contract PrizePoolTest is Test {
     contribute(100e18);
     awardDraw(winningRandomNumber);
     mockTwab(address(this), sender1, 2);
-    vm.expectRevert(abi.encodeWithSelector(FeeRecipientZeroAddress.selector));
+    vm.expectRevert(abi.encodeWithSelector(RewardRecipientZeroAddress.selector));
     prizePool.claimPrize(sender1, 2, 0, sender1, 1, address(0));
   }
 
