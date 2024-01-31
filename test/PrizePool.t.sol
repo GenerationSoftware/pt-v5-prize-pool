@@ -36,6 +36,7 @@ contract PrizePoolTest is Test {
   uint256 TIER_SHARES = 100;
   uint256 RESERVE_SHARES = 10;
 
+  uint32 maxMissedDraws = 100;
   uint24 grandPrizePeriodDraws = 365;
   uint48 firstDrawOpensAt;
   uint48 drawPeriodSeconds;
@@ -105,7 +106,8 @@ contract PrizePoolTest is Test {
       grandPrizePeriodDraws,
       initialNumberOfTiers, // minimum number of tiers
       uint8(TIER_SHARES),
-      uint8(RESERVE_SHARES)
+      uint8(RESERVE_SHARES),
+      maxMissedDraws
     );
 
     prizePool = new PrizePool(params);
@@ -594,7 +596,8 @@ contract PrizePoolTest is Test {
       grandPrizePeriodDraws,
       startingTiers, // higher number of tiers
       100,
-      10
+      10,
+      maxMissedDraws
     );
     prizePool = new PrizePool(prizePoolParams);
     prizePool.setDrawManager(address(this));
@@ -619,7 +622,8 @@ contract PrizePoolTest is Test {
       grandPrizePeriodDraws,
       startingTiers, // higher number of tiers
       100,
-      10
+      10,
+      maxMissedDraws
     );
     prizePool = new PrizePool(prizePoolParams);
     prizePool.setDrawManager(address(this));

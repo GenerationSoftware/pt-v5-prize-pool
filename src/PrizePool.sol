@@ -116,6 +116,7 @@ struct ConstructorParams {
   uint8 numberOfTiers;
   uint8 tierShares;
   uint8 reserveShares;
+  uint32 maxMissedDraws;
 }
 
 /**
@@ -226,14 +227,17 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice The Twab Controller to use to retrieve historic balances.
   TwabController public immutable twabController;
 
-  /// @notice The draw manager address.
-  address public drawManager;
-
   /// @notice The number of seconds between draws.
   uint48 public immutable drawPeriodSeconds;
 
   /// @notice The timestamp at which the first draw will open.
   uint48 public immutable firstDrawOpensAt;
+
+  /// @notice The maximum number of draws that can be missed before the prize pool is considered inactive.
+  uint32 public immutable maxMissedDraws;
+
+  /// @notice The draw manager address.
+  address public drawManager;
 
   /// @notice The exponential weighted average of all vault contributions.
   DrawAccumulatorLib.Accumulator internal _totalAccumulator;
@@ -287,6 +291,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert IncompatibleTwabPeriodOffset();
     }
 
+    maxMissedDraws = params.maxMissedDraws;
     prizeToken = params.prizeToken;
     twabController = params.twabController;
     smoothing = params.smoothing;

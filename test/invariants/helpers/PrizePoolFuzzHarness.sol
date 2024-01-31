@@ -52,7 +52,8 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
       365,
       numberOfTiers,
       tierShares,
-      reserveShares
+      reserveShares,
+      100
     );
     vm.startPrank(address(this));
     prizePool = new PrizePool(params);
