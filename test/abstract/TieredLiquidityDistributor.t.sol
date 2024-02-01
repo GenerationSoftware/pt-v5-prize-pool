@@ -241,10 +241,6 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierPrizeCount(2), 16);
   }
 
-  function testGetTierPrizeCount_invalid() public {
-    assertEq(distributor.getTierPrizeCount(3), 0);
-  }
-
   function testTierOdds_zero_when_outside_bounds() public {
     SD59x18 odds;
     for (

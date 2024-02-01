@@ -1447,11 +1447,8 @@ contract PrizePoolTest is Test {
     uint24 endDraw = prizePool.getLastAwardedDrawId();
     uint24 durationDraws = prizePool.getTierAccrualDurationInDraws(_tier);
     uint24 startDraw = prizePool.computeRangeStartDrawIdInclusive(endDraw, durationDraws);
-    console2.log("mockTwab ", startDraw, endDraw);
     uint48 startTime = prizePool.drawOpensAt(startDraw);
     uint48 endTime = prizePool.drawClosesAt(endDraw);
-    console2.log("Mock startTime", startTime);
-    console2.log("Mock endTime", endTime);
     mockTwab(_vault, _account, startTime, endTime);
   }
 }

@@ -280,11 +280,8 @@ contract TieredLiquidityDistributor {
   /// @notice Returns the estimated number of prizes for the given tier.
   /// @param _tier The tier to retrieve
   /// @return The estimated number of prizes
-  function getTierPrizeCount(uint8 _tier) external view returns (uint32) {
-    return
-      !TierCalculationLib.isValidTier(_tier, numberOfTiers)
-        ? 0
-        : uint32(TierCalculationLib.prizeCount(_tier));
+  function getTierPrizeCount(uint8 _tier) external pure returns (uint32) {
+    return uint32(TierCalculationLib.prizeCount(_tier));
   }
 
   /// @notice Retrieves an up-to-date Tier struct for the given tier.

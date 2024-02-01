@@ -89,8 +89,9 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     if (prizePool.getLastAwardedDrawId() == 0) {
       return;
     }
-    for (uint8 i = 0; i < prizePool.numberOfTiers(); i++) {
-      for (uint32 p = 0; p < prizePool.getTierPrizeCount(i); i++) {
+    uint8 numTiers = prizePool.numberOfTiers();
+    for (uint8 i = 0; i < numTiers; i++) {
+      for (uint32 p = 0; p < prizePool.getTierPrizeCount(i); p++) {
         if (
           prizePool.isWinner(address(this), address(this), i, p) &&
           !prizePool.wasClaimed(address(this), address(this), i, p)
