@@ -658,40 +658,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   }
 
   /**
-   * @notice Checks if the given user has won the prize for the specified tier in the given vault.
-   * @param _vault The address of the vault to check.
-   * @param _user The address of the user to check for the prize.
-   * @param _tier The tier for which the prize is to be checked.
-   * @param _prizeIndex The index of the prize to check (less than prize count for tier)
-   * @return A boolean value indicating whether the user has won the prize or not.
-   */
-  function isWinner(
-    address _vault,
-    address _user,
-    uint8 _tier,
-    uint32 _prizeIndex
-  ) public view returns (bool) {
-    uint24 lastAwardedDrawId_ = _lastAwardedDrawId;
-    (SD59x18 vaultPortion, SD59x18 tierOdds, uint24 startDrawIdInclusive) = _computeVaultTierDetails(
-      _vault,
-      _tier,
-      numberOfTiers,
-      lastAwardedDrawId_
-    );
-    return
-      _isWinner(
-        lastAwardedDrawId_,
-        _vault,
-        _user,
-        _tier,
-        _prizeIndex,
-        vaultPortion,
-        tierOdds,
-        startDrawIdInclusive
-      );
-  }
-
-  /**
    * @notice Computes and returns the next number of tiers based on the current prize claim counts. This number may change throughout the draw
    * @return The next number of tiers
    */
@@ -891,25 +857,27 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
   /**
    * @notice Checks if the given user has won the prize for the specified tier in the given vault.
-   * @param _drawId The draw ID for which to check the winner
    * @param _vault The address of the vault to check
    * @param _user The address of the user to check for the prize
    * @param _tier The tier for which the prize is to be checked
    * @param _prizeIndex The prize index to check. Must be less than prize count for the tier
-   * @param _vaultPortion The portion of the prizes that were contributed by the given vault
-   * @param _tierOdds The tier odds to apply to make prizes less frequent
    * @return A boolean value indicating whether the user has won the prize or not
    */
-  function _isWinner(
-    uint24 _drawId,
+  function isWinner(
     address _vault,
     address _user,
     uint8 _tier,
-    uint32 _prizeIndex,
-    SD59x18 _vaultPortion,
-    SD59x18 _tierOdds,
-    uint24 _startDrawIdInclusive
-  ) internal view returns (bool) {
+    uint32 _prizeIndex
+  ) public view returns (bool) {
+    uint24 lastAwardedDrawId_ = _lastAwardedDrawId;
+    
+    (SD59x18 vaultPortion, SD59x18 tierOdds, uint24 startDrawIdInclusive) = _computeVaultTierDetails(
+      _vault,
+      _tier,
+      numberOfTiers,
+      lastAwardedDrawId_
+    );
+
     uint32 tierPrizeCount = uint32(TierCalculationLib.prizeCount(_tier));
 
     if (_prizeIndex >= tierPrizeCount) {
@@ -917,7 +885,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     }
 
     uint256 userSpecificRandomNumber = TierCalculationLib.calculatePseudoRandomNumber(
-      _drawId,
+      lastAwardedDrawId_,
       _vault,
       _user,
       _tier,
@@ -928,8 +896,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = getVaultUserBalanceAndTotalSupplyTwab(
       _vault,
       _user,
-      _startDrawIdInclusive,
-      _lastAwardedDrawId
+      startDrawIdInclusive,
+      lastAwardedDrawId_
     );
 
     return
@@ -937,8 +905,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
         userSpecificRandomNumber,
         _userTwab,
         _vaultTwabTotalSupply,
-        _vaultPortion,
-        _tierOdds
+        vaultPortion,
+        tierOdds
       );
   }
 
@@ -964,6 +932,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
     tierOdds = getTierOdds(_tier, _numberOfTiers);
     startDrawIdInclusive = computeRangeStartDrawIdInclusive(lastAwardedDrawId_, uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds)));
+    
     vaultPortion = getVaultPortion(
       _vault,
       startDrawIdInclusive,
