@@ -385,7 +385,7 @@ contract TieredLiquidityDistributor {
         tierShares
       );
       bool canExpand = _numberOfTiers < MAXIMUM_NUMBER_OF_TIERS;
-      if (canExpand && _isCanaryTier(_tier, _numberOfTiers)) {
+      if (canExpand && _tier == _numberOfTiers - 1) {
         // make canary prizes smaller to account for reduction in shares for next number of tiers
         prizeSize =
           (prizeSize * _getTotalShares(_numberOfTiers)) /
@@ -416,29 +416,10 @@ contract TieredLiquidityDistributor {
       );
   }
 
-  /// @notice Determines if the given tier is the canary tier.
-  /// @param _tier The tier to check
-  /// @param _numberOfTiers The current number of tiers
-  /// @return True if the tier is the canary tier
-  function _isCanaryTier(uint8 _tier, uint8 _numberOfTiers) internal pure returns (bool) {
-    return _tier == _numberOfTiers - 1;
-  }
-
   /// @notice Computes the remaining liquidity available to a tier.
   /// @param _tier The tier to compute the liquidity for
   /// @return The remaining liquidity
   function getTierRemainingLiquidity(uint8 _tier) public view returns (uint256) {
-    return _getTierRemainingLiquidity(_tier, fromUD34x4toUD60x18(prizeTokenPerShare));
-  }
-
-  /// @notice Computes the remaining liquidity available to a tier.
-  /// @param _tier The tier to compute the liquidity for
-  /// @param _prizeTokenPerShare The global prizeTokenPerShare
-  /// @return The remaining liquidity
-  function _getTierRemainingLiquidity(
-    uint8 _tier,
-    UD60x18 _prizeTokenPerShare
-  ) internal view returns (uint256) {
     uint8 _numTiers = numberOfTiers;
     return
       !TierCalculationLib.isValidTier(_tier, _numTiers)
@@ -446,7 +427,7 @@ contract TieredLiquidityDistributor {
         : convert(
           _getTierRemainingLiquidity(
             fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare),
-            _prizeTokenPerShare
+            fromUD34x4toUD60x18(prizeTokenPerShare)
           )
         );
   }

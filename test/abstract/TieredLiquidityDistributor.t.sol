@@ -362,15 +362,15 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function _computeLiquidity() internal view returns (uint256) {
-    uint256 liquidity = _getTierLiquidity(distributor.numberOfTiers(), fromUD34x4toUD60x18(distributor.prizeTokenPerShare()));
+    uint256 liquidity = _getTierLiquidity(distributor.numberOfTiers());
     liquidity += distributor.reserve();
     return liquidity;
   }
 
-  function _getTierLiquidity(uint8 _numberOfTiers, UD60x18 _prizeTokenPerShare) internal view returns (uint256) {
+  function _getTierLiquidity(uint8 _numberOfTiers) internal view returns (uint256) {
     uint256 liquidity = 0;
     for (uint8 i = 0; i < _numberOfTiers; i++) {
-      liquidity += distributor.getTierRemainingLiquidity(i, _prizeTokenPerShare);
+      liquidity += distributor.getTierRemainingLiquidity(i);
     }
     return liquidity;
   }
