@@ -39,8 +39,11 @@ library DrawAccumulatorLib {
 
   /// @notice An accumulator for a draw.
   struct Accumulator {
-    RingBufferInfo ringBufferInfo;
-    uint24[366] drawRingBuffer;
+    RingBufferInfo ringBufferInfo; // 32 bits
+    uint24[366] drawRingBuffer; // 8784 bits
+    // 8784 + 32 = 8816 bits in total
+    // 256 * 35 = 8960
+    // 8960 - 8816 = 144 bits left over
     mapping(uint256 drawId => Observation observation) observations;
   }
 

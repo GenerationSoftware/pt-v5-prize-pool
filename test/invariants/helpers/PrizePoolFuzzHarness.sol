@@ -102,7 +102,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
               i,
               p,
               address(this),
-              1,
+              uint96(prizeSize/10),
               address(claimer)
             );
           }

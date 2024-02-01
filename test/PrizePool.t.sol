@@ -1355,44 +1355,18 @@ contract PrizePoolTest is Test {
 
   function testGetVaultUserBalanceAndTotalSupplyTwab() public {
     awardDraw(winningRandomNumber);
+    uint24 lastAwardedDrawId = prizePool.getLastAwardedDrawId();
     mockTwab(
       address(this),
       msg.sender,
-      prizePool.drawClosesAt(prizePool.getLastAwardedDrawId()) -
-        grandPrizePeriodDraws *
-        drawPeriodSeconds,
-      prizePool.drawClosesAt(prizePool.getLastAwardedDrawId())
+      prizePool.drawClosesAt(0),
+      prizePool.drawClosesAt(lastAwardedDrawId)
     );
     (uint256 twab, uint256 twabTotalSupply) = prizePool.getVaultUserBalanceAndTotalSupplyTwab(
       address(this),
       msg.sender,
-      grandPrizePeriodDraws
-    );
-    assertEq(twab, 366e30);
-    assertEq(twabTotalSupply, 1e30);
-  }
-
-  function testGetVaultUserBalanceAndTotalSupplyTwab_insufficientPast() public {
-    vm.warp(1 days);
-    params.firstDrawOpensAt = 2 days;
-    vm.mockCall(
-      address(twabController),
-      abi.encodeCall(twabController.PERIOD_OFFSET, ()),
-      abi.encode(2 days)
-    );
-    prizePool = new PrizePool(params);
-    prizePool.setDrawManager(address(this));
-    awardDraw(winningRandomNumber);
-    mockTwab(
-      address(this),
-      msg.sender,
-      0,
-      prizePool.drawClosesAt(prizePool.getLastAwardedDrawId())
-    );
-    (uint256 twab, uint256 twabTotalSupply) = prizePool.getVaultUserBalanceAndTotalSupplyTwab(
-      address(this),
-      msg.sender,
-      grandPrizePeriodDraws
+      lastAwardedDrawId,
+      lastAwardedDrawId
     );
     assertEq(twab, 366e30);
     assertEq(twabTotalSupply, 1e30);
@@ -1470,10 +1444,14 @@ contract PrizePoolTest is Test {
   }
 
   function mockTwab(address _vault, address _account, uint8 _tier) public {
-    uint48 endTime = prizePool.drawClosesAt(prizePool.getLastAwardedDrawId());
-    uint48 startTime = uint48(
-      endTime - prizePool.getTierAccrualDurationInDraws(_tier) * drawPeriodSeconds
-    );
+    uint24 endDraw = prizePool.getLastAwardedDrawId();
+    uint24 durationDraws = prizePool.getTierAccrualDurationInDraws(_tier);
+    uint24 startDraw = prizePool.computeRangeStartDrawIdInclusive(endDraw, durationDraws);
+    console2.log("mockTwab ", startDraw, endDraw);
+    uint48 startTime = prizePool.drawOpensAt(startDraw);
+    uint48 endTime = prizePool.drawClosesAt(endDraw);
+    console2.log("Mock startTime", startTime);
+    console2.log("Mock endTime", endTime);
     mockTwab(_vault, _account, startTime, endTime);
   }
 }
