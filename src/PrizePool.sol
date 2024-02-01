@@ -607,7 +607,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @return The number of draws
   function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint24) {
     return
-      uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)));
+      uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(getTierOdds(_tier, numberOfTiers)));
   }
 
   /// @notice The total amount of prize tokens that have been withdrawn as fees or prizes
@@ -1003,7 +1003,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     }
     _checkValidTier(_tier, _numberOfTiers);
 
-    tierOdds = _tierOdds(_tier, _numberOfTiers);
+    tierOdds = getTierOdds(_tier, _numberOfTiers);
     startDrawIdInclusive = computeRangeStartDrawIdInclusive(lastAwardedDrawId_, uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds)));
     vaultPortion = getVaultPortion(
       _vault,

@@ -449,14 +449,7 @@ contract TieredLiquidityDistributor {
   /// @notice Estimates the number of prizes for the current number of tiers, including the canary tier
   /// @return The estimated number of prizes including the canary tier
   function estimatedPrizeCount() external view returns (uint32) {
-    return _estimatePrizeCountPerDrawUsingNumberOfTiers(numberOfTiers);
-  }
-
-  /// @notice Estimates the number of prizes that will be awarded given a number of tiers. Includes canary tier
-  /// @param numTiers The number of tiers
-  /// @return The estimated prize count for the given number of tiers
-  function estimatedPrizeCount(uint8 numTiers) external view returns (uint32) {
-    return _estimatePrizeCountPerDrawUsingNumberOfTiers(numTiers);
+    return estimatedPrizeCount(numberOfTiers);
   }
 
   /// @notice Returns the balance of the reserve.
@@ -468,9 +461,9 @@ contract TieredLiquidityDistributor {
   /// @notice Estimates the prize count for the given tier.
   /// @param numTiers The number of prize tiers
   /// @return The estimated total number of prizes
-  function _estimatePrizeCountPerDrawUsingNumberOfTiers(
+  function estimatedPrizeCount(
     uint8 numTiers
-  ) internal view returns (uint32) {
+  ) public view returns (uint32) {
     if (numTiers == 3) {
       return ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS;
     } else if (numTiers == 4) {
@@ -521,14 +514,6 @@ contract TieredLiquidityDistributor {
     return 10;
   }
 
-  /// @notice Computes the odds for a tier given the number of tiers.
-  /// @param _tier The tier to compute odds for
-  /// @param _numTiers The number of prize tiers
-  /// @return The odds of the tier
-  function getTierOdds(uint8 _tier, uint8 _numTiers) external view returns (SD59x18) {
-    return _tierOdds(_tier, _numTiers);
-  }
-
   /// @notice Computes the expected number of prizes for a given number of tiers.
   /// @dev Includes the canary tier
   /// @param _numTiers The number of tiers
@@ -537,7 +522,7 @@ contract TieredLiquidityDistributor {
     uint32 prizeCount;
     uint8 i = 0;
     do {
-      prizeCount += TierCalculationLib.tierPrizeCountPerDraw(i, _tierOdds(i, _numTiers));
+      prizeCount += TierCalculationLib.tierPrizeCountPerDraw(i, getTierOdds(i, _numTiers));
       i++;
     } while (i < _numTiers);
     return prizeCount;
@@ -547,7 +532,7 @@ contract TieredLiquidityDistributor {
   /// @param _tier The tier to compute odds for
   /// @param _numTiers The number of prize tiers
   /// @return The odds of the tier
-  function _tierOdds(uint8 _tier, uint8 _numTiers) internal view returns (SD59x18) {
+  function getTierOdds(uint8 _tier, uint8 _numTiers) public view returns (SD59x18) {
     if (_tier == 0) return TIER_ODDS_0;
     if (_numTiers == 3) {
       if (_tier <= 2) return TIER_ODDS_EVERY_DRAW;
