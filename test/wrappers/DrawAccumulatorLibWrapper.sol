@@ -70,7 +70,7 @@ contract DrawAccumulatorLibWrapper {
     return result;
   }
 
-  /**
+  /*
    * @notice Returns the remaining prize tokens available from relative draw _x
    */
   function integrateInf(SD59x18 _alpha, uint _x, uint _k) public pure returns (uint256) {

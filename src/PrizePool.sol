@@ -114,15 +114,15 @@ error ClaimPeriodExpired();
  */
 struct ConstructorParams {
   IERC20 prizeToken;
-  TwabController twabController;
+  TwabController twabController; // 160bits
   uint48 drawPeriodSeconds;
-  uint48 firstDrawOpensAt;
-  SD1x18 smoothing;
+  uint48 firstDrawOpensAt; // 256bits WORD END
+  SD1x18 smoothing; // 64 bits
   uint24 grandPrizePeriodDraws;
   uint8 numberOfTiers;
   uint8 tierShares;
-  uint8 reserveShares;
-  uint32 maxMissedDraws;
+  uint8 reserveShares; // 112 bits since prev word, meaning 144 bits left
+  uint48 shutdownTimeout; // the number of seconds that must pass after the last draw before the prize pool is considered shutdown
 }
 
 /**
@@ -243,7 +243,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   uint48 public immutable firstDrawOpensAt;
 
   /// @notice The maximum number of draws that can be missed before the prize pool is considered inactive.
-  uint32 public immutable maxMissedDraws;
+  uint48 public immutable shutdownTimeout;
 
   /// @notice The exponential weighted average of all vault contributions.
   DrawAccumulatorLib.Accumulator internal _totalAccumulator;
@@ -303,7 +303,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert IncompatibleTwabPeriodOffset();
     }
 
-    maxMissedDraws = params.maxMissedDraws;
+    shutdownTimeout = params.shutdownTimeout;
     prizeToken = params.prizeToken;
     twabController = params.twabController;
     smoothing = params.smoothing;
@@ -405,7 +405,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     _awardDraw(
       awardingDrawId,
       _nextNumberOfTiers,
-      _getTotalContributedBetween(lastAwardedDrawId_ + 1, awardingDrawId)
+      getTotalContributedBetween(lastAwardedDrawId_ + 1, awardingDrawId)
     );
 
     _winningRandomNumber = winningRandomNumber_;
@@ -573,18 +573,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     return _lastAwardedDrawId;
   }
 
-  /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive.
-  /// @dev Note that this is after smoothing is applied.
-  /// @param _startDrawIdInclusive Start draw id inclusive
-  /// @param _endDrawIdInclusive End draw id inclusive
-  /// @return The total prize tokens contributed by all vaults
-  function getTotalContributedBetween(
-    uint24 _startDrawIdInclusive,
-    uint24 _endDrawIdInclusive
-  ) external view returns (uint256) {
-    return _getTotalContributedBetween(_startDrawIdInclusive, _endDrawIdInclusive);
-  }
-
   /// @notice Returns the total prize tokens contributed by a particular vault between the given draw ids, inclusive.
   /// @dev Note that this is after smoothing is applied.
   /// @param _vault The address of the vault
@@ -630,7 +618,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       _numTiers,
       lastAwardedDrawId_ == 0 ? _numTiers : computeNextNumberOfTiers(claimCount),
       fromUD34x4toUD60x18(prizeTokenPerShare),
-      _getTotalContributedBetween(lastAwardedDrawId_ + 1, getDrawIdToAward())
+      getTotalContributedBetween(lastAwardedDrawId_ + 1, getDrawIdToAward())
     );
 
     return newReserve;
@@ -778,13 +766,13 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
         endDrawIdInclusive = _lastAwardedDrawId;
         startDrawIdInclusive = computeRangeStartDrawIdInclusive(endDrawIdInclusive, grandPrizePeriodDraws);
         // compute the liquidity available, less whatever is after the range
-        uint256 liquidityAfterRange = _getTotalContributedBetween(endDrawIdInclusive + 1, _drawIdToAward) + DrawAccumulatorLib.getTotalRemaining(_totalAccumulator, _drawIdToAward + 1, smoothing.intoSD59x18());
+        uint256 liquidityAfterRange = getTotalContributedBetween(endDrawIdInclusive + 1, _drawIdToAward) + DrawAccumulatorLib.getTotalRemaining(_totalAccumulator, _drawIdToAward + 1, smoothing.intoSD59x18());
         liquidity = prizeToken.balanceOf(address(this)) - _totalRewardsToBeClaimed - liquidityAfterRange;
         lastWithdrawalDrawId = _lastAwardedDrawId;
       } else {
         startDrawIdInclusive = lastWithdrawalDrawId + 1;
         endDrawIdInclusive = _drawIdToAward;
-        liquidity = _getTotalContributedBetween(startDrawIdInclusive, endDrawIdInclusive);
+        liquidity = getTotalContributedBetween(startDrawIdInclusive, endDrawIdInclusive);
         lastWithdrawalDrawId = _drawIdToAward;
       }
 
@@ -828,7 +816,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   function _isInactive() internal view returns (bool) {
     uint256 lastAwardedAtTimestamp = _lastAwardedDrawId > 0 ? lastAwardedDrawAwardedAt : firstDrawOpensAt + drawPeriodSeconds;
 
-    return block.timestamp > lastAwardedAtTimestamp + maxMissedDraws;
+    return block.timestamp > lastAwardedAtTimestamp + shutdownTimeout;
   }
 
   /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive.
@@ -836,10 +824,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param _startDrawIdInclusive Start draw id inclusive
   /// @param _endDrawIdInclusive End draw id inclusive
   /// @return The total prize tokens contributed by all vaults
-  function _getTotalContributedBetween(
+  function getTotalContributedBetween(
     uint24 _startDrawIdInclusive,
     uint24 _endDrawIdInclusive
-  ) internal view returns (uint256) {
+  ) public view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
         _totalAccumulator,

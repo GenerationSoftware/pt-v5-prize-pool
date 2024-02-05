@@ -31,6 +31,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
     uint8 numberOfTiers = 3;
     uint8 tierShares = 100;
     uint8 reserveShares = 10;
+    uint48 shutdownTimeout = 1000 days;
     SD1x18 smoothing = SD1x18.wrap(0.9e18);
     
     vm.warp(currentTime);
@@ -53,7 +54,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats {
       numberOfTiers,
       tierShares,
       reserveShares,
-      100
+      shutdownTimeout
     );
     vm.startPrank(address(this));
     prizePool = new PrizePool(params);
