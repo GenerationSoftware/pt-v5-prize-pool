@@ -42,7 +42,6 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
     warpCurrentTime();
     // console2.log("constructor 1");
     claimer = makeAddr("claimer");
-    SD1x18 smoothing = SD1x18.wrap(0.9e18);
     // console2.log("constructor 2");
     for (uint i = 0; i != actors.length; i++) {
       actors[i] = makeAddr(string(abi.encodePacked("actor", i)));
@@ -70,7 +69,6 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
       twabController,
       drawPeriodSeconds,
       awardDrawStartsAt,
-      smoothing,
       grandPrizePeriod,
       numberOfTiers,
       tierShares,
@@ -99,7 +97,6 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
   }
 
   function contributeReserve(uint88 _amount, uint256 actorSeed) public increaseCurrentTime(_timeIncrease()) prankActor(actorSeed) {
-    console2.log("CCCCCCC CONTRIBUTE");
     if (prizePool.isShutdown()) {
       return;
     }
@@ -124,10 +121,10 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
   }
 
   function claimPrizes() public useCurrentTime {
-    console2.log("claimPrizes");
+    // console2.log("claimPrizes");
     // console2.log("prizePool.numberOfTiers()", prizePool.numberOfTiers());
     if (prizePool.getLastAwardedDrawId() == 0) {
-      console2.log("skiipping");
+      // console2.log("skiipping");
       return;
     }
     for (uint i = 0; i < actors.length; i++) {
@@ -136,23 +133,23 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
   }
 
   function withdrawShutdownBalance(uint256 _actorSeed) public increaseCurrentTime(_timeIncrease()) prankActor(_actorSeed) {
-    console2.log("withdrawShutdownBalance withdrawShutdownBalance withdrawShutdownBalance withdrawShutdownBalance");
+    // console2.log("withdrawShutdownBalance withdrawShutdownBalance withdrawShutdownBalance withdrawShutdownBalance");
     address actor = _actor(_actorSeed);
     if (prizePool.shutdownBalanceOf(address(this), actor) > 0) {
-      console2.log("HAS A SHUTDOWN BALANCE");
+      // console2.log("HAS A SHUTDOWN BALANCE");
     }
     prizePool.withdrawShutdownBalance(address(this), actor);
   }
 
   function awardDraw() public useCurrentTime prankDrawManager {
-    console2.log("AWARDING");
+    // console2.log("AWARDING");
     uint24 drawId = prizePool.getDrawIdToAward();
     uint256 drawToAwardClosesAt = prizePool.drawClosesAt(drawId);
     if (drawToAwardClosesAt > currentTime.timestamp()) {
       warpTo(drawToAwardClosesAt);
     }
     prizePool.awardDraw(uint256(keccak256(abi.encode(block.timestamp))));
-    console2.log("SUCCESSSSS AWARDED DRAW");
+    // console2.log("SUCCESSSSS AWARDED DRAW");
   }
 
   function _actor(uint256 actorIndexSeed) internal view returns (address) {
@@ -174,7 +171,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
           !prizePool.wasClaimed(address(this), actor_, i, p) &&
           prizePool.claimCount() < 4**2 // prevent claiming all prizes
         ) {
-          console2.log("CLAIMING");
+          // console2.log("CLAIMING");
           uint256 prizeSize = prizePool.getTierPrizeSize(i);
           if (prizeSize > 0) {
             claimed += prizePool.claimPrize(

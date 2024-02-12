@@ -24,7 +24,6 @@ import {
   DidNotWin,
   RangeSizeZero,
   RewardTooLarge,
-  SmoothingGTEOne,
   ContributionGTDeltaBalance,
   InsufficientReserve,
   RandomNumberIsZero,
@@ -130,7 +129,6 @@ contract PrizePoolTest is Test {
       twabController,
       drawPeriodSeconds,
       firstDrawOpensAt,
-      sd1x18(0.9e18), // alpha
       grandPrizePeriodDraws,
       initialNumberOfTiers, // minimum number of tiers
       uint8(TIER_SHARES),
@@ -159,12 +157,6 @@ contract PrizePoolTest is Test {
   function testDrawTimeoutGTGrandPrizePeriodDraws() public {
     params.drawTimeout = grandPrizePeriodDraws + 1;
     vm.expectRevert(abi.encodeWithSelector(DrawTimeoutGTGrandPrizePeriodDraws.selector));
-    new PrizePool(params);
-  }
-
-  function testConstructor_SmoothingGTEOne() public {
-    params.smoothing = sd1x18(1.0e18); // smoothing
-    vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
     new PrizePool(params);
   }
 
@@ -619,8 +611,6 @@ contract PrizePoolTest is Test {
 
   function testAwardDraw_withLiquidity() public {
     contribute(100e18);
-    // = 1e18 / 220e18 = 0.004545454...
-    // but because of alpha only 10% is released on this draw
     awardDraw(winningRandomNumber);
 
     uint256 liquidityPerShare = 10e18 / prizePool.getTotalShares();
@@ -722,7 +712,6 @@ contract PrizePoolTest is Test {
   }
 
   function testShutdownBalanceOf_shutdown_withDrawsBeforeAndAfter_withBalance_withContributions() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     awardDraw(winningRandomNumber);
@@ -763,7 +752,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_contributeAfterShutdown() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
     mockShutdownTwab(0.5e18, 1e18);
@@ -777,7 +765,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_oneClaim() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -790,7 +777,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_claimTwice() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -803,7 +789,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_twoClaim() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -817,7 +802,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_onShutdown() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     awardDraw(winningRandomNumber);
@@ -852,7 +836,6 @@ contract PrizePoolTest is Test {
       twabController,
       drawPeriodSeconds,
       firstDrawOpensAt,
-      sd1x18(0.9e18), // alpha
       grandPrizePeriodDraws,
       startingTiers, // higher number of tiers
       100,
@@ -877,7 +860,6 @@ contract PrizePoolTest is Test {
       twabController,
       drawPeriodSeconds,
       firstDrawOpensAt,
-      sd1x18(0.9e18), // alpha
       grandPrizePeriodDraws,
       startingTiers, // higher number of tiers
       100,

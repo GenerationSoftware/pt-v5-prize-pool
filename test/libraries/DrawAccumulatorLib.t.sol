@@ -13,11 +13,9 @@ contract DrawAccumulatorLibTest is Test {
 
   DrawAccumulatorLib.Accumulator accumulator;
   DrawAccumulatorLibWrapper wrapper;
-  SD59x18 alpha;
   uint contribution = 10000;
 
   function setUp() public {
-    alpha = sd(0.9e18);
     /*
             Alpha of 0.9 and contribution of 10000 result in disbursal of:
 
@@ -44,7 +42,7 @@ contract DrawAccumulatorLibTest is Test {
   }
 
   function testAddOne() public {
-    DrawAccumulatorLib.add(accumulator, 100, 1, alpha);
+    DrawAccumulatorLib.add(accumulator, 100, 1);
     assertEq(accumulator.ringBufferInfo.cardinality, 1);
     assertEq(accumulator.ringBufferInfo.nextIndex, 1);
     assertEq(accumulator.drawRingBuffer[0], 1);
@@ -52,8 +50,8 @@ contract DrawAccumulatorLibTest is Test {
   }
 
   function testAddSame() public {
-    DrawAccumulatorLib.add(accumulator, 100, 1, alpha);
-    DrawAccumulatorLib.add(accumulator, 200, 1, alpha);
+    DrawAccumulatorLib.add(accumulator, 100, 1);
+    DrawAccumulatorLib.add(accumulator, 200, 1);
 
     assertEq(accumulator.ringBufferInfo.cardinality, 1);
     assertEq(accumulator.ringBufferInfo.nextIndex, 1);
@@ -62,8 +60,8 @@ contract DrawAccumulatorLibTest is Test {
   }
 
   function testAddSecond() public {
-    DrawAccumulatorLib.add(accumulator, 100, 1, alpha);
-    DrawAccumulatorLib.add(accumulator, 200, 3, alpha);
+    DrawAccumulatorLib.add(accumulator, 100, 1);
+    DrawAccumulatorLib.add(accumulator, 200, 3);
 
     assertEq(accumulator.ringBufferInfo.cardinality, 2);
     assertEq(accumulator.ringBufferInfo.nextIndex, 2);
@@ -72,13 +70,13 @@ contract DrawAccumulatorLibTest is Test {
 
     // 100 - 19 = 81
 
-    assertEq(accumulator.observations[3].available, 281);
+    assertEq(accumulator.observations[3].available, 200);
   }
 
   function testAddOne_deleteExpired() public {
     // set up accumulator as if we had just completed a buffer loop:
     for (uint16 i = 0; i < 366; i++) {
-      wrapper.add(100, i + 1, alpha);
+      wrapper.add(100, i + 1);
       assertEq(wrapper.getCardinality(), i + 1);
       assertEq(wrapper.getNextIndex(), i == 365 ? 0 : i + 1);
       assertEq(wrapper.getDrawRingBuffer(i), i + 1);
@@ -87,28 +85,12 @@ contract DrawAccumulatorLibTest is Test {
 
     assertEq(wrapper.getCardinality(), 366);
 
-    wrapper.add(200, 367, alpha);
+    wrapper.add(200, 367);
     assertEq(wrapper.getCardinality(), 366);
     assertEq(wrapper.getNextIndex(), 1);
     assertEq(wrapper.getDrawRingBuffer(0), 367);
     assertGt(wrapper.getObservation(367).available, wrapper.getObservation(366).available);
     assertEq(wrapper.getObservation(1).available, 0); // deleted draw 1
-  }
-
-  function testGetTotalRemaining() public {
-    add(1);
-
-    assertEq(wrapper.getTotalRemaining(2, alpha), 9000);
-  }
-
-  function testGetTotalRemaining_empty() public {
-    assertEq(wrapper.getTotalRemaining(1, alpha), 0);
-  }
-
-  function testGetTotalRemaining_invalidDraw() public {
-    add(4);
-    vm.expectRevert(abi.encodeWithSelector(DrawAwarded.selector, 2, 4));
-    wrapper.getTotalRemaining(2, alpha);
   }
 
   function testGetDisbursedBetweenEmpty() public {
@@ -124,7 +106,7 @@ contract DrawAccumulatorLibTest is Test {
     add(1);
     add(2);
     add(4);
-    assertEq(getDisbursedBetween(1, 2), 2900); // end draw ID is more than 2 before last observation (4)
+    assertEq(getDisbursedBetween(1, 2), 2e5); // end draw ID is more than 2 before last observation (4)
   }
 
   function testGetDisbursedBetween_endOneLessThanLast() public {
@@ -132,15 +114,7 @@ contract DrawAccumulatorLibTest is Test {
     add(2); // 1000 + 900
     // 900 + 810
     add(4); // 1000 + 810 + 729
-    assertApproxEqAbs(getDisbursedBetween(1, 3), 4610, 1); // end draw ID is 1 before last observation (4)
-  }
-
-  function testGetDisbursedBetween_endOneLessThanLast_alphaZero() public {
-    alpha = sd(0);
-    add(1);
-    add(2);
-    add(4);
-    assertEq(getDisbursedBetween(1, 3), 20000); // end draw ID is 1 before last observation (4)
+    assertApproxEqAbs(getDisbursedBetween(1, 3), 2e5, 1); // end draw ID is 1 before last observation (4)
   }
 
   function testGetDisbursedBetween_binarySearchBothStartAndEnd() public {
@@ -151,7 +125,7 @@ contract DrawAccumulatorLibTest is Test {
     add(4); // 1000 + 900 + 810 + 729
     add(5);
     add(6);
-    assertApproxEqAbs(getDisbursedBetween(3, 4), 6149, 1); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
+    assertApproxEqAbs(getDisbursedBetween(3, 4), 2e5, 1); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
   }
 
   function testGetDisbursedBetween_binarySearchBothStartAndEnd_2ndScenario() public {
@@ -162,7 +136,7 @@ contract DrawAccumulatorLibTest is Test {
     add(4); // 1000 + 900 + 810 + 729
     add(5);
     add(6);
-    assertApproxEqAbs(getDisbursedBetween(2, 4), 8049, 1); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
+    assertApproxEqAbs(getDisbursedBetween(2, 4), 3e5, 1); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
   }
 
   function testGetDisbursedBetween_binarySearchBothStartAndEnd_3rdScenario() public {
@@ -174,7 +148,7 @@ contract DrawAccumulatorLibTest is Test {
     add(5); // 1000 + 900 + 810 + 729 + 656
     add(6);
     add(7);
-    assertApproxEqAbs(getDisbursedBetween(2, 5), 12144, 2); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
+    assertApproxEqAbs(getDisbursedBetween(2, 5), 4e5, 2); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
   }
 
   function testGetDisbursedBetween_binarySearchBothStartAndEnd_4thScenario() public {
@@ -186,7 +160,7 @@ contract DrawAccumulatorLibTest is Test {
     add(5); // 1000 + 729 + 656
     add(6);
     add(7);
-    assertApproxEqAbs(getDisbursedBetween(2, 5), 7534, 2); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
+    assertApproxEqAbs(getDisbursedBetween(2, 5), 2e5, 2); // end draw ID is more than 2 before last observation (6) and start is not at earliest (1)
   }
 
   function testGetDisbursedBetween_onOne() public {
@@ -198,7 +172,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810
             4		729
         */
-    assertEq(getDisbursedBetween(1, 4), 3438);
+    assertEq(getDisbursedBetween(1, 4), 10000);
   }
 
   function testGetDisbursedBetween_beforeOne() public {
@@ -210,19 +184,19 @@ contract DrawAccumulatorLibTest is Test {
   function testGetDisbursedBetween_endOnOne() public {
     add(4);
     // should include draw 2, 3 and 4
-    assertEq(getDisbursedBetween(2, 4), 1000);
+    assertEq(getDisbursedBetween(2, 4), 10000);
   }
 
   function testGetDisbursedBetween_startOnOne() public {
     add(4);
     // should include draw 2, 3 and 4
-    assertEq(getDisbursedBetween(4, 4), 1000);
+    assertEq(getDisbursedBetween(4, 4), 10000);
   }
 
   function testGetDisbursedBetween_afterOne() public {
     add(1);
     // should include draw 2, 3 and 4
-    assertEq(getDisbursedBetween(2, 4), 2438);
+    assertEq(getDisbursedBetween(2, 4), 0);
   }
 
   function testGetDisbursedBetween_beforeOnTwo() public {
@@ -235,7 +209,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810 + 1000
             4		729 + 900
         */
-    assertEq(getDisbursedBetween(1, 4), 1000);
+    assertEq(getDisbursedBetween(1, 4), 10000);
   }
 
   function testGetDisbursedBetween_aroundFirstOfTwo() public {
@@ -248,7 +222,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810 + 1000
             4		729 + 900
         */
-    assertEq(getDisbursedBetween(1, 5), 1899);
+    assertEq(getDisbursedBetween(1, 5), 10000);
   }
 
   function testGetDisbursedBetween_acrossTwo() public {
@@ -261,7 +235,7 @@ contract DrawAccumulatorLibTest is Test {
             4		810 + 1000
             5		729 + 900
         */
-    assertEq(getDisbursedBetween(1, 4), 3710);
+    assertEq(getDisbursedBetween(1, 4), 2000);
   }
 
   function testGetDisbursedBetween_onOneBetweenTwo() public {
@@ -274,7 +248,7 @@ contract DrawAccumulatorLibTest is Test {
             4		810 + 1000
             5		729 + 900
         */
-    assertEq(getDisbursedBetween(3, 3), 899);
+    assertEq(getDisbursedBetween(3, 3), 0);
   }
 
   function testGetDisbursedBetween_betweenTwo() public {
@@ -287,7 +261,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810
             4		729 + 1000
         */
-    assertEq(getDisbursedBetween(2, 3), 1709);
+    assertEq(getDisbursedBetween(2, 3), 0);
   }
 
   function testGetDisbursedBetween_aroundLastOfTwo() public {
@@ -300,7 +274,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810
             4		729 + 1000
         */
-    assertEq(getDisbursedBetween(3, 4), 2538);
+    assertEq(getDisbursedBetween(3, 4), 10000);
   }
 
   function testGetDisbursedBetween_AfterLast() public {
@@ -312,21 +286,7 @@ contract DrawAccumulatorLibTest is Test {
     // 4  729 + 1000
     // 5  656 + 900
     // 6  590 + 810
-    assertEq(getDisbursedBetween(6, 6), 1400);
-  }
-
-  // function testIntegrateInf() public {
-  //   assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 0, 100), 100);
-  //   assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 1, 100), 90);
-  //   assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 2, 100), 81);
-  //   assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 3, 100), 72);
-  // }
-
-  function testIntegrate() public {
-    assertEq(DrawAccumulatorLib.integrate(sd(0.9e18), 0, 1, 10000), 1000);
-    assertEq(DrawAccumulatorLib.integrate(sd(0.9e18), 1, 2, 10000), 899);
-    assertEq(DrawAccumulatorLib.integrate(sd(0.9e18), 2, 3, 10000), 809);
-    assertEq(DrawAccumulatorLib.integrate(sd(0.9e18), 3, 4, 10000), 728);
+    assertEq(getDisbursedBetween(6, 6), 0);
   }
 
   function testBinarySearchTwoWithFirstMatchingTarget() public {
@@ -407,13 +367,13 @@ contract DrawAccumulatorLibTest is Test {
   }
 
   function add(uint16 drawId) internal {
-    wrapper.add(10000, drawId, alpha);
+    wrapper.add(10000, drawId);
   }
 
   function getDisbursedBetween(
     uint16 _startDrawId,
     uint16 _endDrawId
   ) internal view returns (uint256) {
-    return wrapper.getDisbursedBetween(_startDrawId, _endDrawId, alpha);
+    return wrapper.getDisbursedBetween(_startDrawId, _endDrawId);
   }
 }
