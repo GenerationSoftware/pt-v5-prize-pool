@@ -35,7 +35,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
   uint8 numberOfTiers = 3;
   uint8 tierShares = 100;
   uint8 reserveShares = 10;
-  uint48 drawTimeout = 5 * drawPeriodSeconds;
+  uint24 drawTimeout = 5;
 
   constructor(CurrentTime _currentTime) {
     currentTime = _currentTime;
