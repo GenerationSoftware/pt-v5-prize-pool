@@ -23,14 +23,10 @@ contract DrawAccumulatorFuzzHarness {
     return result;
   }
 
-  function getDisbursedBetween(uint16 _start, uint16 _end) external returns (uint256 result) {
-    // console2.log("fuzz harness 1");
+  function getDisbursedBetween(uint16 _start, uint16 _end) external view returns (uint256 result) {
     uint24 start = _start % (currentDrawId*2);
-    // console2.log("fuzz harness 2");
     uint24 end = start + _end % (currentDrawId*2);
-    // console2.log("fuzz harness 3");
     result = accumulator.getDisbursedBetween(start, end, alpha);
-    // console2.log("fuzz harness 4");
   }
 
   function newestObservation() external view returns (Observation memory) {

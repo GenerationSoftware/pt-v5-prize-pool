@@ -699,7 +699,6 @@ contract PrizePoolTest is Test {
     awardDraw(winningRandomNumber);
     contribute(100e18);
     awardDraw(winningRandomNumber);
-    (uint24 startDrawId, uint24 shutdownDrawId) = shutdownRangeDrawIds();
     
     vm.warp(firstDrawOpensAt + drawPeriodSeconds + drawTimeout);
 
