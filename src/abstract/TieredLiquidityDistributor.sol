@@ -200,18 +200,8 @@ contract TieredLiquidityDistributor {
       _prizeTokenLiquidity
     );
 
-    // need to redistribute to the canary tier and any new tiers (if expanding)
-    uint8 start;
-    uint8 end;
-    // if we are expanding, need to reset the canary tier and all of the new tiers
-    if (_nextNumberOfTiers > numTiers) {
-      start = numTiers - 1;
-      end = _nextNumberOfTiers;
-    } else {
-      // just reset the canary tier
-      start = _nextNumberOfTiers - 1;
-      end = _nextNumberOfTiers;
-    }
+    uint8 start = _computeReclamationStart(numTiers, _nextNumberOfTiers);
+    uint8 end = _nextNumberOfTiers;
     for (uint8 i = start; i < end; i++) {
       _tiers[i] = Tier({
         drawId: _awardingDraw,
@@ -248,17 +238,8 @@ contract TieredLiquidityDistributor {
     UD60x18 reclaimedLiquidity;
     {
       // need to redistribute to the canary tier and any new tiers (if expanding)
-      uint8 start;
-      uint8 end;
-      // if we are shrinking, we need to reclaim including the new canary tier
-      if (_nextNumberOfTiers < _numberOfTiers) {
-        start = _nextNumberOfTiers - 1;
-        end = _numberOfTiers;
-      } else {
-        // just reset the canary tier
-        start = _numberOfTiers - 1;
-        end = _numberOfTiers;
-      }
+      uint8 start = _computeReclamationStart(_numberOfTiers, _nextNumberOfTiers);
+      uint8 end = _numberOfTiers;
       for (uint8 i = start; i < end; i++) {
         reclaimedLiquidity = reclaimedLiquidity.add(
           _getTierRemainingLiquidity(
@@ -336,6 +317,12 @@ contract TieredLiquidityDistributor {
   /// @return The total shares
   function _getTotalShares(uint8 _numberOfTiers) internal view returns (uint256) {
     return uint256(_numberOfTiers) * uint256(tierShares) + uint256(reserveShares);
+  }
+
+  function _computeReclamationStart(uint8 _numberOfTiers, uint8 _nextNumberOfTiers) internal pure returns (uint8) {
+    // if we are expanding, need to reset the canary tier and all of the new tiers
+    // else reset the daily and canary tiers
+    return _nextNumberOfTiers > _numberOfTiers ? _numberOfTiers - 1 : _nextNumberOfTiers - 2;
   }
 
   /// @notice Consumes liquidity from the given tier.
