@@ -41,10 +41,10 @@ error InsufficientRewardsError(uint256 requested, uint256 available);
 /// @param prizeIndex The prize index
 error DidNotWin(address vault, address winner, uint8 tier, uint32 prizeIndex);
 
-/// @notice Emitted when the fee being claimed is larger than the max allowed fee.
-/// @param fee The fee being claimed
-/// @param maxFee The max fee that can be claimed
-error FeeTooLarge(uint256 fee, uint256 maxFee);
+/// @notice Emitted when the claim reward exceeds the maximum.
+/// @param reward The reward being claimed
+/// @param maxReward The max reward that can be claimed
+error RewardTooLarge(uint256 reward, uint256 maxReward);
 
 /// @notice Emitted when the initialized smoothing number is not less than one.
 /// @param smoothing The unwrapped smoothing value that exceeds the limit
@@ -89,8 +89,8 @@ error CallerNotDrawManager(address caller, address drawManager);
 /// @notice Emitted when someone tries to claim a prize that is zero size
 error PrizeIsZero();
 
-/// @notice Emitted when someone tries to claim a prize, but sets the fee recipient address to the zero address.
-error FeeRecipientZeroAddress();
+/// @notice Emitted when someone tries to claim a prize, but sets the reward recipient address to the zero address.
+error RewardRecipientZeroAddress();
 
 /// @notice Emitted when a claim is attempted after the claiming period has expired.
 error ClaimPeriodExpired();
@@ -135,8 +135,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param drawId The draw ID of the draw that was claimed.
   /// @param tier The prize tier that was claimed.
   /// @param payout The amount of prize tokens that were paid out to the winner
-  /// @param fee The amount of prize tokens that were paid to the claimer
-  /// @param feeRecipient The address that the claim fee was sent to
+  /// @param claimReward The amount of prize tokens that were paid to the claimer
+  /// @param claimRewardRecipient The address that the claimReward was sent to
   event ClaimedPrize(
     address indexed vault,
     address indexed winner,
@@ -145,8 +145,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint8 tier,
     uint32 prizeIndex,
     uint152 payout,
-    uint96 fee,
-    address feeRecipient
+    uint96 claimReward,
+    address claimRewardRecipient
   );
 
   /// @notice Emitted when a draw is awarded.
@@ -407,8 +407,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
   /**
    * @notice Claims a prize for a given winner and tier.
-   * @dev This function takes in an address _winner, a uint8 _tier, a uint96 _fee, and an
-   * address _feeRecipient. It checks if _winner is actually the winner of the _tier for the calling vault.
+   * @dev This function takes in an address _winner, a uint8 _tier, a uint96 _claimReward, and an
+   * address _claimRewardRecipient. It checks if _winner is actually the winner of the _tier for the calling vault.
    * If so, it calculates the prize size and transfers it to the winner. If not, it reverts with an error message.
    * The function then checks the claim record of _winner to see if they have already claimed the prize for the
    * awarded draw. If not, it updates the claim record with the claimed tier and emits a ClaimedPrize event with
@@ -420,17 +420,17 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
    * @param _winner The address of the eligible winner
    * @param _prizeIndex The prize to claim for the winner. Must be less than the prize count for the tier.
    * @param _prizeRecipient The recipient of the prize
-   * @param _fee The fee associated with claiming the prize.
-   * @param _feeRecipient The address to receive the fee.
-   * @return Total prize amount claimed (payout and fees combined). If the prize was already claimed it returns zero.
+   * @param _claimReward The claimReward associated with claiming the prize.
+   * @param _claimRewardRecipient The address to receive the claimReward.
+   * @return Total prize amount claimed (payout and claimRewards combined). If the prize was already claimed it returns zero.
    */
   function claimPrize(
     address _winner,
     uint8 _tier,
     uint32 _prizeIndex,
     address _prizeRecipient,
-    uint96 _fee,
-    address _feeRecipient
+    uint96 _claimReward,
+    address _claimRewardRecipient
   ) external returns (uint256) {
     /**
      * @dev Claims cannot occur after a draw has been finalized (1 period after a draw closes). This prevents
@@ -440,16 +440,16 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     if (_isDrawFinalized(lastAwardedDrawId_)) {
       revert ClaimPeriodExpired();
     }
-    if (_feeRecipient == address(0) && _fee > 0) {
-      revert FeeRecipientZeroAddress();
+    if (_claimRewardRecipient == address(0) && _claimReward > 0) {
+      revert RewardRecipientZeroAddress();
     }
 
     uint8 _numTiers = numberOfTiers;
 
     Tier memory tierLiquidity = _getTier(_tier, _numTiers);
 
-    if (_fee > tierLiquidity.prizeSize) {
-      revert FeeTooLarge(_fee, tierLiquidity.prizeSize);
+    if (_claimReward > tierLiquidity.prizeSize) {
+      revert RewardTooLarge(_claimReward, tierLiquidity.prizeSize);
     }
 
     if (tierLiquidity.prizeSize == 0) {
@@ -491,12 +491,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
     // `amount` is now the payout amount
     uint256 amount;
-    if (_fee != 0) {
-      emit IncreaseClaimRewards(_feeRecipient, _fee);
-      _rewards[_feeRecipient] += _fee;
+    if (_claimReward != 0) {
+      emit IncreaseClaimRewards(_claimRewardRecipient, _claimReward);
+      _rewards[_claimRewardRecipient] += _claimReward;
 
       unchecked {
-        amount = tierLiquidity.prizeSize - _fee;
+        amount = tierLiquidity.prizeSize - _claimReward;
       }
     } else {
       amount = tierLiquidity.prizeSize;
@@ -514,8 +514,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       _tier,
       _prizeIndex,
       uint152(amount),
-      _fee,
-      _feeRecipient
+      _claimReward,
+      _claimRewardRecipient
     );
 
     prizeToken.safeTransfer(_prizeRecipient, amount);
@@ -607,8 +607,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(_tierOdds(_tier, numberOfTiers)));
   }
 
-  /// @notice The total amount of prize tokens that have been claimed for all time
-  /// @return The total amount of prize tokens that have been claimed for all time
+  /// @notice The total amount of prize tokens that have been withdrawn as fees or prizes
+  /// @return The total amount of prize tokens that have been withdrawn as fees or prizes
   function totalWithdrawn() external view returns (uint256) {
     return _totalWithdrawn;
   }
