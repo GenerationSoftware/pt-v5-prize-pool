@@ -202,7 +202,7 @@ contract TieredLiquidityDistributor {
 
     uint8 start = _computeReclamationStart(numTiers, _nextNumberOfTiers);
     uint8 end = _nextNumberOfTiers;
-    for (uint8 i = start; i < end; i++) {
+    for (uint8 i = start; i != end; i++) {
       _tiers[i] = Tier({
         drawId: _awardingDraw,
         prizeTokenPerShare: _prizeTokenPerShare,
@@ -240,7 +240,7 @@ contract TieredLiquidityDistributor {
       // need to redistribute to the canary tier and any new tiers (if expanding)
       uint8 start = _computeReclamationStart(_numberOfTiers, _nextNumberOfTiers);
       uint8 end = _numberOfTiers;
-      for (uint8 i = start; i < end; i++) {
+      for (uint8 i = start; i != end; i++) {
         reclaimedLiquidity = reclaimedLiquidity.add(
           _getTierRemainingLiquidity(
             fromUD34x4toUD60x18(_tiers[i].prizeTokenPerShare),

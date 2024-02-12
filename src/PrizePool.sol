@@ -122,7 +122,7 @@ struct ConstructorParams {
   uint8 numberOfTiers;
   uint8 tierShares;
   uint8 reserveShares; // 112 bits since prev word, meaning 144 bits left
-  uint48 shutdownTimeout; // the number of seconds that must pass after the last draw before the prize pool is considered shutdown
+  uint48 drawTimeout; // if the timeout elapses without a new draw, then the prize pool shuts down. The timeout resets when a draw is awarded.
 }
 
 /**
@@ -243,7 +243,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   uint48 public immutable firstDrawOpensAt;
 
   /// @notice The maximum number of draws that can be missed before the prize pool is considered inactive.
-  uint48 public immutable shutdownTimeout;
+  uint48 public immutable drawTimeout;
 
   /// @notice The exponential weighted average of all vault contributions.
   DrawAccumulatorLib.Accumulator internal _totalAccumulator;
@@ -303,7 +303,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert IncompatibleTwabPeriodOffset();
     }
 
-    shutdownTimeout = params.shutdownTimeout;
+    drawTimeout = params.drawTimeout;
     prizeToken = params.prizeToken;
     twabController = params.twabController;
     smoothing = params.smoothing;
@@ -374,10 +374,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @dev Updates the number of tiers, the winning random number and the prize pool reserve.
   /// @param winningRandomNumber_ The winning random number for the draw
   /// @return The ID of the awarded draw
-  function awardDraw(uint256 winningRandomNumber_) external onlyDrawManager returns (uint24) {
-    if (_isShutdown()) {
-      revert PrizePoolShutdown();
-    }
+  function awardDraw(uint256 winningRandomNumber_) external onlyDrawManager notShutdown returns (uint24) {
     // check winning random number
     if (winningRandomNumber_ == 0) {
       revert RandomNumberIsZero();
@@ -398,10 +395,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       _nextNumberOfTiers = computeNextNumberOfTiers(_claimCount);
     }
 
-    /**
-      @dev If any draws were skipped from the last awarded draw to the one we are awarding, the contribution
-      from those skipped draws will be included in the new distributions.
-     */
+    // If any draws were skipped from the last awarded draw to the one we are awarding, the contribution
+    // from those skipped draws will be included in the new distributions.
     _awardDraw(
       awardingDrawId,
       _nextNumberOfTiers,
@@ -552,7 +547,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Allows anyone to deposit directly into the Prize Pool reserve.
   /// @dev Ensure caller has sufficient balance and has approved the Prize Pool to transfer the tokens
   /// @param _amount The amount of tokens to increase the reserve by
-  function contributeReserve(uint96 _amount) external {
+  function contributeReserve(uint96 _amount) external notShutdown {
     _reserve += _amount;
     _directlyContributedReserve += _amount;
     prizeToken.safeTransferFrom(msg.sender, address(this), _amount);
@@ -750,73 +745,92 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     return nextNumberOfTiers;
   }
 
-  function shutdownBalanceOf(address _vault, address _account, uint24 _drawIdToAward) public view returns (uint256) {
-    uint24 lastWithdrawalDrawId = _lastShutdownWithdrawal[_vault][_account];
+  function shutdownBalanceOf(address _vault, address _account) public view returns (uint256) {
+    if (!isShutdown()) {
+      return 0;
+    }
+
+    // any liquidity prior to now
+    uint24 shutdownDrawId = drawIdPriorToShutdown();
+    uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(shutdownDrawId, grandPrizePeriodDraws);
+
+    SD59x18 vaultPortion = getVaultPortion(
+      _vault,
+      startDrawIdInclusive,
+      shutdownDrawId
+    );
+
+    (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = getVaultUserBalanceAndTotalSupplyTwab(
+      _vault,
+      _account,
+      startDrawIdInclusive,
+      shutdownDrawId
+    );
 
     uint256 balance;
+    uint24 drawIdToAward = getDrawIdToAward();
+    uint24 lastWithdrawalDrawId = _lastShutdownWithdrawal[_vault][_account];
 
-    while (lastWithdrawalDrawId != _drawIdToAward) {
-
-      uint24 startDrawIdInclusive;
-      uint24 endDrawIdInclusive;
+    while (lastWithdrawalDrawId < drawIdToAward) {
       uint256 liquidity;
 
-      if (lastWithdrawalDrawId == 0) {
-        // compute the range, and the vaults portion
-        endDrawIdInclusive = _lastAwardedDrawId;
-        startDrawIdInclusive = computeRangeStartDrawIdInclusive(endDrawIdInclusive, grandPrizePeriodDraws);
-        // compute the liquidity available, less whatever is after the range
-        uint256 liquidityAfterRange = getTotalContributedBetween(endDrawIdInclusive + 1, _drawIdToAward) + DrawAccumulatorLib.getTotalRemaining(_totalAccumulator, _drawIdToAward + 1, smoothing.intoSD59x18());
-        liquidity = prizeToken.balanceOf(address(this)) - _totalRewardsToBeClaimed - liquidityAfterRange;
-        lastWithdrawalDrawId = _lastAwardedDrawId;
-      } else {
-        startDrawIdInclusive = lastWithdrawalDrawId + 1;
-        endDrawIdInclusive = _drawIdToAward;
-        liquidity = getTotalContributedBetween(startDrawIdInclusive, endDrawIdInclusive);
-        lastWithdrawalDrawId = _drawIdToAward;
+      // if there are previously disbursed funds, then we need to exclude prev claims.
+      if (_lastAwardedDrawId != 0 && lastWithdrawalDrawId < shutdownDrawId) {
+        // subtract whatever (if anything) was contributed after the shutdown draw id and the rewards to be claimed
+        uint256 liquidityAfter;
+        if (shutdownDrawId < drawIdToAward) {
+          liquidityAfter = getTotalContributedBetween(shutdownDrawId + 1, drawIdToAward);
+        }
+        liquidityAfter += DrawAccumulatorLib.getTotalRemaining(_totalAccumulator, drawIdToAward + 1, smoothing.intoSD59x18());
+        liquidity = accountedBalance() - liquidityAfter - _totalRewardsToBeClaimed;
+        lastWithdrawalDrawId = shutdownDrawId;
+      } else { // if there is anything to collect
+        liquidity = getTotalContributedBetween(lastWithdrawalDrawId + 1, drawIdToAward);
+        lastWithdrawalDrawId = drawIdToAward;
       }
 
-      SD59x18 vaultPortion = getVaultPortion(
-        _vault,
-        startDrawIdInclusive,
-        endDrawIdInclusive
-      );
-
-      (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = getVaultUserBalanceAndTotalSupplyTwab(
-        _vault,
-        _account,
-        startDrawIdInclusive,
-        endDrawIdInclusive
-      );
-
-      balance += uint256(convert(
-        vaultPortion.mul(
-          convert(int256(_userTwab)).div(convert(int256(_vaultTwabTotalSupply)))
-        ).mul(convert(int256(liquidity)))
-      ));
+      if (liquidity != 0 && _vaultTwabTotalSupply != 0) {
+        balance += uint256(convert(
+          vaultPortion.mul(
+            convert(int256(_userTwab)).div(convert(int256(_vaultTwabTotalSupply)))
+          ).mul(convert(int256(liquidity)))
+        ));
+      }
     }
 
     return balance;
   }
 
-  function withdrawAfterShutdown(address _vault, address _account) external returns (uint256) {
-    if (!_isShutdown()) {
+  function withdrawShutdownBalance(address _vault, address _recipient) external returns (uint256) {
+    if (!isShutdown()) {
       revert PrizePoolNotShutdown();
     }
-    uint24 drawIdToAward = getDrawIdToAward();
-    uint256 balance = shutdownBalanceOf(_vault, _account, drawIdToAward);
-    _lastShutdownWithdrawal[_vault][_account] = drawIdToAward;
-    prizeToken.safeTransfer(_account, balance);
+    uint256 balance = shutdownBalanceOf(_vault, msg.sender);
+    _lastShutdownWithdrawal[_vault][msg.sender] = getDrawIdToAward();
+    prizeToken.safeTransfer(_recipient, balance);
+    _totalWithdrawn += uint128(balance);
+    return balance;
   }
 
-  function _isShutdown() internal view returns (bool) {
-    return twabController.isShutdownAt(block.timestamp) || _isInactive();
+  function drawIdPriorToShutdown() public view returns (uint24) {
+    return SafeCast.toUint24((shutdownAt() - firstDrawOpensAt) / drawPeriodSeconds);
   }
 
-  function _isInactive() internal view returns (bool) {
-    uint256 lastAwardedAtTimestamp = _lastAwardedDrawId > 0 ? lastAwardedDrawAwardedAt : firstDrawOpensAt + drawPeriodSeconds;
+  function shutdownAt() public view returns (uint256) {
+    uint256 twabShutdownAt = twabController.lastObservationAt();
+    uint256 drawTimeoutAt_ = drawTimeoutAt();
+    return drawTimeoutAt_ < twabShutdownAt ? drawTimeoutAt_ : twabShutdownAt;
+  }
 
-    return block.timestamp > lastAwardedAtTimestamp + shutdownTimeout;
+  function isShutdown() public view returns (bool shutdown) {
+    shutdown = block.timestamp >= shutdownAt();
+  }
+
+  /**
+   * Returns the timestamp at which the prize pool will be considered inactive
+   */
+  function drawTimeoutAt() public view returns (uint256) { 
+    return (_lastAwardedDrawId > 0 ? lastAwardedDrawAwardedAt : firstDrawOpensAt) + drawTimeout;
   }
 
   /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive.
@@ -963,5 +977,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
           )
         ).div(sd(SafeCast.toInt256(totalContributed)))
         : sd(0);
+  }
+
+  modifier notShutdown() {
+    if (isShutdown()) {
+      revert PrizePoolShutdown();
+    }
+    _;
   }
 }
