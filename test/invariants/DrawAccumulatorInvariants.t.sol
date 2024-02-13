@@ -13,7 +13,7 @@ contract DrawAccumulatorInvariants is Test {
     accumulator = new DrawAccumulatorFuzzHarness();
   }
 
-  function testFuture_plus_past_equals_total() external {
+  function invariant_future_plus_past_equals_total() external {
     Observation memory obs = accumulator.newestObservation();
     assertEq(obs.available + obs.disbursed, accumulator.totalAdded());
   }

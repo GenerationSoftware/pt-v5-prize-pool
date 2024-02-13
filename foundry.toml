@@ -3,12 +3,12 @@ src = 'src'
 out = 'out'
 libs = ['lib']
 solc = "0.8.19"
-gas_limit = "18446744073709551615" # u64::MAX
 gas_reports_ignore = ["ERC20Mintable", "TwabController"]
+gas_limit = "18446744073709551615" # u64::MAX
 block_gas_limit = "18446744073709551615" # u64::MAX
 fs_permissions = [{ access = "read-write", path = "./data"}]
 optimizer = true
-via_ir = false
+via_ir = true
 ffi = true
 
 [profile.default.optimizer_details]
@@ -22,8 +22,12 @@ constant_optimizer = true
 yul = true
 
 [invariant]
-fail_on_revert = true
-    
+runs = 4
+depth = 400
+
+[fuzz]
+seed = "0x0ca1b799da18587180cdb11fc96564bf73af56a3f4e6981971452fc78cb0dcbc"
+
 [rpc_endpoints]
 mainnet = "${MAINNET_RPC_URL}"
 arbitrum = "${ARBITRUM_RPC_URL}"

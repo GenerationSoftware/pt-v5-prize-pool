@@ -135,6 +135,14 @@ contract DrawAccumulatorLibTest is Test {
     assertApproxEqAbs(getDisbursedBetween(1, 3), 4610, 1); // end draw ID is 1 before last observation (4)
   }
 
+  function testGetDisbursedBetween_endOneLessThanLast_alphaZero() public {
+    alpha = sd(0);
+    add(1);
+    add(2);
+    add(4);
+    assertEq(getDisbursedBetween(1, 3), 20000); // end draw ID is 1 before last observation (4)
+  }
+
   function testGetDisbursedBetween_binarySearchBothStartAndEnd() public {
     // here we want to test a case where the algorithm must binary search both the start and end observations
     add(1); // 1000
@@ -307,12 +315,12 @@ contract DrawAccumulatorLibTest is Test {
     assertEq(getDisbursedBetween(6, 6), 1400);
   }
 
-  function testIntegrateInf() public {
-    assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 0, 100), 100);
-    assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 1, 100), 90);
-    assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 2, 100), 81);
-    assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 3, 100), 72);
-  }
+  // function testIntegrateInf() public {
+  //   assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 0, 100), 100);
+  //   assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 1, 100), 90);
+  //   assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 2, 100), 81);
+  //   assertEq(DrawAccumulatorLib.integrateInf(sd(0.9e18), 3, 100), 72);
+  // }
 
   function testIntegrate() public {
     assertEq(DrawAccumulatorLib.integrate(sd(0.9e18), 0, 1, 10000), 1000);

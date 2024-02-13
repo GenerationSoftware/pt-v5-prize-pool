@@ -66,9 +66,4 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
     uint32 result = _sumTierPrizeCounts(_numTiers);
     return result;
   }
-
-  function getTierRemainingLiquidity(uint8 _tier, UD60x18 _prizeTokenPerShare) external view returns (uint256) {
-    uint256 result = _getTierRemainingLiquidity(_tier, _prizeTokenPerShare);
-    return result;
-  }
 }

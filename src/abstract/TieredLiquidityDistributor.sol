@@ -202,7 +202,7 @@ contract TieredLiquidityDistributor {
 
     uint8 start = _computeReclamationStart(numTiers, _nextNumberOfTiers);
     uint8 end = _nextNumberOfTiers;
-    for (uint8 i = start; i < end; i++) {
+    for (uint8 i = start; i != end; i++) {
       _tiers[i] = Tier({
         drawId: _awardingDraw,
         prizeTokenPerShare: _prizeTokenPerShare,
@@ -240,7 +240,7 @@ contract TieredLiquidityDistributor {
       // need to redistribute to the canary tier and any new tiers (if expanding)
       uint8 start = _computeReclamationStart(_numberOfTiers, _nextNumberOfTiers);
       uint8 end = _numberOfTiers;
-      for (uint8 i = start; i < end; i++) {
+      for (uint8 i = start; i != end; i++) {
         reclaimedLiquidity = reclaimedLiquidity.add(
           _getTierRemainingLiquidity(
             fromUD34x4toUD60x18(_tiers[i].prizeTokenPerShare),
@@ -280,11 +280,8 @@ contract TieredLiquidityDistributor {
   /// @notice Returns the estimated number of prizes for the given tier.
   /// @param _tier The tier to retrieve
   /// @return The estimated number of prizes
-  function getTierPrizeCount(uint8 _tier) external view returns (uint32) {
-    return
-      !TierCalculationLib.isValidTier(_tier, numberOfTiers)
-        ? 0
-        : uint32(TierCalculationLib.prizeCount(_tier));
+  function getTierPrizeCount(uint8 _tier) external pure returns (uint32) {
+    return uint32(TierCalculationLib.prizeCount(_tier));
   }
 
   /// @notice Retrieves an up-to-date Tier struct for the given tier.
@@ -385,7 +382,7 @@ contract TieredLiquidityDistributor {
         tierShares
       );
       bool canExpand = _numberOfTiers < MAXIMUM_NUMBER_OF_TIERS;
-      if (canExpand && _isCanaryTier(_tier, _numberOfTiers)) {
+      if (canExpand && _tier == _numberOfTiers - 1) {
         // make canary prizes smaller to account for reduction in shares for next number of tiers
         prizeSize =
           (prizeSize * _getTotalShares(_numberOfTiers)) /
@@ -416,29 +413,10 @@ contract TieredLiquidityDistributor {
       );
   }
 
-  /// @notice Determines if the given tier is the canary tier.
-  /// @param _tier The tier to check
-  /// @param _numberOfTiers The current number of tiers
-  /// @return True if the tier is the canary tier
-  function _isCanaryTier(uint8 _tier, uint8 _numberOfTiers) internal pure returns (bool) {
-    return _tier == _numberOfTiers - 1;
-  }
-
   /// @notice Computes the remaining liquidity available to a tier.
   /// @param _tier The tier to compute the liquidity for
   /// @return The remaining liquidity
   function getTierRemainingLiquidity(uint8 _tier) public view returns (uint256) {
-    return _getTierRemainingLiquidity(_tier, fromUD34x4toUD60x18(prizeTokenPerShare));
-  }
-
-  /// @notice Computes the remaining liquidity available to a tier.
-  /// @param _tier The tier to compute the liquidity for
-  /// @param _prizeTokenPerShare The global prizeTokenPerShare
-  /// @return The remaining liquidity
-  function _getTierRemainingLiquidity(
-    uint8 _tier,
-    UD60x18 _prizeTokenPerShare
-  ) internal view returns (uint256) {
     uint8 _numTiers = numberOfTiers;
     return
       !TierCalculationLib.isValidTier(_tier, _numTiers)
@@ -446,7 +424,7 @@ contract TieredLiquidityDistributor {
         : convert(
           _getTierRemainingLiquidity(
             fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare),
-            _prizeTokenPerShare
+            fromUD34x4toUD60x18(prizeTokenPerShare)
           )
         );
   }
@@ -468,14 +446,7 @@ contract TieredLiquidityDistributor {
   /// @notice Estimates the number of prizes for the current number of tiers, including the canary tier
   /// @return The estimated number of prizes including the canary tier
   function estimatedPrizeCount() external view returns (uint32) {
-    return _estimatePrizeCountPerDrawUsingNumberOfTiers(numberOfTiers);
-  }
-
-  /// @notice Estimates the number of prizes that will be awarded given a number of tiers. Includes canary tier
-  /// @param numTiers The number of tiers
-  /// @return The estimated prize count for the given number of tiers
-  function estimatedPrizeCount(uint8 numTiers) external view returns (uint32) {
-    return _estimatePrizeCountPerDrawUsingNumberOfTiers(numTiers);
+    return estimatedPrizeCount(numberOfTiers);
   }
 
   /// @notice Returns the balance of the reserve.
@@ -487,9 +458,9 @@ contract TieredLiquidityDistributor {
   /// @notice Estimates the prize count for the given tier.
   /// @param numTiers The number of prize tiers
   /// @return The estimated total number of prizes
-  function _estimatePrizeCountPerDrawUsingNumberOfTiers(
+  function estimatedPrizeCount(
     uint8 numTiers
-  ) internal view returns (uint32) {
+  ) public view returns (uint32) {
     if (numTiers == 3) {
       return ESTIMATED_PRIZES_PER_DRAW_FOR_3_TIERS;
     } else if (numTiers == 4) {
@@ -540,14 +511,6 @@ contract TieredLiquidityDistributor {
     return 10;
   }
 
-  /// @notice Computes the odds for a tier given the number of tiers.
-  /// @param _tier The tier to compute odds for
-  /// @param _numTiers The number of prize tiers
-  /// @return The odds of the tier
-  function getTierOdds(uint8 _tier, uint8 _numTiers) external view returns (SD59x18) {
-    return _tierOdds(_tier, _numTiers);
-  }
-
   /// @notice Computes the expected number of prizes for a given number of tiers.
   /// @dev Includes the canary tier
   /// @param _numTiers The number of tiers
@@ -556,7 +519,7 @@ contract TieredLiquidityDistributor {
     uint32 prizeCount;
     uint8 i = 0;
     do {
-      prizeCount += TierCalculationLib.tierPrizeCountPerDraw(i, _tierOdds(i, _numTiers));
+      prizeCount += TierCalculationLib.tierPrizeCountPerDraw(i, getTierOdds(i, _numTiers));
       i++;
     } while (i < _numTiers);
     return prizeCount;
@@ -566,7 +529,7 @@ contract TieredLiquidityDistributor {
   /// @param _tier The tier to compute odds for
   /// @param _numTiers The number of prize tiers
   /// @return The odds of the tier
-  function _tierOdds(uint8 _tier, uint8 _numTiers) internal view returns (SD59x18) {
+  function getTierOdds(uint8 _tier, uint8 _numTiers) public view returns (SD59x18) {
     if (_tier == 0) return TIER_ODDS_0;
     if (_numTiers == 3) {
       if (_tier <= 2) return TIER_ODDS_EVERY_DRAW;
