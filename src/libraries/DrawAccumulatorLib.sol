@@ -46,12 +46,6 @@ library DrawAccumulatorLib {
     mapping(uint256 drawId => Observation observation) observations;
   }
 
-  /// @notice A pair of uint24s.
-  struct Pair48 {
-    uint24 first;
-    uint24 second;
-  }
-
   /// @notice Adds balance for the given draw id to the accumulator.
   /// @param accumulator The accumulator to add to
   /// @param _amount The amount of balance to add
