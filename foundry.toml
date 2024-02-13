@@ -8,7 +8,7 @@ gas_limit = "18446744073709551615" # u64::MAX
 block_gas_limit = "18446744073709551615" # u64::MAX
 fs_permissions = [{ access = "read-write", path = "./data"}]
 optimizer = true
-via_ir = true
+via_ir = false
 ffi = true
 
 [profile.default.optimizer_details]

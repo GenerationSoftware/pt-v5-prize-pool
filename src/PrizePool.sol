@@ -55,10 +55,6 @@ error DidNotWin(address vault, address winner, uint8 tier, uint32 prizeIndex);
 /// @param maxReward The max reward that can be claimed
 error RewardTooLarge(uint256 reward, uint256 maxReward);
 
-/// @notice Emitted when the initialized smoothing number is not less than one.
-/// @param smoothing The unwrapped smoothing value that exceeds the limit
-error SmoothingGTEOne(int64 smoothing);
-
 /// @notice Emitted when the contributed amount is more than the available, un-accounted balance.
 /// @param amount The contribution amount that is being claimed
 /// @param available The available un-accounted balance that can be claimed as a contribution
@@ -119,7 +115,6 @@ error ClaimPeriodExpired();
  * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
  * @param tierShares The number of shares to allocate to each tier
  * @param reserveShares The number of shares to allocate to the reserve.
- * @param smoothing The amount of smoothing to apply to vault contributions. Must be less than 1. A value of 0 is no smoothing, while greater values smooth until approaching infinity
  * @param drawTimeout The number of draws that need to be missed before the prize pool shuts down
  */
 struct ConstructorParams {
@@ -127,7 +122,6 @@ struct ConstructorParams {
   TwabController twabController; // 160bits
   uint48 drawPeriodSeconds;
   uint48 firstDrawOpensAt; // 256bits WORD END
-  SD1x18 smoothing; // 64 bits
   uint24 grandPrizePeriodDraws;
   uint8 numberOfTiers;
   uint8 tierShares;
@@ -236,10 +230,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Records the last shutdown withdrawal for an account
   mapping(address vault => mapping(address user => uint24 drawId)) internal _lastShutdownWithdrawal;
 
-  /// @notice The degree of POOL contribution smoothing. 0 = no smoothing, ~1 = max smoothing.
-  /// @dev Smoothing spreads out vault contribution over multiple draws; the higher the smoothing the more draws.
-  SD1x18 public immutable smoothing;
-
   /// @notice The token that is being contributed and awarded as prizes.
   IERC20 public immutable prizeToken;
 
@@ -299,10 +289,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert DrawTimeoutGTGrandPrizePeriodDraws();
     }
 
-    if (unwrap(params.smoothing) >= unwrap(UNIT)) {
-      revert SmoothingGTEOne(unwrap(params.smoothing));
-    }
-
     if (params.firstDrawOpensAt < block.timestamp) {
       revert FirstDrawOpensInPast();
     }
@@ -324,7 +310,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     drawTimeout = params.drawTimeout;
     prizeToken = params.prizeToken;
     twabController = params.twabController;
-    smoothing = params.smoothing;
     drawPeriodSeconds = params.drawPeriodSeconds;
     firstDrawOpensAt = params.firstDrawOpensAt;
   }
@@ -364,9 +349,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert ContributionGTDeltaBalance(_amount, _deltaBalance);
     }
     uint24 openDrawId_ = getOpenDrawId();
-    SD59x18 _smoothing = smoothing.intoSD59x18();
-    DrawAccumulatorLib.add(_vaultAccumulator[_prizeVault], _amount, openDrawId_, _smoothing);
-    DrawAccumulatorLib.add(_totalAccumulator, _amount, openDrawId_, _smoothing);
+    DrawAccumulatorLib.add(_vaultAccumulator[_prizeVault], _amount, openDrawId_);
+    DrawAccumulatorLib.add(_totalAccumulator, _amount, openDrawId_);
     emit ContributePrizeTokens(_prizeVault, openDrawId_, _amount);
     return _deltaBalance;
   }
@@ -587,7 +571,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   }
 
   /// @notice Returns the total prize tokens contributed by a particular vault between the given draw ids, inclusive.
-  /// @dev Note that this is after smoothing is applied.
   /// @param _vault The address of the vault
   /// @param _startDrawIdInclusive Start draw id inclusive
   /// @param _endDrawIdInclusive End draw id inclusive
@@ -601,8 +584,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       DrawAccumulatorLib.getDisbursedBetween(
         _vaultAccumulator[_vault],
         _startDrawIdInclusive,
-        _endDrawIdInclusive,
-        smoothing.intoSD59x18()
+        _endDrawIdInclusive
       );
   }
 
@@ -786,7 +768,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     // if there are previously disbursed funds, then we need to exclude prev claims.
     if (_lastAwardedDrawId != 0 && lastWithdrawalDrawId < shutdownDrawId) {
       // subtract whatever (if anything) was contributed after the shutdown draw id and the rewards to be claimed
-      uint256 liquidityAfter = DrawAccumulatorLib.getTotalRemaining(_totalAccumulator, drawIdToAward + 1, smoothing.intoSD59x18());
+      uint256 liquidityAfter;
       if (shutdownDrawId < drawIdToAward) {
         liquidityAfter += getTotalContributedBetween(shutdownDrawId + 1, drawIdToAward);
       }
@@ -847,7 +829,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   }
 
   /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive.
-  /// @dev Note that this is after smoothing is applied.
   /// @param _startDrawIdInclusive Start draw id inclusive
   /// @param _endDrawIdInclusive End draw id inclusive
   /// @return The total prize tokens contributed by all vaults
@@ -859,8 +840,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       DrawAccumulatorLib.getDisbursedBetween(
         _totalAccumulator,
         _startDrawIdInclusive,
-        _endDrawIdInclusive,
-        smoothing.intoSD59x18()
+        _endDrawIdInclusive
       );
   }
 
@@ -974,12 +954,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint24 _startDrawIdInclusive,
     uint24 _endDrawIdInclusive
   ) public view returns (SD59x18) {
-    SD59x18 _smoothing = smoothing.intoSD59x18();
     uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(
       _totalAccumulator,
       _startDrawIdInclusive,
-      _endDrawIdInclusive,
-      _smoothing
+      _endDrawIdInclusive
     );
 
     // vaultContributed / totalContributed
@@ -990,8 +968,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
             DrawAccumulatorLib.getDisbursedBetween(
               _vaultAccumulator[_vault],
               _startDrawIdInclusive,
-              _endDrawIdInclusive,
-              _smoothing
+              _endDrawIdInclusive
             )
           )
         ).div(sd(SafeCast.toInt256(totalContributed)))

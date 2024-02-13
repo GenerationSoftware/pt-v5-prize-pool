@@ -14,11 +14,10 @@ contract DrawAccumulatorFuzzHarness {
   DrawAccumulatorLib.Accumulator internal accumulator;
 
   uint16 currentDrawId = uint8(uint256(blockhash(block.number - 1))) + 1;
-  SD59x18 alpha = sd(0.9e18);
 
   function add(uint88 _amount, uint8 _drawInc) public returns (bool) {
     currentDrawId += (_drawInc / 16);
-    bool result = accumulator.add(_amount, currentDrawId, alpha);
+    bool result = accumulator.add(_amount, currentDrawId);
     totalAdded += _amount;
     return result;
   }
@@ -26,7 +25,7 @@ contract DrawAccumulatorFuzzHarness {
   function getDisbursedBetween(uint16 _start, uint16 _end) external view returns (uint256 result) {
     uint24 start = _start % (currentDrawId*2);
     uint24 end = start + _end % (currentDrawId*2);
-    result = accumulator.getDisbursedBetween(start, end, alpha);
+    result = accumulator.getDisbursedBetween(start, end);
   }
 
   function newestObservation() external view returns (Observation memory) {

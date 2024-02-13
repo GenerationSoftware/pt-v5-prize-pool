@@ -36,13 +36,8 @@ contract DrawAccumulatorLibWrapper {
     return accumulator.observations[drawId];
   }
 
-  function add(uint256 _amount, uint24 _drawId, SD59x18 _alpha) public returns (bool) {
-    bool result = DrawAccumulatorLib.add(accumulator, _amount, _drawId, _alpha);
-    return result;
-  }
-
-  function getTotalRemaining(uint16 _endDrawId, SD59x18 _alpha) public view returns (uint256) {
-    uint256 result = DrawAccumulatorLib.getTotalRemaining(accumulator, _endDrawId, _alpha);
+  function add(uint256 _amount, uint24 _drawId) public returns (bool) {
+    bool result = DrawAccumulatorLib.add(accumulator, _amount, _drawId);
     return result;
   }
 
@@ -58,41 +53,13 @@ contract DrawAccumulatorLibWrapper {
    */
   function getDisbursedBetween(
     uint24 _startDrawId,
-    uint24 _endDrawId,
-    SD59x18 _alpha
+    uint24 _endDrawId
   ) public view returns (uint256) {
     uint256 result = DrawAccumulatorLib.getDisbursedBetween(
       accumulator,
       _startDrawId,
-      _endDrawId,
-      _alpha
+      _endDrawId
     );
-    return result;
-  }
-
-  /*
-   * @notice Returns the remaining prize tokens available from relative draw _x
-   */
-  function integrateInf(SD59x18 _alpha, uint _x, uint _k) public pure returns (uint256) {
-    uint256 result = DrawAccumulatorLib.integrateInf(_alpha, _x, _k);
-    return result;
-  }
-
-  /**
-   * @notice returns the number of tokens that were given out between draw _start and draw _end
-   */
-  function integrate(
-    SD59x18 _alpha,
-    uint _start,
-    uint _end,
-    uint _k
-  ) public pure returns (uint256) {
-    uint256 result = DrawAccumulatorLib.integrate(_alpha, _start, _end, _k);
-    return result;
-  }
-
-  function computeC(SD59x18 _alpha, uint _x, uint _k) public pure returns (SD59x18) {
-    SD59x18 result = DrawAccumulatorLib.computeC(_alpha, _x, _k);
     return result;
   }
 

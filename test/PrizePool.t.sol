@@ -24,7 +24,6 @@ import {
   DidNotWin,
   RangeSizeZero,
   RewardTooLarge,
-  SmoothingGTEOne,
   ContributionGTDeltaBalance,
   InsufficientReserve,
   RandomNumberIsZero,
@@ -130,7 +129,6 @@ contract PrizePoolTest is Test {
       twabController,
       drawPeriodSeconds,
       firstDrawOpensAt,
-      sd1x18(0.9e18), // alpha
       grandPrizePeriodDraws,
       initialNumberOfTiers, // minimum number of tiers
       uint8(TIER_SHARES),
@@ -159,12 +157,6 @@ contract PrizePoolTest is Test {
   function testDrawTimeoutGTGrandPrizePeriodDraws() public {
     params.drawTimeout = grandPrizePeriodDraws + 1;
     vm.expectRevert(abi.encodeWithSelector(DrawTimeoutGTGrandPrizePeriodDraws.selector));
-    new PrizePool(params);
-  }
-
-  function testConstructor_SmoothingGTEOne() public {
-    params.smoothing = sd1x18(1.0e18); // smoothing
-    vm.expectRevert(abi.encodeWithSelector(SmoothingGTEOne.selector, 1000000000000000000));
     new PrizePool(params);
   }
 
@@ -210,7 +202,7 @@ contract PrizePoolTest is Test {
     awardDraw(winningRandomNumber);
 
     // reserve + remainder
-    assertEq(prizePool.reserve(), 1e18);
+    assertEq(prizePool.reserve(), 10e18);
   }
 
   event ClaimedPrize(
@@ -230,8 +222,8 @@ contract PrizePoolTest is Test {
     contribute(100e18);
     awardDraw(winningRandomNumber);
 
-    uint256 prizesPerShare = 10e18 / prizePool.getTotalShares();
-    uint256 remainder = 10e18 - prizesPerShare * prizePool.getTotalShares();
+    uint256 prizesPerShare = 100e18 / prizePool.getTotalShares();
+    uint256 remainder = 100e18 - prizesPerShare * prizePool.getTotalShares();
 
     uint256 reserve = (prizesPerShare * RESERVE_SHARES) + remainder;
 
@@ -263,33 +255,26 @@ contract PrizePoolTest is Test {
   function testReserve_withRemainder() public {
     contribute(100e18);
     awardDraw(winningRandomNumber);
-    assertEq(prizePool.reserve(), 0.322580645161290400e18);
+    assertEq(prizePool.reserve(), 3.22580645161290340e18);
   }
 
   function testPendingReserveContributions_noDraw() public {
     contribute(100e18);
-    uint256 reserve = 0.322580645161290400e18;
-    assertEq(prizePool.pendingReserveContributions(), reserve);
-    awardDraw(winningRandomNumber);
-    assertEq(prizePool.reserve(), reserve);
+    uint256 firstPrizesPerShare = 100e18 / prizePool.getTotalShares();
+    uint256 remainder = 100e18 - (firstPrizesPerShare * prizePool.getTotalShares());
+    assertEq(prizePool.pendingReserveContributions(), remainder + (firstPrizesPerShare * RESERVE_SHARES));
   }
 
   function testPendingReserveContributions_existingDraw() public {
-    contribute(100e18);
-    uint256 firstPrizesPerShare = 10e18 / prizePool.getTotalShares();
-    // 0.322580645161290400 in reserve
     awardDraw(winningRandomNumber);
-
-    // new liq + reclaimed canary
-    uint256 draw2Liquidity = 8999999999999998700;
-    // reclaim from two tiers
-    uint256 reclaimedLiquidity = (2 * TIER_SHARES * firstPrizesPerShare);
-    uint256 newLiquidity = draw2Liquidity + reclaimedLiquidity;
-    uint256 newPrizesPerShare = newLiquidity / prizePool.getTotalShares();
-    uint256 remainder = newLiquidity - newPrizesPerShare * prizePool.getTotalShares();
-    uint256 newReserve = (newPrizesPerShare * RESERVE_SHARES) + remainder;
-
-    assertEq(prizePool.pendingReserveContributions(), newReserve);
+    contribute(310e18);
+    uint256 firstPrizesPerShare = 310e18 / prizePool.getTotalShares();
+    uint256 remainder = 310e18 - (firstPrizesPerShare * prizePool.getTotalShares());
+    assertEq(prizePool.pendingReserveContributions(), remainder + (firstPrizesPerShare * RESERVE_SHARES), "pending reserve contributions");
+    awardDraw(winningRandomNumber);
+    // reclaim daily and canary => 200e18 reclaimed
+    uint reclaimedReserve = 200e18 * RESERVE_SHARES / prizePool.getTotalShares();
+    assertApproxEqAbs(prizePool.pendingReserveContributions(), reclaimedReserve, 1000, "no pending reserve contributions");
   }
 
   function testAllocateRewardFromReserve_notManager() public {
@@ -325,7 +310,7 @@ contract PrizePoolTest is Test {
 
   function testGetTotalContributedBetween() public {
     contribute(10e18);
-    assertEq(prizePool.getTotalContributedBetween(1, 1), 1e18);
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 10e18);
   }
 
   function testGetTotalContributedBetween_oneBeforeLastContribution() public {
@@ -333,12 +318,12 @@ contract PrizePoolTest is Test {
     awardDraw(12345); // award 1
     awardDraw(123456); // award 2
     contribute(10e18); // 3
-    assertApproxEqAbs(prizePool.getTotalContributedBetween(1, 2), 19e17, 1000);
+    assertEq(prizePool.getTotalContributedBetween(1, 2), 10e18);
   }
 
   function testGetContributedBetween() public {
     contribute(10e18);
-    assertEq(prizePool.getContributedBetween(address(this), 1, 1), 1e18);
+    assertEq(prizePool.getContributedBetween(address(this), 1, 1), 10e18);
   }
 
   function testGetTierAccrualDurationInDraws() public {
@@ -358,8 +343,8 @@ contract PrizePoolTest is Test {
     // contribute and verify that contributions go to open draw (not awarding draw)
     contribute(1e18);
     assertEq(prizePool.getTotalContributedBetween(1, 1), 0);
-    assertEq(prizePool.getTotalContributedBetween(2, 2), 1e17); // e17 since smoothing is in effect
-    assertEq(prizePool.getTotalContributedBetween(1, 2), 1e17); // e17 since smoothing is in effect
+    assertEq(prizePool.getTotalContributedBetween(2, 2), 1e18); // e17 since smoothing is in effect
+    assertEq(prizePool.getTotalContributedBetween(1, 2), 1e18); // e17 since smoothing is in effect
   }
 
   function testContributePrizeTokens_notLostOnSkippedDraw() public {
@@ -375,9 +360,9 @@ contract PrizePoolTest is Test {
     awardDraw(1234);
 
     // check if tier liquidity includes contribution from draws 1 + 2
-    assertEq(prizePool.getTotalContributedBetween(1, 1), 31e18);
-    assertApproxEqAbs(prizePool.getTotalContributedBetween(2, 2), 279e17, 10000);
-    assertApproxEqAbs(prizePool.getTierRemainingLiquidity(0), 10e18 + 9e18, 10000);
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 310e18);
+    assertEq(prizePool.getTotalContributedBetween(2, 2), 0);
+    assertEq(prizePool.getTierRemainingLiquidity(0), 100e18);
   }
 
   function testContributePrizeTokens_emitsEvent() public {
@@ -398,8 +383,8 @@ contract PrizePoolTest is Test {
     // reserve = 10e18 * (10 / 310) = 0.3225806451612903e18
     assertApproxEqAbs(
       prizePool.reserve(),
-      (10e18 * RESERVE_SHARES) / prizePool.getTotalShares(),
-      100
+      (100e18 * RESERVE_SHARES) / prizePool.getTotalShares(),
+      200
     );
     prizePool.allocateRewardFromReserve(address(this), prizePool.reserve());
     assertEq(prizePool.accountedBalance(), prizeToken.balanceOf(address(prizePool)));
@@ -619,12 +604,10 @@ contract PrizePoolTest is Test {
 
   function testAwardDraw_withLiquidity() public {
     contribute(100e18);
-    // = 1e18 / 220e18 = 0.004545454...
-    // but because of alpha only 10% is released on this draw
     awardDraw(winningRandomNumber);
 
-    uint256 liquidityPerShare = 10e18 / prizePool.getTotalShares();
-    uint256 remainder = 10e18 - liquidityPerShare * prizePool.getTotalShares();
+    uint256 liquidityPerShare = 100e18 / prizePool.getTotalShares();
+    uint256 remainder = 100e18 - liquidityPerShare * prizePool.getTotalShares();
 
     assertEq(
       fromUD34x4(prizePool.prizeTokenPerShare()),
@@ -635,7 +618,7 @@ contract PrizePoolTest is Test {
     uint256 reserve = remainder + RESERVE_SHARES * liquidityPerShare;
 
     assertEq(prizePool.reserve(), reserve, "reserve"); // remainder of the complex fraction
-    assertEq(prizePool.getTotalContributedBetween(1, 1), 10e18); // ensure not a single wei is lost!
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 100e18); // ensure not a single wei is lost!
   }
 
   function testDrawIdPriorToShutdown_init() public {
@@ -722,7 +705,6 @@ contract PrizePoolTest is Test {
   }
 
   function testShutdownBalanceOf_shutdown_withDrawsBeforeAndAfter_withBalance_withContributions() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     awardDraw(winningRandomNumber);
@@ -733,7 +715,7 @@ contract PrizePoolTest is Test {
     // we want shutdown draw id === draw id to award
     vm.warp(prizePool.lastAwardedDrawAwardedAt() + drawTimeout*drawPeriodSeconds);
     mockShutdownTwab(0.5e18, 1e18);
-    assertApproxEqAbs(prizePool.shutdownBalanceOf(address(this), msg.sender), 150e18, 10000);
+    assertEq(prizePool.shutdownBalanceOf(address(this), msg.sender), 150e18);
   }
 
   function testShutdownBalanceOf_shutdown_noDraws_withBalance_withContributions_multiple_claims() public {
@@ -741,15 +723,15 @@ contract PrizePoolTest is Test {
     vm.warp(firstDrawOpensAt + drawPeriodSeconds + drawTimeout*drawPeriodSeconds);
     mockShutdownTwab(0.5e18, 1e18);
     vm.startPrank(msg.sender);
-    assertApproxEqAbs(prizePool.withdrawShutdownBalance(address(this), msg.sender), 50e18, 1000, "first claim");
+    assertEq(prizePool.withdrawShutdownBalance(address(this), msg.sender), 50e18, "first claim");
     vm.stopPrank();
 
     vm.warp(firstDrawOpensAt + drawPeriodSeconds + drawTimeout*drawPeriodSeconds + 49*drawPeriodSeconds);
     contribute(100e18); // contributed to last closed draw.  Means 10e18 is distributed to the next draw
     vm.warp(firstDrawOpensAt + drawPeriodSeconds + drawTimeout*drawPeriodSeconds + 50*drawPeriodSeconds); // move forward 1 draw
 
-    // should be 50% of last amount
-    assertApproxEqAbs(prizePool.shutdownBalanceOf(address(this), msg.sender), 5e18, 1000, "second claim");
+    // should be 50% of last contribution
+    assertEq(prizePool.shutdownBalanceOf(address(this), msg.sender), 50e18, "second claim");
   }
 
   function testWithdrawShutdownBalance_notShutdown() public {
@@ -763,7 +745,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_contributeAfterShutdown() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
     mockShutdownTwab(0.5e18, 1e18);
@@ -777,7 +758,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_oneClaim() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -790,7 +770,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_claimTwice() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -803,7 +782,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_twoClaim() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -817,7 +795,6 @@ contract PrizePoolTest is Test {
   }
 
   function testWithdrawShutdownBalance_onShutdown() public {
-    params.smoothing = sd1x18(0);
     prizePool = newPrizePool();
     contribute(100e18);
     awardDraw(winningRandomNumber);
@@ -837,10 +814,10 @@ contract PrizePoolTest is Test {
   function testTotalContributionsForClosedDraw_noClaims() public {
     contribute(100e18);
     awardDraw(winningRandomNumber);
-    assertEq(prizePool.getTotalContributedBetween(1, 1), 10e18, "first draw"); // 10e18
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 100e18, "first draw"); // 10e18
     awardDraw(winningRandomNumber);
     // liquidity should carry over!
-    assertEq(prizePool.getTotalContributedBetween(2, 2), 8.999999999999998700e18, "second draw"); // 10e18 + 9e18
+    assertEq(prizePool.getTotalContributedBetween(2, 2), 0, "second draw");
   }
 
   function testAwardDraw_shouldNotShrinkOnFirst() public {
@@ -852,7 +829,6 @@ contract PrizePoolTest is Test {
       twabController,
       drawPeriodSeconds,
       firstDrawOpensAt,
-      sd1x18(0.9e18), // alpha
       grandPrizePeriodDraws,
       startingTiers, // higher number of tiers
       100,
@@ -877,7 +853,6 @@ contract PrizePoolTest is Test {
       twabController,
       drawPeriodSeconds,
       firstDrawOpensAt,
-      sd1x18(0.9e18), // alpha
       grandPrizePeriodDraws,
       startingTiers, // higher number of tiers
       100,
@@ -890,24 +865,19 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.estimateNextNumberOfTiers(), 4, "will reduce to 4");
 
-    // first draw (same num tiers)
-    // total for first draw = 0.1 * 510e18 = 51e18
-    // 5th tier (canary tier) = (100/510)*51e18 = 10e18
-    // 4th tier (daily tier) = (100/510)*51.18 = 10e18
-    // reserve = 51e18 * (10 / 510) = 1e18
     awardDraw(1234);
 
-    assertEq(prizePool.reserve(), 1e18, "reserve after first draw");
+    assertEq(prizePool.reserve(), 10e18, "reserve after first draw");
 
-    assertEq(prizePool.numberOfTiers(), startingTiers);
+    assertEq(prizePool.numberOfTiers(), startingTiers, "number of tiers has not changed");
     vm.expectEmit();
     emit DrawAwarded(
       2,
       4567,
       startingTiers,
       4, // change is limited to 1 tier
-      2851219512195122170 /*reserve from output*/,
-      UD34x4.wrap(2851219512195121780000) /*prize tokens per share from output*/,
+      17317073170731707600 /*reserve from output*/,
+      UD34x4.wrap(17317073170731707310000) /*prize tokens per share from output*/,
       firstDrawOpensAt + drawPeriodSeconds
     );
 
@@ -915,7 +885,7 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.numberOfTiers(), 4, "number of tiers");
 
-    assertEq(prizePool.reserve(), 2851219512195122170, "size of reserve");
+    assertEq(prizePool.reserve(), 17317073170731707600, "size of reserve");
   }
 
   function testAwardDraw_expandingTiers() public {
@@ -945,8 +915,8 @@ contract PrizePoolTest is Test {
       245,
       3,
       4,
-      5612826466581395 /*reserve from output*/,
-      UD34x4.wrap(5612826466580940000) /*prize tokens per share from output*/,
+      34177045153614792 /*reserve from output*/,
+      UD34x4.wrap(34177045153614390000) /*prize tokens per share from output*/,
       firstDrawOpensAt + drawPeriodSeconds
     );
     awardDraw(245);
@@ -957,6 +927,7 @@ contract PrizePoolTest is Test {
     contribute(1e18);
     awardDraw(1234);
     awardDraw(1234);
+    contribute(1e18);
     awardDraw(554);
 
     mockTwab(address(this), sender5, 1);
@@ -981,7 +952,7 @@ contract PrizePoolTest is Test {
     contribute(100e18);
     awardDraw(winningRandomNumber);
 
-    uint256 tierLiquidity = TIER_SHARES * (10e18 / prizePool.getTotalShares());
+    uint256 tierLiquidity = TIER_SHARES * (100e18 / prizePool.getTotalShares());
 
     assertEq(prizePool.getTierRemainingLiquidity(1), tierLiquidity, "second tier");
 
@@ -1000,9 +971,9 @@ contract PrizePoolTest is Test {
   function testGetRemainingTierLiquidity_allTiers() public {
     contribute(310e18);
     awardDraw(winningRandomNumber);
-    assertEq(prizePool.getTierRemainingLiquidity(0), 10e18);
-    assertEq(prizePool.getTierRemainingLiquidity(1), 10e18);
-    assertEq(prizePool.getTierRemainingLiquidity(2), 10e18);
+    assertEq(prizePool.getTierRemainingLiquidity(0), 100e18);
+    assertEq(prizePool.getTierRemainingLiquidity(1), 100e18);
+    assertEq(prizePool.getTierRemainingLiquidity(2), 100e18);
   }
 
   function testSetDrawManager() public {
@@ -1139,7 +1110,6 @@ contract PrizePoolTest is Test {
   }
 
   function testClaimPrize_zero() public {
-    contribute(1000);
     awardDraw(winningRandomNumber);
     address winner = makeAddr("winner");
     mockTwab(address(this), winner, 1);
@@ -1190,8 +1160,7 @@ contract PrizePoolTest is Test {
     address recipient = makeAddr("recipient");
     mockTwab(address(this), winner, 1);
 
-    uint256 prize = 806451612903225800;
-    assertApproxEqAbs(prize, (10e18 * TIER_SHARES) / (4 * prizePool.getTotalShares()), 100);
+    uint256 prize = prizePool.getTierPrizeSize(1);
 
     vm.expectEmit();
     emit ClaimedPrize(address(this), winner, recipient, 1, 1, 0, uint152(prize), 0, address(this));
@@ -1229,8 +1198,8 @@ contract PrizePoolTest is Test {
     awardDraw(winningRandomNumber);
     mockTwab(address(this), msg.sender, 0);
     uint256 prize = prizePool.getTierPrizeSize(0);
-    vm.expectRevert(abi.encodeWithSelector(RewardTooLarge.selector, 10e18, prize));
-    claimPrize(msg.sender, 0, 0, 10e18, address(this));
+    vm.expectRevert(abi.encodeWithSelector(RewardTooLarge.selector, 100e18, prize));
+    claimPrize(msg.sender, 0, 0, 100e18, address(this));
   }
 
   function testClaimPrize_grandPrize_cannotClaimTwice() public {
@@ -1338,9 +1307,7 @@ contract PrizePoolTest is Test {
     mockTwab(address(this), winner, 1);
 
     uint96 fee = 0xfee;
-    uint256 prizeAmount = 806451612903225800;
-    uint256 prize = prizeAmount - fee;
-    assertApproxEqAbs(prizeAmount, (10e18 * TIER_SHARES) / (4 * prizePool.getTotalShares()), 100);
+    uint256 prize = prizePool.getTierPrizeSize(1);
 
     vm.expectEmit();
     emit ClaimedPrize(
@@ -1350,12 +1317,12 @@ contract PrizePoolTest is Test {
       1,
       1,
       0,
-      uint152(prize),
+      uint152(prize-fee),
       fee,
       address(this)
     );
-    assertEq(prizePool.claimPrize(winner, 1, 0, recipient, fee, address(this)), prizeAmount);
-    assertEq(prizeToken.balanceOf(recipient), prize, "recipient balance is good");
+    prizePool.claimPrize(winner, 1, 0, recipient, fee, address(this));
+    assertEq(prizeToken.balanceOf(recipient), prize - fee, "recipient balance is good");
     assertEq(prizePool.claimCount(), 1);
 
     // Check if claim fees are accounted for
@@ -1739,7 +1706,7 @@ contract PrizePoolTest is Test {
 
   function mockShutdownTwab(uint256 userTwab, uint256 totalSupplyTwab) public {
     (uint24 startDrawId, uint24 shutdownDrawId) = shutdownRangeDrawIds();
-    console2.log("mockShutdownTwab ", startDrawId, shutdownDrawId);
+    // console2.log("mockShutdownTwab ", startDrawId, shutdownDrawId);
     mockTwabDrawRange(address(this), msg.sender, startDrawId, shutdownDrawId, userTwab);
     mockTwabTotalSupplyDrawRange(address(this), startDrawId, shutdownDrawId, totalSupplyTwab);
   }
