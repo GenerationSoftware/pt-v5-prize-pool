@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 
@@ -144,17 +142,28 @@ library DrawAccumulatorLib {
       return 0;
     }
 
-    Pair48 memory indexes = computeIndices(ringBufferInfo);
-    Pair48 memory drawIds = readDrawIds(_accumulator, indexes);
+    uint16 oldestIndex = uint16(
+      RingBufferLib.oldestIndex(
+        ringBufferInfo.nextIndex,
+        ringBufferInfo.cardinality,
+        MAX_CARDINALITY
+      )
+    );
+    uint16 newestIndex = uint16(
+      RingBufferLib.newestIndex(ringBufferInfo.nextIndex, ringBufferInfo.cardinality)
+    );
 
-    if (_endDrawId < drawIds.first || _startDrawId > drawIds.second) {
+    uint24 oldestDrawId = _accumulator.drawRingBuffer[oldestIndex];
+    uint24 newestDrawId = _accumulator.drawRingBuffer[newestIndex];
+
+    if (_endDrawId < oldestDrawId || _startDrawId > newestDrawId) {
       // if out of range, return 0
       return 0;
     }
 
     uint24 firstObservationDrawIdOccurringAtOrAfterStart;
-    if (_startDrawId <= drawIds.first || ringBufferInfo.cardinality == 1) {
-      firstObservationDrawIdOccurringAtOrAfterStart = drawIds.first;
+    if (_startDrawId <= oldestDrawId || ringBufferInfo.cardinality == 1) {
+      firstObservationDrawIdOccurringAtOrAfterStart = oldestDrawId;
     } else {
       // The start must be between newest and oldest
       uint24 beforeOrAtDrawId;
@@ -166,8 +175,8 @@ library DrawAccumulatorLib {
         firstObservationDrawIdOccurringAtOrAfterStart
       ) = binarySearch(
         _accumulator.drawRingBuffer,
-        uint16(indexes.first),
-        uint16(indexes.second),
+        uint16(oldestIndex),
+        uint16(newestIndex),
         ringBufferInfo.cardinality,
         _startDrawId
       );
@@ -177,15 +186,15 @@ library DrawAccumulatorLib {
     }
 
     uint24 lastObservationDrawIdOccurringAtOrBeforeEnd;
-    if (_endDrawId >= drawIds.second || ringBufferInfo.cardinality == 1) {
+    if (_endDrawId >= newestDrawId || ringBufferInfo.cardinality == 1) {
       // then it must be the end
-      lastObservationDrawIdOccurringAtOrBeforeEnd = drawIds.second;
+      lastObservationDrawIdOccurringAtOrBeforeEnd = newestDrawId;
     } else {
       uint24 afterOrAtDrawId;
       (, lastObservationDrawIdOccurringAtOrBeforeEnd, ,afterOrAtDrawId) = binarySearch(
         _accumulator.drawRingBuffer,
-        uint16(indexes.first),
-        uint16(indexes.second),
+        uint16(oldestIndex),
+        uint16(newestIndex),
         ringBufferInfo.cardinality,
         _endDrawId
       );
@@ -197,54 +206,12 @@ library DrawAccumulatorLib {
     Observation memory atOrAfterStart = _accumulator.observations[
       firstObservationDrawIdOccurringAtOrAfterStart
     ];
-    // console2.log("atOrAfterStart drawId", firstObservationDrawIdOccurringAtOrAfterStart);
-    // console2.log("atOrAfterStart available", atOrAfterStart.available);
-    // console2.log("atOrAfterStart disbursed", atOrAfterStart.disbursed);
 
     Observation memory atOrBeforeEnd = _accumulator.observations[
       lastObservationDrawIdOccurringAtOrBeforeEnd
     ];
 
-    // console2.log("atOrBeforeEnd drawId", lastObservationDrawIdOccurringAtOrBeforeEnd);
-    // console2.log("atOrBeforeEnd available", atOrBeforeEnd.available);
-    // console2.log("atOrBeforeEnd disbursed", atOrBeforeEnd.disbursed);
     return atOrBeforeEnd.available + atOrBeforeEnd.disbursed - atOrAfterStart.disbursed;
-  }
-
-  /// @notice Computes the first and last indices of observations for the given ring buffer info.
-  /// @param ringBufferInfo The ring buffer info to compute for
-  /// @return A pair of indices, where the first is the oldest index and the second is the newest index
-  function computeIndices(
-    RingBufferInfo memory ringBufferInfo
-  ) internal pure returns (Pair48 memory) {
-    return
-      Pair48({
-        first: uint16(
-          RingBufferLib.oldestIndex(
-            ringBufferInfo.nextIndex,
-            ringBufferInfo.cardinality,
-            MAX_CARDINALITY
-          )
-        ),
-        second: uint16(
-          RingBufferLib.newestIndex(ringBufferInfo.nextIndex, ringBufferInfo.cardinality)
-        )
-      });
-  }
-
-  /// @notice Retrieves the draw ids for the given accumulator observation indices.
-  /// @param accumulator The accumulator to retrieve from
-  /// @param indices The indices to retrieve
-  /// @return A pair of draw ids, where the first is the draw id of the pair's first index and the second is the draw id of the pair's second index
-  function readDrawIds(
-    Accumulator storage accumulator,
-    Pair48 memory indices
-  ) internal view returns (Pair48 memory) {
-    return
-      Pair48({
-        first: accumulator.drawRingBuffer[indices.first],
-        second: accumulator.drawRingBuffer[indices.second]
-      });
   }
 
   /// @notice Binary searches an array of draw ids for the given target draw id.

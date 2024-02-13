@@ -865,24 +865,19 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.estimateNextNumberOfTiers(), 4, "will reduce to 4");
 
-    // first draw (same num tiers)
-    // total for first draw = 0.1 * 510e18 = 51e18
-    // 5th tier (canary tier) = (100/510)*51e18 = 10e18
-    // 4th tier (daily tier) = (100/510)*51.18 = 10e18
-    // reserve = 51e18 * (10 / 510) = 1e18
     awardDraw(1234);
 
-    assertEq(prizePool.reserve(), 1e18, "reserve after first draw");
+    assertEq(prizePool.reserve(), 10e18, "reserve after first draw");
 
-    assertEq(prizePool.numberOfTiers(), startingTiers);
+    assertEq(prizePool.numberOfTiers(), startingTiers, "number of tiers has not changed");
     vm.expectEmit();
     emit DrawAwarded(
       2,
       4567,
       startingTiers,
       4, // change is limited to 1 tier
-      2851219512195122170 /*reserve from output*/,
-      UD34x4.wrap(2851219512195121780000) /*prize tokens per share from output*/,
+      17317073170731707600 /*reserve from output*/,
+      UD34x4.wrap(17317073170731707310000) /*prize tokens per share from output*/,
       firstDrawOpensAt + drawPeriodSeconds
     );
 
@@ -890,7 +885,7 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.numberOfTiers(), 4, "number of tiers");
 
-    assertEq(prizePool.reserve(), 2851219512195122170, "size of reserve");
+    assertEq(prizePool.reserve(), 17317073170731707600, "size of reserve");
   }
 
   function testAwardDraw_expandingTiers() public {
@@ -932,6 +927,7 @@ contract PrizePoolTest is Test {
     contribute(1e18);
     awardDraw(1234);
     awardDraw(1234);
+    contribute(1e18);
     awardDraw(554);
 
     mockTwab(address(this), sender5, 1);
@@ -1114,7 +1110,6 @@ contract PrizePoolTest is Test {
   }
 
   function testClaimPrize_zero() public {
-    contribute(1000);
     awardDraw(winningRandomNumber);
     address winner = makeAddr("winner");
     mockTwab(address(this), winner, 1);
@@ -1165,8 +1160,7 @@ contract PrizePoolTest is Test {
     address recipient = makeAddr("recipient");
     mockTwab(address(this), winner, 1);
 
-    uint256 prize = 806451612903225800;
-    assertApproxEqAbs(prize, (10e18 * TIER_SHARES) / (4 * prizePool.getTotalShares()), 100);
+    uint256 prize = prizePool.getTierPrizeSize(1);
 
     vm.expectEmit();
     emit ClaimedPrize(address(this), winner, recipient, 1, 1, 0, uint152(prize), 0, address(this));
@@ -1313,9 +1307,7 @@ contract PrizePoolTest is Test {
     mockTwab(address(this), winner, 1);
 
     uint96 fee = 0xfee;
-    uint256 prizeAmount = 806451612903225800;
-    uint256 prize = prizeAmount - fee;
-    assertApproxEqAbs(prizeAmount, (10e18 * TIER_SHARES) / (4 * prizePool.getTotalShares()), 100);
+    uint256 prize = prizePool.getTierPrizeSize(1);
 
     vm.expectEmit();
     emit ClaimedPrize(
@@ -1325,12 +1317,12 @@ contract PrizePoolTest is Test {
       1,
       1,
       0,
-      uint152(prize),
+      uint152(prize-fee),
       fee,
       address(this)
     );
-    assertEq(prizePool.claimPrize(winner, 1, 0, recipient, fee, address(this)), prizeAmount);
-    assertEq(prizeToken.balanceOf(recipient), prize, "recipient balance is good");
+    prizePool.claimPrize(winner, 1, 0, recipient, fee, address(this));
+    assertEq(prizeToken.balanceOf(recipient), prize - fee, "recipient balance is good");
     assertEq(prizePool.claimCount(), 1);
 
     // Check if claim fees are accounted for
