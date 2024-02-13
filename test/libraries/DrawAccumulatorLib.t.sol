@@ -172,7 +172,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810
             4		729
         */
-    assertEq(getDisbursedBetween(1, 4), 10000);
+    assertEq(getDisbursedBetween(1, 4), 1e5);
   }
 
   function testGetDisbursedBetween_beforeOne() public {
@@ -184,13 +184,13 @@ contract DrawAccumulatorLibTest is Test {
   function testGetDisbursedBetween_endOnOne() public {
     add(4);
     // should include draw 2, 3 and 4
-    assertEq(getDisbursedBetween(2, 4), 10000);
+    assertEq(getDisbursedBetween(2, 4), 1e5);
   }
 
   function testGetDisbursedBetween_startOnOne() public {
     add(4);
     // should include draw 2, 3 and 4
-    assertEq(getDisbursedBetween(4, 4), 10000);
+    assertEq(getDisbursedBetween(4, 4), 1e5);
   }
 
   function testGetDisbursedBetween_afterOne() public {
@@ -209,7 +209,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810 + 1000
             4		729 + 900
         */
-    assertEq(getDisbursedBetween(1, 4), 10000);
+    assertEq(getDisbursedBetween(1, 4), 1e5);
   }
 
   function testGetDisbursedBetween_aroundFirstOfTwo() public {
@@ -222,7 +222,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810 + 1000
             4		729 + 900
         */
-    assertEq(getDisbursedBetween(1, 5), 10000);
+    assertEq(getDisbursedBetween(1, 5), 1e5);
   }
 
   function testGetDisbursedBetween_acrossTwo() public {
@@ -235,7 +235,7 @@ contract DrawAccumulatorLibTest is Test {
             4		810 + 1000
             5		729 + 900
         */
-    assertEq(getDisbursedBetween(1, 4), 2000);
+    assertEq(getDisbursedBetween(1, 4), 2e5);
   }
 
   function testGetDisbursedBetween_onOneBetweenTwo() public {
@@ -274,7 +274,7 @@ contract DrawAccumulatorLibTest is Test {
             3		810
             4		729 + 1000
         */
-    assertEq(getDisbursedBetween(3, 4), 10000);
+    assertEq(getDisbursedBetween(3, 4), 1e5);
   }
 
   function testGetDisbursedBetween_AfterLast() public {
@@ -367,7 +367,7 @@ contract DrawAccumulatorLibTest is Test {
   }
 
   function add(uint16 drawId) internal {
-    wrapper.add(10000, drawId);
+    wrapper.add(1e5, drawId);
   }
 
   function getDisbursedBetween(

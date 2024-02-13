@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.19;
 
+import "forge-std/console2.sol";
+
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 
@@ -155,10 +157,11 @@ library DrawAccumulatorLib {
       firstObservationDrawIdOccurringAtOrAfterStart = drawIds.first;
     } else {
       // The start must be between newest and oldest
+      uint24 beforeOrAtDrawId;
       // binary search
       (
         ,
-        ,
+        beforeOrAtDrawId,
         ,
         firstObservationDrawIdOccurringAtOrAfterStart
       ) = binarySearch(
@@ -168,6 +171,9 @@ library DrawAccumulatorLib {
         ringBufferInfo.cardinality,
         _startDrawId
       );
+      if (beforeOrAtDrawId == _startDrawId) {
+        firstObservationDrawIdOccurringAtOrAfterStart = _startDrawId;
+      }
     }
 
     uint24 lastObservationDrawIdOccurringAtOrBeforeEnd;
@@ -175,91 +181,34 @@ library DrawAccumulatorLib {
       // then it must be the end
       lastObservationDrawIdOccurringAtOrBeforeEnd = drawIds.second;
     } else {
-      (, lastObservationDrawIdOccurringAtOrBeforeEnd, ,) = binarySearch(
+      uint24 afterOrAtDrawId;
+      (, lastObservationDrawIdOccurringAtOrBeforeEnd, ,afterOrAtDrawId) = binarySearch(
         _accumulator.drawRingBuffer,
         uint16(indexes.first),
         uint16(indexes.second),
         ringBufferInfo.cardinality,
         _endDrawId
       );
+      if (afterOrAtDrawId == _endDrawId) {
+        lastObservationDrawIdOccurringAtOrBeforeEnd = _endDrawId;
+      }
     }
 
-    /*
+    Observation memory atOrAfterStart = _accumulator.observations[
+      firstObservationDrawIdOccurringAtOrAfterStart
+    ];
+    // console2.log("atOrAfterStart drawId", firstObservationDrawIdOccurringAtOrAfterStart);
+    // console2.log("atOrAfterStart available", atOrAfterStart.available);
+    // console2.log("atOrAfterStart disbursed", atOrAfterStart.disbursed);
 
-    uint24 lastObservationDrawIdOccurringAtOrBeforeEnd;
-    if (_endDrawId >= drawIds.second) {
-      // then it must be the end
-      lastObservationDrawIdOccurringAtOrBeforeEnd = drawIds.second;
-    } else if (_endDrawId == drawIds.first) {
-      // then it must be the first
-      lastObservationDrawIdOccurringAtOrBeforeEnd = drawIds.first;
-    } else if (_endDrawId == drawIds.second - 1) {
-      // then it must be the one before the end
-      // (we check this case since it is common and we want to avoid the extra binary search)
-      lastObservationDrawIdOccurringAtOrBeforeEnd = _accumulator.drawRingBuffer[
-        uint16(RingBufferLib.offset(indexes.second, 1, ringBufferInfo.cardinality))
-      ];
-    } else {
-      // The last obs before or at end must be between newest and oldest
-      // binary search
-      (, uint24 beforeOrAtDrawId, , uint24 afterOrAtDrawId) = binarySearch(
-        _accumulator.drawRingBuffer,
-        uint16(indexes.first),
-        uint16(indexes.second),
-        ringBufferInfo.cardinality,
-        _endDrawId
-      );
-      lastObservationDrawIdOccurringAtOrBeforeEnd = afterOrAtDrawId == _endDrawId
-        ? afterOrAtDrawId
-        : beforeOrAtDrawId;
-    }
+    Observation memory atOrBeforeEnd = _accumulator.observations[
+      lastObservationDrawIdOccurringAtOrBeforeEnd
+    ];
 
-    uint24 observationDrawIdBeforeOrAtStart;
-    uint24 firstObservationDrawIdOccurringAtOrAfterStart;
-    // if there is only one observation, or startId is after the newest record
-    if (_startDrawId >= drawIds.second) {
-      // then use the newest record
-      observationDrawIdBeforeOrAtStart = drawIds.second;
-    } else if (_startDrawId <= drawIds.first) {
-      // if the start is before the oldest record
-      // then set to the oldest record.
-      firstObservationDrawIdOccurringAtOrAfterStart = drawIds.first;
-    } else {
-      // The start must be between newest and oldest
-      // binary search
-      (
-        ,
-        observationDrawIdBeforeOrAtStart,
-        ,
-        firstObservationDrawIdOccurringAtOrAfterStart
-      ) = binarySearch(
-        _accumulator.drawRingBuffer,
-        uint16(indexes.first),
-        uint16(indexes.second),
-        ringBufferInfo.cardinality,
-        _startDrawId
-      );
-    }
-*/
-    // if at or after != at or before
-
-    /**
-      * 1. at or after start 
-      * 2. if the start and end are different, then the total disbursed is the difference between the two   
-     */
-
-    if (firstObservationDrawIdOccurringAtOrAfterStart == lastObservationDrawIdOccurringAtOrBeforeEnd) {
-      return _accumulator.observations[lastObservationDrawIdOccurringAtOrBeforeEnd].available;
-    } else {
-      Observation memory atOrAfterStart = _accumulator.observations[
-        firstObservationDrawIdOccurringAtOrAfterStart
-      ];
-      Observation memory atOrBeforeEnd = _accumulator.observations[
-        lastObservationDrawIdOccurringAtOrBeforeEnd
-      ];
-
-      return atOrBeforeEnd.available + atOrAfterStart.disbursed - atOrBeforeEnd.disbursed;
-    }
+    // console2.log("atOrBeforeEnd drawId", lastObservationDrawIdOccurringAtOrBeforeEnd);
+    // console2.log("atOrBeforeEnd available", atOrBeforeEnd.available);
+    // console2.log("atOrBeforeEnd disbursed", atOrBeforeEnd.disbursed);
+    return atOrBeforeEnd.available + atOrBeforeEnd.disbursed - atOrAfterStart.disbursed;
   }
 
   /// @notice Computes the first and last indices of observations for the given ring buffer info.
