@@ -161,12 +161,13 @@ library DrawAccumulatorLib {
       return 0;
     }
 
-    // check if the start draw has an observation, otherwise search for the earliest observation after
-    Observation memory atOrAfterStart = _accumulator.observations[_startDrawId];
-    if (atOrAfterStart.available == 0 && atOrAfterStart.disbursed == 0) {
-      if (_startDrawId <= oldestDrawId || ringBufferInfo.cardinality == 1) {
-        atOrAfterStart = _accumulator.observations[oldestDrawId];
-      } else {
+    Observation memory atOrAfterStart;
+    if (_startDrawId <= oldestDrawId || ringBufferInfo.cardinality == 1) {
+      atOrAfterStart = _accumulator.observations[oldestDrawId];
+    } else {
+      // check if the start draw has an observation, otherwise search for the earliest observation after
+      atOrAfterStart = _accumulator.observations[_startDrawId];
+      if (atOrAfterStart.available == 0 && atOrAfterStart.disbursed == 0) {
         (, , , uint24 afterOrAtDrawId) = binarySearch(
           _accumulator.drawRingBuffer,
           oldestIndex,
@@ -178,12 +179,13 @@ library DrawAccumulatorLib {
       }
     }
 
-    // check if the end draw has an observation, otherwise search for the latest observation before
-    Observation memory atOrBeforeEnd = _accumulator.observations[_endDrawId];
-    if (atOrBeforeEnd.available == 0 && atOrBeforeEnd.disbursed == 0) {
-      if (_endDrawId >= newestDrawId || ringBufferInfo.cardinality == 1) {
-        atOrBeforeEnd = _accumulator.observations[newestDrawId];
-      } else {
+    Observation memory atOrBeforeEnd;
+    if (_endDrawId >= newestDrawId || ringBufferInfo.cardinality == 1) {
+      atOrBeforeEnd = _accumulator.observations[newestDrawId];
+    } else {
+      // check if the end draw has an observation, otherwise search for the latest observation before
+      atOrBeforeEnd = _accumulator.observations[_endDrawId];
+      if (atOrBeforeEnd.available == 0 && atOrBeforeEnd.disbursed == 0) {
         (, uint24 beforeOrAtDrawId, , ) = binarySearch(
           _accumulator.drawRingBuffer,
           oldestIndex,
