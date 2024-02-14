@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
-import { Ownable } from "openzeppelin/access/Ownable.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { SD59x18, convert, sd } from "prb-math/SD59x18.sol";
@@ -120,6 +119,7 @@ error ClaimPeriodExpired();
 struct ConstructorParams {
   IERC20 prizeToken;
   TwabController twabController; // 160bits
+  address drawManager;
   uint48 drawPeriodSeconds;
   uint48 firstDrawOpensAt; // 256bits WORD END
   uint24 grandPrizePeriodDraws;
@@ -134,7 +134,7 @@ struct ConstructorParams {
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
-contract PrizePool is TieredLiquidityDistributor, Ownable {
+contract PrizePool is TieredLiquidityDistributor {
   using SafeERC20 for IERC20;
 
   /* ============ Events ============ */
@@ -279,7 +279,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       params.reserveShares,
       params.grandPrizePeriodDraws
     )
-    Ownable()
   {
     if (params.drawTimeout == 0) {
       revert DrawTimeoutIsZero();
@@ -307,6 +306,11 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert IncompatibleTwabPeriodOffset();
     }
 
+    if (params.drawManager == address(0)) {
+      revert DrawManagerIsZeroAddress();
+    }
+
+    drawManager = params.drawManager;
     drawTimeout = params.drawTimeout;
     prizeToken = params.prizeToken;
     twabController = params.twabController;
@@ -325,17 +329,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   }
 
   /* ============ External Write Functions ============ */
-
-  /// @notice Allows a caller to set the DrawManager if not already set.
-  /// @param _drawManager The draw manager
-  function setDrawManager(address _drawManager) external onlyOwner {
-    if (_drawManager == address(0)) {
-      revert DrawManagerIsZeroAddress();
-    }
-    drawManager = _drawManager;
-
-    emit DrawManagerSet(_drawManager);
-  }
 
   /// @notice Contributes prize tokens on behalf of the given vault.
   /// @dev The tokens should have already been transferred to the prize pool.

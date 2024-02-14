@@ -53,6 +53,8 @@ contract PrizePoolTest is Test {
 
   TwabController public twabController;
 
+  address drawManager;
+
   address sender1 = 0x690B9A9E9aa1C9dB991C7721a92d351Db4FaC990;
   address sender2 = 0x4008Ed96594b645f057c9998a2924545fAbB6545;
   address sender3 = 0x796486EBd82E427901511d130Ece93b94f06a980;
@@ -120,13 +122,14 @@ contract PrizePoolTest is Test {
       abi.encode(drawPeriodSeconds)
     );
 
-    address drawManager = address(this);
+    drawManager = address(this);
     vault = address(this);
     vault2 = address(0x1234);
 
     params = ConstructorParams(
       prizeToken,
       twabController,
+      drawManager,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,
@@ -137,10 +140,6 @@ contract PrizePoolTest is Test {
     );
 
     prizePool = new PrizePool(params);
-
-    vm.expectEmit();
-    emit DrawManagerSet(drawManager);
-    prizePool.setDrawManager(drawManager);
   }
 
   function testConstructor() public {
@@ -827,6 +826,7 @@ contract PrizePoolTest is Test {
     params = ConstructorParams(
       prizeToken,
       twabController,
+      drawManager,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,
@@ -851,6 +851,7 @@ contract PrizePoolTest is Test {
     params = ConstructorParams(
       prizeToken,
       twabController,
+      drawManager,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,
@@ -974,26 +975,6 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.getTierRemainingLiquidity(0), 100e18);
     assertEq(prizePool.getTierRemainingLiquidity(1), 100e18);
     assertEq(prizePool.getTierRemainingLiquidity(2), 100e18);
-  }
-
-  function testSetDrawManager() public {
-    address bob = makeAddr("bob");
-    vm.expectEmit();
-    emit DrawManagerSet(address(bob));
-    prizePool.setDrawManager(address(bob));
-    assertEq(prizePool.drawManager(), address(bob));
-  }
-
-  function testSetDrawManager_DrawManagerIsZeroAddress() public {
-    vm.expectRevert(abi.encodeWithSelector(DrawManagerIsZeroAddress.selector));
-    prizePool.setDrawManager(address(0));
-  }
-
-  function testSetDrawManager_notOwner() public {
-    vm.startPrank(address(1));
-    vm.expectRevert("Ownable: caller is not the owner");
-    prizePool.setDrawManager(address(this));
-    vm.stopPrank();
   }
 
   function testIsWinner_noDraw() public {
@@ -1712,8 +1693,6 @@ contract PrizePoolTest is Test {
   }
 
   function newPrizePool() public returns (PrizePool) {
-    PrizePool _prizePool = new PrizePool(params);
-    _prizePool.setDrawManager(address(this));
-    return _prizePool;
+    return new PrizePool(params);
   }
 }
