@@ -377,6 +377,26 @@ contract PrizePoolTest is Test {
     prizePool.contributePrizeTokens(address(this), 100);
   }
 
+  function testDonatePrizeTokens() public {
+    prizeToken.mint(address(this), 100);
+    prizeToken.approve(address(prizePool), 100);
+    prizePool.donatePrizeTokens(100);
+    assertEq(prizeToken.balanceOf(address(prizePool)), 100);
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 100);
+    assertEq(prizePool.getDonatedBetween(1,1), 100);
+  }
+
+  function testDonatePrizeTokens_twice() public {
+    prizeToken.mint(address(this), 100);
+    prizeToken.approve(address(prizePool), 100);
+    prizePool.donatePrizeTokens(50);
+    awardDraw(winningRandomNumber);
+    prizePool.donatePrizeTokens(50);
+    assertEq(prizeToken.balanceOf(address(prizePool)), 100);
+    assertEq(prizePool.getTotalContributedBetween(1, 2), 100);
+    assertEq(prizePool.getDonatedBetween(1, 2), 100);
+  }
+
   function testAccountedBalance_withdrawnReserve() public {
     contribute(100e18);
     awardDraw(1);
@@ -475,6 +495,23 @@ contract PrizePoolTest is Test {
     contribute(100e18); // available draw 2
 
     assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 2)), 1e18);
+  }
+
+  function testGetVaultPortion_ignoresDonations() public {
+    // contribute to vault1
+    prizeToken.mint(address(prizePool), 100);
+    prizePool.contributePrizeTokens(address(vault), 100);
+
+    // contribute to vault2
+    prizeToken.mint(address(prizePool), 100);
+    prizePool.contributePrizeTokens(address(vault2), 100);
+
+    prizeToken.mint(address(this), 100);
+    prizeToken.approve(address(prizePool), 100);
+    prizePool.donatePrizeTokens(100);
+
+    assertEq(prizePool.getVaultPortion(address(vault), 1, 1).unwrap(), 0.5e18);
+    assertEq(prizePool.getVaultPortion(address(vault2), 1, 1).unwrap(), 0.5e18);
   }
 
   function testGetOpenDrawId() public {
