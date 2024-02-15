@@ -14,14 +14,17 @@ contract TieredLiquidityDistributorTest is Test {
   uint8 numberOfTiers;
   uint8 tierShares;
   uint8 reserveShares;
+  uint256 tierLiquidityUtilizationRate;
 
   function setUp() external {
     numberOfTiers = 3;
     tierShares = 100;
     reserveShares = 10;
     grandPrizePeriodDraws = 365;
+    tierLiquidityUtilizationRate = 1e18;
 
     distributor = new TieredLiquidityDistributorWrapper(
+      tierLiquidityUtilizationRate,
       numberOfTiers,
       tierShares,
       reserveShares,
@@ -92,12 +95,12 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testConstructor_numberOfTiersTooLarge() public {
     vm.expectRevert(abi.encodeWithSelector(NumberOfTiersGreaterThanMaximum.selector, 16));
-    new TieredLiquidityDistributorWrapper(16, tierShares, reserveShares, 365);
+    new TieredLiquidityDistributorWrapper(tierLiquidityUtilizationRate, 16, tierShares, reserveShares, 365);
   }
 
   function testConstructor_numberOfTiersTooSmall() public {
     vm.expectRevert(abi.encodeWithSelector(NumberOfTiersLessThanMinimum.selector, 1));
-    new TieredLiquidityDistributorWrapper(1, tierShares, reserveShares, 365);
+    new TieredLiquidityDistributorWrapper(tierLiquidityUtilizationRate, 1, tierShares, reserveShares, 365);
   }
 
   function testRemainingTierLiquidity() public {
@@ -157,8 +160,16 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierPrizeSize(0), 100e18);
   }
 
+  function testGetTierPrizeSize_grandPrize_utilizationLower() public {
+    tierLiquidityUtilizationRate = 0.5e18;
+    distributor = new TieredLiquidityDistributorWrapper(tierLiquidityUtilizationRate, numberOfTiers, tierShares, reserveShares, grandPrizePeriodDraws);
+    distributor.awardDraw(3, 310e18);
+    assertEq(distributor.getTierPrizeSize(0), 50e18);
+    assertEq(distributor.getTierRemainingLiquidity(0), 100e18);
+  }
+
   function testGetTierPrizeSize_overflow() public {
-    distributor = new TieredLiquidityDistributorWrapper(numberOfTiers, tierShares, 0, 365);
+    distributor = new TieredLiquidityDistributorWrapper(tierLiquidityUtilizationRate, numberOfTiers, tierShares, 0, 365);
 
     distributor.awardDraw(3, type(uint104).max);
     distributor.awardDraw(4, type(uint104).max);

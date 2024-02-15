@@ -110,6 +110,7 @@ error ClaimPeriodExpired();
  * @param prizeToken The token to use for prizes
  * @param twabController The Twab Controller to retrieve time-weighted average balances from
  * @param drawManager The Draw Manager address that will award draws
+ * @param tierLiquidityUtilizationRate The rate at which liquidity is utilized for prize tiers. This allows for deviations in prize claims; if 0.75e18 then it is 75% utilization so it can accommodate 25% deviation in more prize claims.
  * @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
  * @param firstDrawOpensAt The timestamp at which the first draw will open.
  * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
@@ -121,6 +122,7 @@ struct ConstructorParams {
   IERC20 prizeToken;
   TwabController twabController; // 160bits
   address drawManager;
+  uint256 tierLiquidityUtilizationRate; // fixed point 18 number
   uint48 drawPeriodSeconds;
   uint48 firstDrawOpensAt; // 256bits WORD END
   uint24 grandPrizePeriodDraws;
@@ -271,6 +273,7 @@ contract PrizePool is TieredLiquidityDistributor {
     ConstructorParams memory params
   )
     TieredLiquidityDistributor(
+      params.tierLiquidityUtilizationRate,
       params.numberOfTiers,
       params.tierShares,
       params.reserveShares,

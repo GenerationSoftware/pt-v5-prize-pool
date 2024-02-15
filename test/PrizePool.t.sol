@@ -72,6 +72,7 @@ contract PrizePoolTest is Test {
   uint8 initialNumberOfTiers;
   uint256 winningRandomNumber = 123456;
   uint256 startTimestamp = 1000 days;
+  uint256 tierLiquidityUtilizationRate = 1e18;
 
   /**********************************************************************************
    * Events copied from PrizePool.sol
@@ -130,6 +131,7 @@ contract PrizePoolTest is Test {
       prizeToken,
       twabController,
       drawManager,
+      tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,
@@ -827,6 +829,7 @@ contract PrizePoolTest is Test {
       prizeToken,
       twabController,
       drawManager,
+      tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,
@@ -852,6 +855,7 @@ contract PrizePoolTest is Test {
       prizeToken,
       twabController,
       drawManager,
+      tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,

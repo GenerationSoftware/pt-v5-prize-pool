@@ -28,6 +28,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
   address[4] public actors;
   address internal currentActor;
 
+  uint256 tierLiquidityUtilizationRate = 1e18;
   address drawManager = address(this);
   uint48 drawPeriodSeconds = 1 hours;
   uint48 awardDrawStartsAt;
@@ -68,6 +69,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
       token,
       twabController,
       drawManager,
+      tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       awardDrawStartsAt,
       grandPrizePeriod,
