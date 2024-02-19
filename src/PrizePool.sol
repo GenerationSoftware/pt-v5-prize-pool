@@ -109,6 +109,7 @@ error ClaimPeriodExpired();
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
  * @param twabController The Twab Controller to retrieve time-weighted average balances from
+ * @param drawManager The Draw Manager address that will award draws
  * @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
  * @param firstDrawOpensAt The timestamp at which the first draw will open.
  * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
@@ -210,10 +211,6 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param to The address the rewards are given to
   /// @param amount The amount increased
   event IncreaseClaimRewards(address indexed to, uint256 amount);
-
-  /// @notice Emitted when the drawManager is set.
-  /// @param drawManager The draw manager
-  event DrawManagerSet(address indexed drawManager);
 
   /* ============ State ============ */
 
