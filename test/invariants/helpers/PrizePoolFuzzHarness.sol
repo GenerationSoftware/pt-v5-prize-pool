@@ -67,6 +67,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
     ConstructorParams memory params = ConstructorParams(
       token,
       twabController,
+      drawManager,
       drawPeriodSeconds,
       awardDrawStartsAt,
       grandPrizePeriod,
@@ -79,10 +80,6 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
     // console2.log("constructor 7");
 
     prizePool = new PrizePool(params);
-
-    // console2.log("constructor 8");
-
-    prizePool.setDrawManager(drawManager);
   }
 
   function deposit(uint88 _amount, uint256 actorSeed) public useCurrentTime prankActor(actorSeed) {
