@@ -5,7 +5,19 @@ import "forge-std/Test.sol";
 
 import { TierCalculationLib } from "../../src/libraries/TierCalculationLib.sol";
 import { TieredLiquidityDistributorWrapper } from "./helper/TieredLiquidityDistributorWrapper.sol";
-import { UD60x18, NumberOfTiersLessThanMinimum, NumberOfTiersGreaterThanMaximum, InsufficientLiquidity, fromUD34x4toUD60x18, convert, SD59x18, MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../../src/abstract/TieredLiquidityDistributor.sol";
+import {
+  UD60x18,
+  NumberOfTiersLessThanMinimum,
+  NumberOfTiersGreaterThanMaximum,
+  TierLiquidityUtilizationRateGreaterThanOne,
+  TierLiquidityUtilizationRateCannotBeZero,
+  InsufficientLiquidity,
+  fromUD34x4toUD60x18,
+  convert,
+  SD59x18,
+  MAXIMUM_NUMBER_OF_TIERS,
+  MINIMUM_NUMBER_OF_TIERS
+} from "../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorTest is Test {
   TieredLiquidityDistributorWrapper public distributor;
@@ -101,6 +113,16 @@ contract TieredLiquidityDistributorTest is Test {
   function testConstructor_numberOfTiersTooSmall() public {
     vm.expectRevert(abi.encodeWithSelector(NumberOfTiersLessThanMinimum.selector, 1));
     new TieredLiquidityDistributorWrapper(tierLiquidityUtilizationRate, 1, tierShares, reserveShares, 365);
+  }
+
+  function testConstructor_tierLiquidityUtilizationRate_gt_1() public {
+    vm.expectRevert(abi.encodeWithSelector(TierLiquidityUtilizationRateGreaterThanOne.selector));
+    new TieredLiquidityDistributorWrapper(1e18 + 1, 3, tierShares, reserveShares, 365);
+  }
+
+  function testConstructor_tierLiquidityUtilizationRate_zero() public {
+    vm.expectRevert(abi.encodeWithSelector(TierLiquidityUtilizationRateCannotBeZero.selector));
+    new TieredLiquidityDistributorWrapper(0, 3, tierShares, reserveShares, 365);
   }
 
   function testRemainingTierLiquidity() public {

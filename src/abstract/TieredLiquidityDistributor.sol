@@ -27,6 +27,9 @@ error NumberOfTiersGreaterThanMaximum(uint8 numTiers);
 /// @notice Emitted when the tier liquidity utilization rate is greater than 1.
 error TierLiquidityUtilizationRateGreaterThanOne();
 
+/// @notice Emitted when the tier liquidity utilization rate is 0.
+error TierLiquidityUtilizationRateCannotBeZero();
+
 /// @notice Emitted when there is insufficient liquidity to consume.
 /// @param requestedLiquidity The requested amount of liquidity
 error InsufficientLiquidity(uint104 requestedLiquidity);
@@ -140,6 +143,9 @@ contract TieredLiquidityDistributor {
     }
     if (_tierLiquidityUtilizationRate > 1e18) {
       revert TierLiquidityUtilizationRateGreaterThanOne();
+    }
+    if (_tierLiquidityUtilizationRate == 0) {
+      revert TierLiquidityUtilizationRateCannotBeZero();
     }
 
     tierLiquidityUtilizationRate = UD60x18.wrap(_tierLiquidityUtilizationRate);
