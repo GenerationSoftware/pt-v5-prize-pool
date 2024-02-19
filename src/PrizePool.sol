@@ -230,6 +230,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Records the last shutdown withdrawal for an account
   mapping(address vault => mapping(address user => uint24 drawId)) internal _lastShutdownWithdrawal;
 
+  /// @notice The special value for the donator address. Contributions from this address are excluded from the total odds. F2EE because it's free money!
   address public constant DONATOR = 0x000000000000000000000000000000000000F2EE;
 
   /// @notice The token that is being contributed and awarded as prizes.
@@ -357,6 +358,8 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     return _deltaBalance;
   }
 
+  /// @notice Allows a user to donate prize tokens to the prize pool.
+  /// @param _amount The amount of tokens to donate. The amount should already be approved for transfer.
   function donatePrizeTokens(uint256 _amount) external {
     prizeToken.transferFrom(msg.sender, address(this), _amount);
     contributePrizeTokens(DONATOR, _amount);
@@ -586,7 +589,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     address _vault,
     uint24 _startDrawIdInclusive,
     uint24 _endDrawIdInclusive
-  ) public view returns (uint256) {
+  ) external view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
         _vaultAccumulator[_vault],
@@ -602,7 +605,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   function getDonatedBetween(
     uint24 _startDrawIdInclusive,
     uint24 _endDrawIdInclusive
-  ) public view returns (uint256) {
+  ) external view returns (uint256) {
     return
       DrawAccumulatorLib.getDisbursedBetween(
         _vaultAccumulator[DONATOR],
@@ -977,6 +980,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint24 _startDrawIdInclusive,
     uint24 _endDrawIdInclusive
   ) public view returns (SD59x18) {
+    if (_vault == DONATOR) {
+      return sd(0);
+    }
+
     uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(
       _totalAccumulator,
       _startDrawIdInclusive,

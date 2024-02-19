@@ -446,6 +446,11 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.accountedBalance(), 100e18 - prize - prize2, "accounted balance");
   }
 
+  function testGetVaultPortion_fromDonator() public {
+    contribute(100e18, prizePool.DONATOR()); // available draw 1
+    assertEq(SD59x18.unwrap(prizePool.getVaultPortion(prizePool.DONATOR(), 1, 1)), 0);
+  }
+
   function testGetVaultPortion_WhenEmpty() public {
     assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 0)), 0);
   }
