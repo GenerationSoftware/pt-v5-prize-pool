@@ -93,6 +93,17 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
     prizePool.contributePrizeTokens(_actor(actorSeed), _amount);
   }
 
+  function donatePrizeTokens(uint88 _amount, uint256 actorSeed) public increaseCurrentTime(_timeIncrease()) prankActor(actorSeed) {
+    // console2.log("contributePrizeTokens");
+    address actor = _actor(actorSeed);
+    token.mint(address(actor), _amount);
+    vm.startPrank(actor);
+    token.approve(address(prizePool), _amount);
+    contributed += _amount;
+    prizePool.donatePrizeTokens(_amount);
+    vm.stopPrank();
+  }
+
   function contributeReserve(uint88 _amount, uint256 actorSeed) public increaseCurrentTime(_timeIncrease()) prankActor(actorSeed) {
     if (prizePool.isShutdown()) {
       return;

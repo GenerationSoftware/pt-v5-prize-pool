@@ -227,6 +227,9 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Records the last shutdown withdrawal for an account
   mapping(address vault => mapping(address user => uint24 drawId)) internal _lastShutdownWithdrawal;
 
+  /// @notice The special value for the donator address. Contributions from this address are excluded from the total odds. F2EE because it's free money!
+  address public constant DONATOR = 0x000000000000000000000000000000000000F2EE;
+
   /// @notice The token that is being contributed and awarded as prizes.
   IERC20 public immutable prizeToken;
 
@@ -333,7 +336,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param _prizeVault The address of the vault to contribute to
   /// @param _amount The amount of prize tokens to contribute
   /// @return The amount of available prize tokens prior to the contribution.
-  function contributePrizeTokens(address _prizeVault, uint256 _amount) external returns (uint256) {
+  function contributePrizeTokens(address _prizeVault, uint256 _amount) public returns (uint256) {
     uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - accountedBalance();
     if (_deltaBalance < _amount) {
       revert ContributionGTDeltaBalance(_amount, _deltaBalance);
@@ -343,6 +346,13 @@ contract PrizePool is TieredLiquidityDistributor {
     DrawAccumulatorLib.add(_totalAccumulator, _amount, openDrawId_);
     emit ContributePrizeTokens(_prizeVault, openDrawId_, _amount);
     return _deltaBalance;
+  }
+
+  /// @notice Allows a user to donate prize tokens to the prize pool.
+  /// @param _amount The amount of tokens to donate. The amount should already be approved for transfer.
+  function donatePrizeTokens(uint256 _amount) external {
+    prizeToken.transferFrom(msg.sender, address(this), _amount);
+    contributePrizeTokens(DONATOR, _amount);
   }
 
   /// @notice Allows the Manager to allocate a reward from the reserve to a recipient.
@@ -573,6 +583,22 @@ contract PrizePool is TieredLiquidityDistributor {
     return
       DrawAccumulatorLib.getDisbursedBetween(
         _vaultAccumulator[_vault],
+        _startDrawIdInclusive,
+        _endDrawIdInclusive
+      );
+  }
+
+  /// @notice Returns the total prize tokens donated to the prize pool
+  /// @param _startDrawIdInclusive Start draw id inclusive
+  /// @param _endDrawIdInclusive End draw id inclusive
+  /// @return The total prize tokens donated to the prize pool
+  function getDonatedBetween(
+    uint24 _startDrawIdInclusive,
+    uint24 _endDrawIdInclusive
+  ) external view returns (uint256) {
+    return
+      DrawAccumulatorLib.getDisbursedBetween(
+        _vaultAccumulator[DONATOR],
         _startDrawIdInclusive,
         _endDrawIdInclusive
       );
@@ -944,11 +970,17 @@ contract PrizePool is TieredLiquidityDistributor {
     uint24 _startDrawIdInclusive,
     uint24 _endDrawIdInclusive
   ) public view returns (SD59x18) {
+    if (_vault == DONATOR) {
+      return sd(0);
+    }
+
     uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(
       _totalAccumulator,
       _startDrawIdInclusive,
       _endDrawIdInclusive
     );
+
+    uint256 totalDonated = DrawAccumulatorLib.getDisbursedBetween(_vaultAccumulator[DONATOR], _startDrawIdInclusive, _endDrawIdInclusive);
 
     // vaultContributed / totalContributed
     return
@@ -961,7 +993,7 @@ contract PrizePool is TieredLiquidityDistributor {
               _endDrawIdInclusive
             )
           )
-        ).div(sd(SafeCast.toInt256(totalContributed)))
+        ).div(sd(SafeCast.toInt256(totalContributed - totalDonated)))
         : sd(0);
   }
 
