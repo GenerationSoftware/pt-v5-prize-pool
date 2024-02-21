@@ -89,6 +89,7 @@ contract PrizePoolTest is Test {
     UD34x4 prizeTokensPerShare,
     uint48 drawOpenedAt
   );
+  event SetDrawManager(address indexed drawManager);
   event AllocateRewardFromReserve(address indexed to, uint256 amount);
   event ContributedReserve(address indexed user, uint256 amount);
   event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
@@ -1764,6 +1765,8 @@ contract PrizePoolTest is Test {
 
   function newPrizePool() public returns (PrizePool) {
     PrizePool _prizePool = new PrizePool(params);
+    vm.expectEmit();
+    emit SetDrawManager(drawManager);
     _prizePool.setDrawManager(drawManager);
     return _prizePool;
   }

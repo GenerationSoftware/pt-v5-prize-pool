@@ -206,6 +206,10 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param amount The amount of tokens contributed
   event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
 
+  /// @notice Emitted when the draw manager is set
+  /// @param drawManager The address of the draw manager
+  event SetDrawManager(address indexed drawManager);
+
   /// @notice Emitted when an address withdraws their prize claim rewards.
   /// @param account The account that is withdrawing rewards
   /// @param to The address the rewards are sent to
@@ -351,6 +355,8 @@ contract PrizePool is TieredLiquidityDistributor {
       revert DrawManagerAlreadySet();
     }
     drawManager = _drawManager;
+
+    emit SetDrawManager(_drawManager);
   }
 
   /* ============ External Write Functions ============ */
