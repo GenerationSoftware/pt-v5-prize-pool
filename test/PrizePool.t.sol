@@ -15,6 +15,9 @@ import { TierCalculationLib } from "../src/libraries/TierCalculationLib.sol";
 import { MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../src/abstract/TieredLiquidityDistributor.sol";
 import {
   PrizePool,
+  CreatorIsZeroAddress,
+  OnlyCreator,
+  DrawManagerAlreadySet,
   PrizeIsZero,
   ConstructorParams,
   InsufficientRewardsError,
@@ -141,7 +144,7 @@ contract PrizePoolTest is Test {
       drawTimeout
     );
 
-    prizePool = new PrizePool(params);
+    prizePool = newPrizePool();
   }
 
   function testConstructor() public {
@@ -196,6 +199,27 @@ contract PrizePoolTest is Test {
     );
     vm.expectRevert(abi.encodeWithSelector(IncompatibleTwabPeriodOffset.selector));
     new PrizePool(params);
+  }
+
+  function testConstructor_CreatorIsZeroAddress() public {
+    params.creator = address(0);
+    vm.expectRevert(abi.encodeWithSelector(CreatorIsZeroAddress.selector));
+    new PrizePool(params);
+  }
+
+  function testSetDrawManager() public {
+    assertEq(prizePool.drawManager(), drawManager, "drawManager");
+  }
+
+  function testSetDrawManager_OnlyCreator() public {
+    vm.prank(address(twabController));
+    vm.expectRevert(abi.encodeWithSelector(OnlyCreator.selector));
+    prizePool.setDrawManager(drawManager);
+  }
+
+  function testSetDrawManager_DrawManagerAlreadySet() public {
+    vm.expectRevert(abi.encodeWithSelector(DrawManagerAlreadySet.selector));
+    prizePool.setDrawManager(drawManager);
   }
 
   function testReserve_noRemainder() public {
@@ -896,7 +920,7 @@ contract PrizePoolTest is Test {
     params = ConstructorParams(
       prizeToken,
       twabController,
-      drawManager,
+      address(this),
       tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       firstDrawOpensAt,
@@ -1739,6 +1763,8 @@ contract PrizePoolTest is Test {
   }
 
   function newPrizePool() public returns (PrizePool) {
-    return new PrizePool(params);
+    PrizePool _prizePool = new PrizePool(params);
+    _prizePool.setDrawManager(drawManager);
+    return _prizePool;
   }
 }

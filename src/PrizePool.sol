@@ -25,6 +25,9 @@ error IncompatibleTwabPeriodOffset();
 /// @notice Emitted when someone tries to set the draw manager with the zero address
 error DrawManagerIsZeroAddress();
 
+/// @notice Emitted when the passed creator is the zero address
+error CreatorIsZeroAddress();
+
 /// @notice Emitted when the caller is not the deployer.
 error NotDeployer();
 
@@ -105,6 +108,12 @@ error RewardRecipientZeroAddress();
 /// @notice Emitted when a claim is attempted after the claiming period has expired.
 error ClaimPeriodExpired();
 
+/// @notice Emitted when anyone but the creator calls a privileged function
+error OnlyCreator();
+
+/// @notice Emitted when the draw manager has already been set
+error DrawManagerAlreadySet();
+
 /**
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
@@ -121,7 +130,7 @@ error ClaimPeriodExpired();
 struct ConstructorParams {
   IERC20 prizeToken;
   TwabController twabController; // 160bits
-  address drawManager;
+  address creator;
   uint256 tierLiquidityUtilizationRate; // fixed point 18 number
   uint48 drawPeriodSeconds;
   uint48 firstDrawOpensAt; // 256bits WORD END
@@ -247,6 +256,9 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice The maximum number of draws that can be missed before the prize pool is considered inactive.
   uint24 public immutable drawTimeout;
 
+  /// @notice The address that is allowed to set the draw manager
+  address immutable creator;
+
   /// @notice The exponential weighted average of all vault contributions.
   DrawAccumulatorLib.Accumulator internal _totalAccumulator;
 
@@ -309,11 +321,11 @@ contract PrizePool is TieredLiquidityDistributor {
       revert IncompatibleTwabPeriodOffset();
     }
 
-    if (params.drawManager == address(0)) {
-      revert DrawManagerIsZeroAddress();
+    if (params.creator == address(0)) {
+      revert CreatorIsZeroAddress();
     }
 
-    drawManager = params.drawManager;
+    creator = params.creator;
     drawTimeout = params.drawTimeout;
     prizeToken = params.prizeToken;
     twabController = params.twabController;
@@ -329,6 +341,16 @@ contract PrizePool is TieredLiquidityDistributor {
       revert CallerNotDrawManager(msg.sender, drawManager);
     }
     _;
+  }
+
+  function setDrawManager(address _drawManager) external {
+    if (msg.sender != creator) {
+      revert OnlyCreator();
+    }
+    if (drawManager != address(0)) {
+      revert DrawManagerAlreadySet();
+    }
+    drawManager = _drawManager;
   }
 
   /* ============ External Write Functions ============ */
