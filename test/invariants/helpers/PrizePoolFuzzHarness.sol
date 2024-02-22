@@ -12,6 +12,7 @@ import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { CurrentTime, CurrentTimeConsumer } from "./CurrentTimeConsumer.sol";
 import { PrizePool, ConstructorParams } from "../../../src/PrizePool.sol";
+import { MINIMUM_NUMBER_OF_TIERS } from "../../../src/abstract/TieredLiquidityDistributor.sol";
 import { ERC20Mintable } from "../../mocks/ERC20Mintable.sol";
 
 contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeConsumer {
@@ -33,8 +34,9 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
   uint48 drawPeriodSeconds = 1 hours;
   uint48 awardDrawStartsAt;
   uint24 grandPrizePeriod = 365;
-  uint8 numberOfTiers = 3;
+  uint8 numberOfTiers = MINIMUM_NUMBER_OF_TIERS;
   uint8 tierShares = 100;
+  uint8 canaryShares = 5;
   uint8 reserveShares = 10;
   uint24 drawTimeout = 5;
 
@@ -75,6 +77,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
       grandPrizePeriod,
       numberOfTiers,
       tierShares,
+      canaryShares,
       reserveShares,
       drawTimeout
     );

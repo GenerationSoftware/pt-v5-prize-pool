@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { TieredLiquidityDistributor, Tier, fromUD34x4toUD60x18, convert } from "../../../src/abstract/TieredLiquidityDistributor.sol";
+import {
+  TieredLiquidityDistributor,
+  Tier,
+  fromUD34x4toUD60x18,
+  convert,
+  MINIMUM_NUMBER_OF_TIERS
+} from "../../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
   uint256 public totalAdded;
   uint256 public totalConsumed;
 
-  constructor() TieredLiquidityDistributor(1e18, 3, 100, 10, 365) {}
+  constructor() TieredLiquidityDistributor(1e18, MINIMUM_NUMBER_OF_TIERS, 100, 5, 10, 365) {}
 
   function awardDraw(uint8 _nextNumTiers, uint96 liquidity) external {
     uint8 nextNumTiers = _nextNumTiers / 16; // map to [0, 15]
-    nextNumTiers = nextNumTiers < 3 ? 3 : nextNumTiers; // ensure min tiers
+    nextNumTiers = nextNumTiers < MINIMUM_NUMBER_OF_TIERS ? MINIMUM_NUMBER_OF_TIERS : nextNumTiers; // ensure min tiers
     totalAdded += liquidity;
     _awardDraw(_lastAwardedDrawId + 1, nextNumTiers, liquidity);
   }
@@ -28,7 +34,8 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
       availableLiquidity += convert(
         _getTierRemainingLiquidity(
           fromUD34x4toUD60x18(tier.prizeTokenPerShare),
-          fromUD34x4toUD60x18(prizeTokenPerShare)
+          fromUD34x4toUD60x18(prizeTokenPerShare),
+          i
         )
       );
     }
@@ -46,7 +53,8 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
       convert(
         _getTierRemainingLiquidity(
           fromUD34x4toUD60x18(tier_.prizeTokenPerShare),
-          fromUD34x4toUD60x18(prizeTokenPerShare)
+          fromUD34x4toUD60x18(prizeTokenPerShare),
+          _tier
         )
       )
     );
