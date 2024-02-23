@@ -37,7 +37,7 @@ error TierLiquidityUtilizationRateCannotBeZero();
 error InsufficientLiquidity(uint104 requestedLiquidity);
 
 uint8 constant MINIMUM_NUMBER_OF_TIERS = 4;
-uint8 constant MAXIMUM_NUMBER_OF_TIERS = 10;
+uint8 constant MAXIMUM_NUMBER_OF_TIERS = 11;
 uint8 constant NUMBER_OF_CANARY_TIERS = 2;
 
 /// @title Tiered Liquidity Distributor
@@ -76,6 +76,13 @@ contract TieredLiquidityDistributor {
   SD59x18 internal immutable TIER_ODDS_4_10;
   SD59x18 internal immutable TIER_ODDS_5_10;
   SD59x18 internal immutable TIER_ODDS_6_10;
+  SD59x18 internal immutable TIER_ODDS_1_11;
+  SD59x18 internal immutable TIER_ODDS_2_11;
+  SD59x18 internal immutable TIER_ODDS_3_11;
+  SD59x18 internal immutable TIER_ODDS_4_11;
+  SD59x18 internal immutable TIER_ODDS_5_11;
+  SD59x18 internal immutable TIER_ODDS_6_11;
+  SD59x18 internal immutable TIER_ODDS_7_11;
 
   /// @notice The estimated number of prizes given X tiers.
   uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS;
@@ -85,6 +92,7 @@ contract TieredLiquidityDistributor {
   uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS;
   uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS;
   uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS;
+  uint32 internal immutable ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS;
 
   /// @notice The Tier liquidity data.
   mapping(uint8 tierId => Tier tierData) internal _tiers;
@@ -178,14 +186,22 @@ contract TieredLiquidityDistributor {
     TIER_ODDS_4_10 = TierCalculationLib.getTierOdds(4, 9, _grandPrizePeriodDraws);
     TIER_ODDS_5_10 = TierCalculationLib.getTierOdds(5, 9, _grandPrizePeriodDraws);
     TIER_ODDS_6_10 = TierCalculationLib.getTierOdds(6, 9, _grandPrizePeriodDraws);
+    TIER_ODDS_1_11 = TierCalculationLib.getTierOdds(1, 10, _grandPrizePeriodDraws);
+    TIER_ODDS_2_11 = TierCalculationLib.getTierOdds(2, 10, _grandPrizePeriodDraws);
+    TIER_ODDS_3_11 = TierCalculationLib.getTierOdds(3, 10, _grandPrizePeriodDraws);
+    TIER_ODDS_4_11 = TierCalculationLib.getTierOdds(4, 10, _grandPrizePeriodDraws);
+    TIER_ODDS_5_11 = TierCalculationLib.getTierOdds(5, 10, _grandPrizePeriodDraws);
+    TIER_ODDS_6_11 = TierCalculationLib.getTierOdds(6, 10, _grandPrizePeriodDraws);
+    TIER_ODDS_7_11 = TierCalculationLib.getTierOdds(7, 10, _grandPrizePeriodDraws);
 
-    ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS = _sumTierPrizeCounts(4);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS = _sumTierPrizeCounts(5);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS = _sumTierPrizeCounts(6);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS = _sumTierPrizeCounts(7);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS = _sumTierPrizeCounts(8);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS = _sumTierPrizeCounts(9);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS = _sumTierPrizeCounts(10);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS = _sumTierPrizeCounts(3);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS = _sumTierPrizeCounts(4);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS = _sumTierPrizeCounts(5);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS = _sumTierPrizeCounts(6);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS = _sumTierPrizeCounts(7);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS = _sumTierPrizeCounts(8);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS = _sumTierPrizeCounts(9);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS = _sumTierPrizeCounts(10);
   }
 
   /// @notice Adjusts the number of tiers and distributes new liquidity.
@@ -475,7 +491,7 @@ contract TieredLiquidityDistributor {
     return _reserve;
   }
 
-  /// @notice Estimates the prize count for the given tier.
+  /// @notice Estimates the prize count for the given tier. It expects no prizes are claimed for the last canary tier
   /// @param numTiers The number of prize tiers
   /// @return The estimated total number of prizes
   function estimatedPrizeCount(
@@ -495,6 +511,8 @@ contract TieredLiquidityDistributor {
       return ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS;
     } else if (numTiers == 10) {
       return ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS;
+    } else if (numTiers == 11) {
+      return ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS;
     }
     return 0;
   }
@@ -521,8 +539,11 @@ contract TieredLiquidityDistributor {
       return 8;
     } else if (_adjustedPrizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS) {
       return 9;
+    } else if (_adjustedPrizeCount < ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS) {
+      return 10;
+    } else {
+      return 11;
     }
-    return 10;
   }
 
   /// @notice Computes the expected number of prizes for a given number of tiers.
@@ -545,7 +566,9 @@ contract TieredLiquidityDistributor {
   /// @return The odds of the tier
   function getTierOdds(uint8 _tier, uint8 _numTiers) public view returns (SD59x18) {
     if (_tier == 0) return TIER_ODDS_0;
-    if (_numTiers == 4) {
+    if (_numTiers == 3) {
+      if (_tier <= 2) return TIER_ODDS_EVERY_DRAW;
+    } else if (_numTiers == 4) {
       if (_tier <= 3) return TIER_ODDS_EVERY_DRAW;
     } else if (_numTiers == 5) {
       if (_tier == 1) return TIER_ODDS_1_5;
@@ -580,6 +603,15 @@ contract TieredLiquidityDistributor {
       else if (_tier == 5) return TIER_ODDS_5_10;
       else if (_tier == 6) return TIER_ODDS_6_10;
       else if (_tier <= 9) return TIER_ODDS_EVERY_DRAW;
+    } else if (_numTiers == 11) {
+      if (_tier == 1) return TIER_ODDS_1_11;
+      else if (_tier == 2) return TIER_ODDS_2_11;
+      else if (_tier == 3) return TIER_ODDS_3_11;
+      else if (_tier == 4) return TIER_ODDS_4_11;
+      else if (_tier == 5) return TIER_ODDS_5_11;
+      else if (_tier == 6) return TIER_ODDS_6_11;
+      else if (_tier == 7) return TIER_ODDS_7_11;
+      else if (_tier <= 10) return TIER_ODDS_EVERY_DRAW;
     }
     return sd(0);
   }

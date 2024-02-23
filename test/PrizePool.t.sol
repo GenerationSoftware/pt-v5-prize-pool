@@ -920,7 +920,61 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.numberOfTiers(), startingTiers, "starting tiers");
   }
 
-  function testAwardDraw_shrinkTiers() public {
+  function testAwardDraw_same() public {
+    contribute(1e18);
+    awardDraw(1234);
+    // now tiers can change
+    _claimAllPrizes(prizePool.numberOfTiers()-1);
+    awardDraw(1234);
+    assertEq(prizePool.numberOfTiers(), MINIMUM_NUMBER_OF_TIERS, "tiers has not changed");
+  }
+
+  function testAwardDraw_expandingTiers() public {
+    contribute(1e18);
+    awardDraw(1234);
+    // claim all tiers
+    _claimAllPrizes(prizePool.numberOfTiers());
+
+    vm.expectEmit();
+    emit DrawAwarded(
+      2,
+      245,
+      MINIMUM_NUMBER_OF_TIERS,
+      MINIMUM_NUMBER_OF_TIERS+1,
+      45454545454545576 /*reserve from output*/,
+      UD34x4.wrap(45454545454545450000) /*prize tokens per share from output*/,
+      firstDrawOpensAt + drawPeriodSeconds
+    );
+    awardDraw(245);
+    assertEq(prizePool.numberOfTiers(), MINIMUM_NUMBER_OF_TIERS+1, "grow by 1");
+  }
+
+  function testAwardDraw_shrinkOne() public {
+    contribute(1e18);
+    awardDraw(1234);
+    // claim all prizes no matter what
+    _claimAllPrizes(prizePool.numberOfTiers());
+    contribute(1e18); // ensure there is prize money
+    awardDraw(245);
+
+    // do not claim the canary prizes
+    _claimAllPrizes(prizePool.numberOfTiers() - 2);
+
+    vm.expectEmit();
+    emit DrawAwarded(
+      3,
+      245,
+      MINIMUM_NUMBER_OF_TIERS+1,
+      MINIMUM_NUMBER_OF_TIERS,
+      78125000000000236 /*reserve from output*/,
+      UD34x4.wrap(78124999999999990000) /*prize tokens per share from output*/,
+      firstDrawOpensAt + drawPeriodSeconds*2
+    );
+    awardDraw(245);
+    assertEq(prizePool.numberOfTiers(), MINIMUM_NUMBER_OF_TIERS, "grow by 1");
+  }
+
+  function testAwardDraw_shrinkMoreThan1() public {
     uint8 startingTiers = MINIMUM_NUMBER_OF_TIERS + 2;
 
     // reset prize pool at higher tiers
@@ -947,6 +1001,23 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.numberOfTiers(), startingTiers - 1, "number of tiers decreased by 1");
   }
 
+  function testAwardDraw_multipleDraws() public {
+    contribute(1e18);
+    awardDraw(1234);
+    awardDraw(1234);
+    contribute(1e18);
+    awardDraw(554);
+
+    mockTwab(address(this), sender5, 1);
+    assertTrue(claimPrize(sender5, 1, 0) > 0, "has prize");
+  }
+
+  function testAwardDraw_emitsEvent() public {
+    vm.expectEmit();
+    emit DrawAwarded(1, 12345, MINIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS, 0, UD34x4.wrap(0), firstDrawOpensAt);
+    awardDraw(12345);
+  }
+
   function testEstimateNextNumberOfTiers_firstDrawNoChange() public {
     assertEq(prizePool.estimateNextNumberOfTiers(), MINIMUM_NUMBER_OF_TIERS, "no change");
   }
@@ -965,47 +1036,6 @@ contract PrizePoolTest is Test {
     awardDraw(1234);
     // no claims, now it'll decrease
     assertEq(prizePool.estimateNextNumberOfTiers(), 6, "decrease by 1");
-  }
-
-  function testAwardDraw_expandingTiers() public {
-    contribute(1e18);
-    awardDraw(1234);
-
-    // num tiers hasn't changed.
-    assertEq(prizePool.numberOfTiers(), MINIMUM_NUMBER_OF_TIERS, "number of tiers");
-
-    // claim all prizes no matter what
-    _claimAllPrizes(prizePool.numberOfTiers());
-
-    vm.expectEmit();
-    emit DrawAwarded(
-      2,
-      245,
-      MINIMUM_NUMBER_OF_TIERS,
-      MINIMUM_NUMBER_OF_TIERS+1,
-      45454545454545576 /*reserve from output*/,
-      UD34x4.wrap(45454545454545450000) /*prize tokens per share from output*/,
-      firstDrawOpensAt + drawPeriodSeconds
-    );
-    awardDraw(245);
-    assertEq(prizePool.numberOfTiers(), MINIMUM_NUMBER_OF_TIERS+1);
-  }
-
-  function testAwardDraw_multipleDraws() public {
-    contribute(1e18);
-    awardDraw(1234);
-    awardDraw(1234);
-    contribute(1e18);
-    awardDraw(554);
-
-    mockTwab(address(this), sender5, 1);
-    assertTrue(claimPrize(sender5, 1, 0) > 0, "has prize");
-  }
-
-  function testAwardDraw_emitsEvent() public {
-    vm.expectEmit();
-    emit DrawAwarded(1, 12345, MINIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS, 0, UD34x4.wrap(0), firstDrawOpensAt);
-    awardDraw(12345);
   }
 
   function testGetTotalShares() public {

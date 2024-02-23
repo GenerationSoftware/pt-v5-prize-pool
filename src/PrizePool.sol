@@ -775,7 +775,7 @@ contract PrizePool is TieredLiquidityDistributor {
   function computeNextNumberOfTiers(uint32 _claimCount) public view returns (uint8) {
     if (_lastAwardedDrawId != 0) {
       // claimCount is expected to be the estimated number of claims for the current prize tier.
-      uint8 nextNumberOfTiers = _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount) + 1;
+      uint8 nextNumberOfTiers = _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount);
       // limit change to 1 tier
       uint8 _numTiers = numberOfTiers;
       if (nextNumberOfTiers > _numTiers) {
