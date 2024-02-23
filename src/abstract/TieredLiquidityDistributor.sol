@@ -397,6 +397,10 @@ contract TieredLiquidityDistributor {
     return prizeSize > type(uint104).max ? type(uint104).max : uint104(prizeSize);
   }
 
+  function isCanaryTier(uint8 _tier) public view returns (bool) {
+    return _tier >= numberOfTiers - NUMBER_OF_CANARY_TIERS;
+  }
+
   function _numShares(uint8 _tier, uint8 _numberOfTiers) internal view returns (uint8) {
     uint8 result = _tier > _numberOfTiers - 3 ? canaryShares : tierShares;
     return result;

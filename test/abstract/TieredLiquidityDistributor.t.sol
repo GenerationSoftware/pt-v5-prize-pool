@@ -237,6 +237,13 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierRemainingLiquidity(5), 0);
   }
 
+  function testIsCanaryTier() public {
+    assertEq(distributor.isCanaryTier(0), false, "grand prize");
+    assertEq(distributor.isCanaryTier(1), false, "daily tier");
+    assertEq(distributor.isCanaryTier(2), true, "canary 1");
+    assertEq(distributor.isCanaryTier(3), true, "canary 2");
+  }
+
   function testExpansionTierLiquidity() public {
     distributor.awardDraw(MINIMUM_NUMBER_OF_TIERS, distributor.getTotalShares() * 1e18); // canary gets 100e18
     assertEq(distributor.getTierRemainingLiquidity(0), 100e18, "grand prize liquidity");
