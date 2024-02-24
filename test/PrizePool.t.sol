@@ -15,6 +15,9 @@ import { TierCalculationLib } from "../src/libraries/TierCalculationLib.sol";
 import { MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../src/abstract/TieredLiquidityDistributor.sol";
 import {
   PrizePool,
+  CreatorIsZeroAddress,
+  OnlyCreator,
+  DrawManagerAlreadySet,
   PrizeIsZero,
   ConstructorParams,
   InsufficientRewardsError,
@@ -53,6 +56,8 @@ contract PrizePoolTest is Test {
 
   TwabController public twabController;
 
+  address drawManager;
+
   address sender1 = 0x690B9A9E9aa1C9dB991C7721a92d351Db4FaC990;
   address sender2 = 0x4008Ed96594b645f057c9998a2924545fAbB6545;
   address sender3 = 0x796486EBd82E427901511d130Ece93b94f06a980;
@@ -70,6 +75,7 @@ contract PrizePoolTest is Test {
   uint8 initialNumberOfTiers;
   uint256 winningRandomNumber = 123456;
   uint256 startTimestamp = 1000 days;
+  uint256 tierLiquidityUtilizationRate = 1e18;
 
   /**********************************************************************************
    * Events copied from PrizePool.sol
@@ -83,6 +89,7 @@ contract PrizePoolTest is Test {
     UD34x4 prizeTokensPerShare,
     uint48 drawOpenedAt
   );
+  event SetDrawManager(address indexed drawManager);
   event AllocateRewardFromReserve(address indexed to, uint256 amount);
   event ContributedReserve(address indexed user, uint256 amount);
   event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
@@ -120,13 +127,15 @@ contract PrizePoolTest is Test {
       abi.encode(drawPeriodSeconds)
     );
 
-    address drawManager = address(this);
+    drawManager = address(this);
     vault = address(this);
     vault2 = address(0x1234);
 
     params = ConstructorParams(
       prizeToken,
       twabController,
+      drawManager,
+      tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,
@@ -136,11 +145,7 @@ contract PrizePoolTest is Test {
       drawTimeout
     );
 
-    prizePool = new PrizePool(params);
-
-    vm.expectEmit();
-    emit DrawManagerSet(drawManager);
-    prizePool.setDrawManager(drawManager);
+    prizePool = newPrizePool();
   }
 
   function testConstructor() public {
@@ -195,6 +200,27 @@ contract PrizePoolTest is Test {
     );
     vm.expectRevert(abi.encodeWithSelector(IncompatibleTwabPeriodOffset.selector));
     new PrizePool(params);
+  }
+
+  function testConstructor_CreatorIsZeroAddress() public {
+    params.creator = address(0);
+    vm.expectRevert(abi.encodeWithSelector(CreatorIsZeroAddress.selector));
+    new PrizePool(params);
+  }
+
+  function testSetDrawManager() public {
+    assertEq(prizePool.drawManager(), drawManager, "drawManager");
+  }
+
+  function testSetDrawManager_OnlyCreator() public {
+    vm.prank(address(twabController));
+    vm.expectRevert(abi.encodeWithSelector(OnlyCreator.selector));
+    prizePool.setDrawManager(drawManager);
+  }
+
+  function testSetDrawManager_DrawManagerAlreadySet() public {
+    vm.expectRevert(abi.encodeWithSelector(DrawManagerAlreadySet.selector));
+    prizePool.setDrawManager(drawManager);
   }
 
   function testReserve_noRemainder() public {
@@ -377,6 +403,26 @@ contract PrizePoolTest is Test {
     prizePool.contributePrizeTokens(address(this), 100);
   }
 
+  function testDonatePrizeTokens() public {
+    prizeToken.mint(address(this), 100);
+    prizeToken.approve(address(prizePool), 100);
+    prizePool.donatePrizeTokens(100);
+    assertEq(prizeToken.balanceOf(address(prizePool)), 100);
+    assertEq(prizePool.getTotalContributedBetween(1, 1), 100);
+    assertEq(prizePool.getDonatedBetween(1,1), 100);
+  }
+
+  function testDonatePrizeTokens_twice() public {
+    prizeToken.mint(address(this), 100);
+    prizeToken.approve(address(prizePool), 100);
+    prizePool.donatePrizeTokens(50);
+    awardDraw(winningRandomNumber);
+    prizePool.donatePrizeTokens(50);
+    assertEq(prizeToken.balanceOf(address(prizePool)), 100);
+    assertEq(prizePool.getTotalContributedBetween(1, 2), 100);
+    assertEq(prizePool.getDonatedBetween(1, 2), 100);
+  }
+
   function testAccountedBalance_withdrawnReserve() public {
     contribute(100e18);
     awardDraw(1);
@@ -424,6 +470,11 @@ contract PrizePoolTest is Test {
     uint256 prize2 = claimPrize(msg.sender, 0, 0);
 
     assertEq(prizePool.accountedBalance(), 100e18 - prize - prize2, "accounted balance");
+  }
+
+  function testGetVaultPortion_fromDonator() public {
+    contribute(100e18, prizePool.DONATOR()); // available draw 1
+    assertEq(SD59x18.unwrap(prizePool.getVaultPortion(prizePool.DONATOR(), 1, 1)), 0);
   }
 
   function testGetVaultPortion_WhenEmpty() public {
@@ -475,6 +526,23 @@ contract PrizePoolTest is Test {
     contribute(100e18); // available draw 2
 
     assertEq(SD59x18.unwrap(prizePool.getVaultPortion(address(this), 0, 2)), 1e18);
+  }
+
+  function testGetVaultPortion_ignoresDonations() public {
+    // contribute to vault1
+    prizeToken.mint(address(prizePool), 100);
+    prizePool.contributePrizeTokens(address(vault), 100);
+
+    // contribute to vault2
+    prizeToken.mint(address(prizePool), 100);
+    prizePool.contributePrizeTokens(address(vault2), 100);
+
+    prizeToken.mint(address(this), 100);
+    prizeToken.approve(address(prizePool), 100);
+    prizePool.donatePrizeTokens(100);
+
+    assertEq(prizePool.getVaultPortion(address(vault), 1, 1).unwrap(), 0.5e18);
+    assertEq(prizePool.getVaultPortion(address(vault2), 1, 1).unwrap(), 0.5e18);
   }
 
   function testGetOpenDrawId() public {
@@ -827,6 +895,8 @@ contract PrizePoolTest is Test {
     params = ConstructorParams(
       prizeToken,
       twabController,
+      drawManager,
+      tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,
@@ -851,6 +921,8 @@ contract PrizePoolTest is Test {
     params = ConstructorParams(
       prizeToken,
       twabController,
+      address(this),
+      tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       firstDrawOpensAt,
       grandPrizePeriodDraws,
@@ -974,26 +1046,6 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.getTierRemainingLiquidity(0), 100e18);
     assertEq(prizePool.getTierRemainingLiquidity(1), 100e18);
     assertEq(prizePool.getTierRemainingLiquidity(2), 100e18);
-  }
-
-  function testSetDrawManager() public {
-    address bob = makeAddr("bob");
-    vm.expectEmit();
-    emit DrawManagerSet(address(bob));
-    prizePool.setDrawManager(address(bob));
-    assertEq(prizePool.drawManager(), address(bob));
-  }
-
-  function testSetDrawManager_DrawManagerIsZeroAddress() public {
-    vm.expectRevert(abi.encodeWithSelector(DrawManagerIsZeroAddress.selector));
-    prizePool.setDrawManager(address(0));
-  }
-
-  function testSetDrawManager_notOwner() public {
-    vm.startPrank(address(1));
-    vm.expectRevert("Ownable: caller is not the owner");
-    prizePool.setDrawManager(address(this));
-    vm.stopPrank();
   }
 
   function testIsWinner_noDraw() public {
@@ -1713,7 +1765,9 @@ contract PrizePoolTest is Test {
 
   function newPrizePool() public returns (PrizePool) {
     PrizePool _prizePool = new PrizePool(params);
-    _prizePool.setDrawManager(address(this));
+    vm.expectEmit();
+    emit SetDrawManager(drawManager);
+    _prizePool.setDrawManager(drawManager);
     return _prizePool;
   }
 }

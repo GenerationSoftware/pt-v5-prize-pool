@@ -28,6 +28,7 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
   address[4] public actors;
   address internal currentActor;
 
+  uint256 tierLiquidityUtilizationRate = 1e18;
   address drawManager = address(this);
   uint48 drawPeriodSeconds = 1 hours;
   uint48 awardDrawStartsAt;
@@ -67,6 +68,8 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
     ConstructorParams memory params = ConstructorParams(
       token,
       twabController,
+      drawManager,
+      tierLiquidityUtilizationRate,
       drawPeriodSeconds,
       awardDrawStartsAt,
       grandPrizePeriod,
@@ -79,10 +82,6 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
     // console2.log("constructor 7");
 
     prizePool = new PrizePool(params);
-
-    // console2.log("constructor 8");
-
-    prizePool.setDrawManager(drawManager);
   }
 
   function deposit(uint88 _amount, uint256 actorSeed) public useCurrentTime prankActor(actorSeed) {
@@ -94,6 +93,17 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
     contributed += _amount;
     token.mint(address(prizePool), _amount);
     prizePool.contributePrizeTokens(_actor(actorSeed), _amount);
+  }
+
+  function donatePrizeTokens(uint88 _amount, uint256 actorSeed) public increaseCurrentTime(_timeIncrease()) prankActor(actorSeed) {
+    // console2.log("contributePrizeTokens");
+    address actor = _actor(actorSeed);
+    token.mint(address(actor), _amount);
+    vm.startPrank(actor);
+    token.approve(address(prizePool), _amount);
+    contributed += _amount;
+    prizePool.donatePrizeTokens(_amount);
+    vm.stopPrank();
   }
 
   function contributeReserve(uint88 _amount, uint256 actorSeed) public increaseCurrentTime(_timeIncrease()) prankActor(actorSeed) {

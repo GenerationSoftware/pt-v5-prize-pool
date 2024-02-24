@@ -148,9 +148,9 @@ library DrawAccumulatorLib {
     );
 
     uint24 oldestDrawId = _accumulator.drawRingBuffer[oldestIndex];
-    uint24 newestDrawId = _accumulator.drawRingBuffer[newestIndex];
+    uint24 _newestDrawId = _accumulator.drawRingBuffer[newestIndex];
 
-    if (_endDrawId < oldestDrawId || _startDrawId > newestDrawId) {
+    if (_endDrawId < oldestDrawId || _startDrawId > _newestDrawId) {
       // if out of range, return 0
       return 0;
     }
@@ -174,8 +174,8 @@ library DrawAccumulatorLib {
     }
 
     Observation memory atOrBeforeEnd;
-    if (_endDrawId >= newestDrawId || ringBufferInfo.cardinality == 1) {
-      atOrBeforeEnd = _accumulator.observations[newestDrawId];
+    if (_endDrawId >= _newestDrawId || ringBufferInfo.cardinality == 1) {
+      atOrBeforeEnd = _accumulator.observations[_newestDrawId];
     } else {
       // check if the end draw has an observation, otherwise search for the latest observation before
       atOrBeforeEnd = _accumulator.observations[_endDrawId];

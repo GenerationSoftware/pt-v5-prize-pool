@@ -8,12 +8,13 @@ import { UD60x18 } from "prb-math/UD60x18.sol";
 
 contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   constructor(
+    uint256 _tierLiquidityUtilizationRate,
     uint8 _numberOfTiers,
     uint8 _tierShares,
     uint8 _reserveShares,
     uint24 _grandPrizePeriodDraws
   )
-    TieredLiquidityDistributor(_numberOfTiers, _tierShares, _reserveShares, _grandPrizePeriodDraws)
+    TieredLiquidityDistributor(_tierLiquidityUtilizationRate, _numberOfTiers, _tierShares, _reserveShares, _grandPrizePeriodDraws)
   {}
 
   function awardDraw(uint8 _nextNumTiers, uint256 liquidity) external {

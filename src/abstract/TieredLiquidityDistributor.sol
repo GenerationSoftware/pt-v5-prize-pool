@@ -24,6 +24,12 @@ error NumberOfTiersLessThanMinimum(uint8 numTiers);
 /// @param numTiers The invalid number of tiers
 error NumberOfTiersGreaterThanMaximum(uint8 numTiers);
 
+/// @notice Emitted when the tier liquidity utilization rate is greater than 1.
+error TierLiquidityUtilizationRateGreaterThanOne();
+
+/// @notice Emitted when the tier liquidity utilization rate is 0.
+error TierLiquidityUtilizationRateCannotBeZero();
+
 /// @notice Emitted when there is insufficient liquidity to consume.
 /// @param requestedLiquidity The requested amount of liquidity
 error InsufficientLiquidity(uint104 requestedLiquidity);
@@ -97,6 +103,9 @@ contract TieredLiquidityDistributor {
   /// @notice The number of shares to allocate to the reserve.
   uint8 public immutable reserveShares;
 
+  /// @notice The percentage of tier liquidity to target for utilization.  
+  UD60x18 public immutable tierLiquidityUtilizationRate;
+
   /// @notice The current number of prize tokens per share.
   UD34x4 public prizeTokenPerShare;
 
@@ -114,11 +123,13 @@ contract TieredLiquidityDistributor {
 
   /**
    * @notice Constructs a new Prize Pool.
+   * @param _tierLiquidityUtilizationRate The target percentage of tier liquidity to utilize each draw
    * @param _numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
    * @param _tierShares The number of shares to allocate to each tier
    * @param _reserveShares The number of shares to allocate to the reserve.
    */
   constructor(
+    uint256 _tierLiquidityUtilizationRate,
     uint8 _numberOfTiers,
     uint8 _tierShares,
     uint8 _reserveShares,
@@ -130,6 +141,14 @@ contract TieredLiquidityDistributor {
     if (_numberOfTiers > MAXIMUM_NUMBER_OF_TIERS) {
       revert NumberOfTiersGreaterThanMaximum(_numberOfTiers);
     }
+    if (_tierLiquidityUtilizationRate > 1e18) {
+      revert TierLiquidityUtilizationRateGreaterThanOne();
+    }
+    if (_tierLiquidityUtilizationRate == 0) {
+      revert TierLiquidityUtilizationRateCannotBeZero();
+    }
+
+    tierLiquidityUtilizationRate = UD60x18.wrap(_tierLiquidityUtilizationRate);
 
     numberOfTiers = _numberOfTiers;
     tierShares = _tierShares;
@@ -404,10 +423,10 @@ contract TieredLiquidityDistributor {
     UD60x18 _prizeTokenPerShare,
     UD60x18 _fractionalPrizeCount,
     uint8 _shares
-  ) internal pure returns (uint256) {
+  ) internal view returns (uint256) {
     return
       convert(
-        _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(_shares)).div(
+        _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(_shares)).mul(tierLiquidityUtilizationRate).div(
           _fractionalPrizeCount
         )
       );

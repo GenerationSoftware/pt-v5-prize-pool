@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
-import { Ownable } from "openzeppelin/access/Ownable.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { SD59x18, convert, sd } from "prb-math/SD59x18.sol";
@@ -25,6 +24,9 @@ error IncompatibleTwabPeriodOffset();
 
 /// @notice Emitted when someone tries to set the draw manager with the zero address
 error DrawManagerIsZeroAddress();
+
+/// @notice Emitted when the passed creator is the zero address
+error CreatorIsZeroAddress();
 
 /// @notice Emitted when the caller is not the deployer.
 error NotDeployer();
@@ -106,10 +108,18 @@ error RewardRecipientZeroAddress();
 /// @notice Emitted when a claim is attempted after the claiming period has expired.
 error ClaimPeriodExpired();
 
+/// @notice Emitted when anyone but the creator calls a privileged function
+error OnlyCreator();
+
+/// @notice Emitted when the draw manager has already been set
+error DrawManagerAlreadySet();
+
 /**
  * @notice Constructor Parameters
  * @param prizeToken The token to use for prizes
  * @param twabController The Twab Controller to retrieve time-weighted average balances from
+ * @param drawManager The Draw Manager address that will award draws
+ * @param tierLiquidityUtilizationRate The rate at which liquidity is utilized for prize tiers. This allows for deviations in prize claims; if 0.75e18 then it is 75% utilization so it can accommodate 25% deviation in more prize claims.
  * @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
  * @param firstDrawOpensAt The timestamp at which the first draw will open.
  * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
@@ -120,6 +130,8 @@ error ClaimPeriodExpired();
 struct ConstructorParams {
   IERC20 prizeToken;
   TwabController twabController; // 160bits
+  address creator;
+  uint256 tierLiquidityUtilizationRate; // fixed point 18 number
   uint48 drawPeriodSeconds;
   uint48 firstDrawOpensAt; // 256bits WORD END
   uint24 grandPrizePeriodDraws;
@@ -134,7 +146,7 @@ struct ConstructorParams {
  * @author PoolTogether Inc Team
  * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
  */
-contract PrizePool is TieredLiquidityDistributor, Ownable {
+contract PrizePool is TieredLiquidityDistributor {
   using SafeERC20 for IERC20;
 
   /* ============ Events ============ */
@@ -194,6 +206,10 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param amount The amount of tokens contributed
   event ContributePrizeTokens(address indexed vault, uint24 indexed drawId, uint256 amount);
 
+  /// @notice Emitted when the draw manager is set
+  /// @param drawManager The address of the draw manager
+  event SetDrawManager(address indexed drawManager);
+
   /// @notice Emitted when an address withdraws their prize claim rewards.
   /// @param account The account that is withdrawing rewards
   /// @param to The address the rewards are sent to
@@ -211,10 +227,6 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param amount The amount increased
   event IncreaseClaimRewards(address indexed to, uint256 amount);
 
-  /// @notice Emitted when the drawManager is set.
-  /// @param drawManager The draw manager
-  event DrawManagerSet(address indexed drawManager);
-
   /* ============ State ============ */
 
   /// @notice The DrawAccumulator that tracks the exponential moving average of the contributions by a vault.
@@ -230,6 +242,9 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @notice Records the last shutdown withdrawal for an account
   mapping(address vault => mapping(address user => uint24 drawId)) internal _lastShutdownWithdrawal;
 
+  /// @notice The special value for the donator address. Contributions from this address are excluded from the total odds. F2EE because it's free money!
+  address public constant DONATOR = 0x000000000000000000000000000000000000F2EE;
+
   /// @notice The token that is being contributed and awarded as prizes.
   IERC20 public immutable prizeToken;
 
@@ -244,6 +259,9 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
 
   /// @notice The maximum number of draws that can be missed before the prize pool is considered inactive.
   uint24 public immutable drawTimeout;
+
+  /// @notice The address that is allowed to set the draw manager
+  address immutable creator;
 
   /// @notice The exponential weighted average of all vault contributions.
   DrawAccumulatorLib.Accumulator internal _totalAccumulator;
@@ -274,12 +292,12 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     ConstructorParams memory params
   )
     TieredLiquidityDistributor(
+      params.tierLiquidityUtilizationRate,
       params.numberOfTiers,
       params.tierShares,
       params.reserveShares,
       params.grandPrizePeriodDraws
     )
-    Ownable()
   {
     if (params.drawTimeout == 0) {
       revert DrawTimeoutIsZero();
@@ -307,6 +325,11 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
       revert IncompatibleTwabPeriodOffset();
     }
 
+    if (params.creator == address(0)) {
+      revert CreatorIsZeroAddress();
+    }
+
+    creator = params.creator;
     drawTimeout = params.drawTimeout;
     prizeToken = params.prizeToken;
     twabController = params.twabController;
@@ -324,18 +347,19 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     _;
   }
 
-  /* ============ External Write Functions ============ */
-
-  /// @notice Allows a caller to set the DrawManager if not already set.
-  /// @param _drawManager The draw manager
-  function setDrawManager(address _drawManager) external onlyOwner {
-    if (_drawManager == address(0)) {
-      revert DrawManagerIsZeroAddress();
+  function setDrawManager(address _drawManager) external {
+    if (msg.sender != creator) {
+      revert OnlyCreator();
+    }
+    if (drawManager != address(0)) {
+      revert DrawManagerAlreadySet();
     }
     drawManager = _drawManager;
 
-    emit DrawManagerSet(_drawManager);
+    emit SetDrawManager(_drawManager);
   }
+
+  /* ============ External Write Functions ============ */
 
   /// @notice Contributes prize tokens on behalf of the given vault.
   /// @dev The tokens should have already been transferred to the prize pool.
@@ -343,7 +367,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
   /// @param _prizeVault The address of the vault to contribute to
   /// @param _amount The amount of prize tokens to contribute
   /// @return The amount of available prize tokens prior to the contribution.
-  function contributePrizeTokens(address _prizeVault, uint256 _amount) external returns (uint256) {
+  function contributePrizeTokens(address _prizeVault, uint256 _amount) public returns (uint256) {
     uint256 _deltaBalance = prizeToken.balanceOf(address(this)) - accountedBalance();
     if (_deltaBalance < _amount) {
       revert ContributionGTDeltaBalance(_amount, _deltaBalance);
@@ -353,6 +377,13 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     DrawAccumulatorLib.add(_totalAccumulator, _amount, openDrawId_);
     emit ContributePrizeTokens(_prizeVault, openDrawId_, _amount);
     return _deltaBalance;
+  }
+
+  /// @notice Allows a user to donate prize tokens to the prize pool.
+  /// @param _amount The amount of tokens to donate. The amount should already be approved for transfer.
+  function donatePrizeTokens(uint256 _amount) external {
+    prizeToken.transferFrom(msg.sender, address(this), _amount);
+    contributePrizeTokens(DONATOR, _amount);
   }
 
   /// @notice Allows the Manager to allocate a reward from the reserve to a recipient.
@@ -583,6 +614,22 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     return
       DrawAccumulatorLib.getDisbursedBetween(
         _vaultAccumulator[_vault],
+        _startDrawIdInclusive,
+        _endDrawIdInclusive
+      );
+  }
+
+  /// @notice Returns the total prize tokens donated to the prize pool
+  /// @param _startDrawIdInclusive Start draw id inclusive
+  /// @param _endDrawIdInclusive End draw id inclusive
+  /// @return The total prize tokens donated to the prize pool
+  function getDonatedBetween(
+    uint24 _startDrawIdInclusive,
+    uint24 _endDrawIdInclusive
+  ) external view returns (uint256) {
+    return
+      DrawAccumulatorLib.getDisbursedBetween(
+        _vaultAccumulator[DONATOR],
         _startDrawIdInclusive,
         _endDrawIdInclusive
       );
@@ -954,11 +1001,17 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
     uint24 _startDrawIdInclusive,
     uint24 _endDrawIdInclusive
   ) public view returns (SD59x18) {
+    if (_vault == DONATOR) {
+      return sd(0);
+    }
+
     uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(
       _totalAccumulator,
       _startDrawIdInclusive,
       _endDrawIdInclusive
     );
+
+    uint256 totalDonated = DrawAccumulatorLib.getDisbursedBetween(_vaultAccumulator[DONATOR], _startDrawIdInclusive, _endDrawIdInclusive);
 
     // vaultContributed / totalContributed
     return
@@ -971,7 +1024,7 @@ contract PrizePool is TieredLiquidityDistributor, Ownable {
               _endDrawIdInclusive
             )
           )
-        ).div(sd(SafeCast.toInt256(totalContributed)))
+        ).div(sd(SafeCast.toInt256(totalContributed - totalDonated)))
         : sd(0);
   }
 
