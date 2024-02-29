@@ -69,11 +69,19 @@ contract TieredLiquidityDistributorTest is Test {
   function testAwardDraw_liquidity_shrinkTiers1() public {
     uint liq1 = 320e18; //distributor.computeTotalShares(5) * 1e18; // 5 tiers => 3 normal, 2 canary.  => 320e18 total funds.
     distributor.awardDraw(5, liq1);
-    // we are shrinking, so we'll recoup the new daily + daily + two canaries = 210e18
-    uint liq2 = 10e18;
+
+    assertEq(distributor.getTierRemainingLiquidity(0), uint(tierShares) * 1e18, "tier 0");
+    assertEq(distributor.getTierRemainingLiquidity(1), uint(tierShares) * 1e18, "tier 1");
+    assertEq(distributor.getTierRemainingLiquidity(2), uint(tierShares) * 1e18, "daily tier");
+    assertEq(distributor.getTierRemainingLiquidity(3), uint(canaryShares) * 1e18, "canary 1");
+    assertEq(distributor.getTierRemainingLiquidity(4), uint(canaryShares) * 1e18, "canary 2");
+    assertEq(distributor.getTierRemainingLiquidity(5), 0, "nothing beyond");
+
+    // we are shrinking, so we'll recoup the two canaries = 110e18
+    uint liq2 = 110e18;
     distributor.awardDraw(4, liq2);
     assertEq(distributor.getTierRemainingLiquidity(0), uint(tierShares) * 2e18, "tier 0 accrued fully");
-    assertEq(distributor.getTierRemainingLiquidity(1), uint(tierShares) * 1e18, "daily tier");
+    assertEq(distributor.getTierRemainingLiquidity(1), uint(tierShares) * 2e18, "daily tier");
     assertEq(distributor.getTierRemainingLiquidity(2), uint(canaryShares) * 1e18, "canary accrued one draw 1");
     assertEq(distributor.getTierRemainingLiquidity(3), uint(canaryShares) * 1e18, "canary accrued one draw 2");
     assertEq(distributor.getTierRemainingLiquidity(4), 0, "reduced tier has nothing");
@@ -83,18 +91,18 @@ contract TieredLiquidityDistributorTest is Test {
 
   function testAwardDraw_liquidity_shrinkTiers2() public {
     distributor.awardDraw(7, 520e18); // 5 normal, 2 canary and reserve
-    // reclaim 3 normal and 2 canary => 310e18 reclaimed
-    distributor.awardDraw(5, 10e18); // 3 normal, 2 canary
+    // reclaim 2 canary and 2 regs => 210e18 reclaimed
+    distributor.awardDraw(5, 110e18); // 3 normal, 2 canary
 
     assertEq(distributor.getTierRemainingLiquidity(0), 200e18, "tier 0");
     assertEq(distributor.getTierRemainingLiquidity(1), 200e18, "tier 1");
-    assertEq(distributor.getTierRemainingLiquidity(2), 100e18, "daily");
+    assertEq(distributor.getTierRemainingLiquidity(2), 200e18, "daily");
     assertEq(distributor.getTierRemainingLiquidity(3), 5e18, "canary 1");
     assertEq(distributor.getTierRemainingLiquidity(4), 5e18, "canary 2");
     assertEq(distributor.getTierRemainingLiquidity(5), 0);
     assertEq(distributor.reserve(), 20e18, "reserve");
 
-    assertEq(_computeLiquidity(), 530e18, "total liquidity");
+    assertEq(_computeLiquidity(), 630e18, "total liquidity");
   }
 
   function testAwardDraw_liquidity_sameTiers() public {
@@ -104,23 +112,24 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function testAwardDraw_liquidity_growTiers1() public {
-    distributor.awardDraw(5, 100e18);
-    distributor.awardDraw(6, 100e18);
-    assertEq(_computeLiquidity(), 200e18);
+    distributor.awardDraw(5, 320e18);
+    assertEq(_computeLiquidity(), 320e18, "total liquidity for first draw");
+    distributor.awardDraw(6, 420e18);
+    assertEq(_computeLiquidity(), 740e18, "total liquidity for second draw");
   }
 
   function testAwardDraw_liquidity_growTiers2() public {
-    distributor.awardDraw(5, 320e18); // 3 tiers and 2 canary
-    // will leave daily and reclaim 2 canary => 10e18
+    distributor.awardDraw(5, 320e18); // 3 tiers and 2 canary.  3 tiers stay, canaries reclaimed.
+    // reclaimed 10e18
     distributor.awardDraw(7, 510e18); // 5 tiers and 2 canary
 
-    assertEq(distributor.getTierRemainingLiquidity(0), 200e18, "old tier continues to accrue");
-    assertEq(distributor.getTierRemainingLiquidity(1), 200e18, "old tier continues to accrue");
-    assertEq(distributor.getTierRemainingLiquidity(2), 200e18, "old tier continues to accrue");
-    assertEq(distributor.getTierRemainingLiquidity(3), 100e18, "old tier continues to accrue");
+    assertEq(distributor.getTierRemainingLiquidity(0), 200e18, "old tier 0 continues to accrue");
+    assertEq(distributor.getTierRemainingLiquidity(1), 200e18, "old tier 1 continues to accrue");
+    assertEq(distributor.getTierRemainingLiquidity(2), 200e18, "old tier 2 continues to accrue");
+    assertEq(distributor.getTierRemainingLiquidity(3), 100e18, "old tier 3 continues to accrue");
     assertEq(distributor.getTierRemainingLiquidity(4), 100e18, "old canary gets reclaimed");
-    assertEq(distributor.getTierRemainingLiquidity(5), 5e18, "new tier who dis");
-    assertEq(distributor.getTierRemainingLiquidity(6), 5e18, "new tier who dis");
+    assertEq(distributor.getTierRemainingLiquidity(5), 5e18, "new tier who dis 1");
+    assertEq(distributor.getTierRemainingLiquidity(6), 5e18, "new tier who dis 2");
     assertEq(distributor.reserve(), 20e18, "reserve");
     assertEq(_computeLiquidity(), 830e18, "total liquidity");
   }
@@ -325,7 +334,7 @@ contract TieredLiquidityDistributorTest is Test {
   function testGetTierOdds_zero_when_outside_bounds() public {
     SD59x18 odds;
     for (
-      uint8 numTiers = MINIMUM_NUMBER_OF_TIERS;
+      uint8 numTiers = MINIMUM_NUMBER_OF_TIERS - 1;
       numTiers <= MAXIMUM_NUMBER_OF_TIERS;
       numTiers++
     ) {
@@ -451,12 +460,13 @@ contract TieredLiquidityDistributorTest is Test {
   }
 
   function _computeLiquidity() internal view returns (uint256) {
-    uint256 liquidity = _getTierLiquidity(distributor.numberOfTiers());
+    // console2.log("test _computeLiquidity, distributor.numberOfTiers()", distributor.numberOfTiers());
+    uint256 liquidity = _getTotalTierRemainingLiquidity(distributor.numberOfTiers());
     liquidity += distributor.reserve();
     return liquidity;
   }
 
-  function _getTierLiquidity(uint8 _numberOfTiers) internal view returns (uint256) {
+  function _getTotalTierRemainingLiquidity(uint8 _numberOfTiers) internal view returns (uint256) {
     uint256 liquidity = 0;
     for (uint8 i = 0; i < _numberOfTiers; i++) {
       liquidity += distributor.getTierRemainingLiquidity(i);

@@ -303,7 +303,7 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.pendingReserveContributions(), remainder + (firstPrizesPerShare * RESERVE_SHARES), "pending reserve contributions");
     awardDraw(winningRandomNumber);
     // reclaim daily and canary tiers
-    uint reclaimedReserve = (1e18 * (TIER_SHARES + 2 * CANARY_SHARES)) * RESERVE_SHARES / prizePool.getTotalShares();
+    uint reclaimedReserve = (1e18 * (2 * CANARY_SHARES)) * RESERVE_SHARES / prizePool.getTotalShares();
     assertApproxEqAbs(prizePool.pendingReserveContributions(), reclaimedReserve, 1000, "no pending reserve contributions");
   }
 

@@ -16,10 +16,15 @@ contract TierCalculationLibTest is Test {
     wrapper = new TierCalculationLibWrapper();
   }
 
-  function testGetTierOdds() public {
-    for (uint8 i = MINIMUM_NUMBER_OF_TIERS - 1; i < MAXIMUM_NUMBER_OF_TIERS; i++) {
+  function testGetTierOdds_grandPrizeOdds() public {
+    for (uint8 i = MINIMUM_NUMBER_OF_TIERS - 1; i <= MAXIMUM_NUMBER_OF_TIERS; i++) {
+      // grand prize is always 1/365
       assertEq(unwrap(wrapper.getTierOdds(0, i, 365)), 2739726027397260);
     }
+  }
+
+  function testGetTierOdds_tier4() public {
+    assertEq(unwrap(wrapper.getTierOdds(0, 4, 365)), 2739726027397260);
     assertEq(unwrap(wrapper.getTierOdds(1, 4, 365)), 19579642462506911);
     assertEq(unwrap(wrapper.getTierOdds(2, 4, 365)), 139927275620255364);
     assertEq(unwrap(wrapper.getTierOdds(3, 4, 365)), 1e18);
