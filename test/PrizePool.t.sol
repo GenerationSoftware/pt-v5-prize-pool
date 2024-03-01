@@ -550,6 +550,14 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.getVaultPortion(address(vault2), 1, 1).unwrap(), 0.5e18);
   }
 
+  function testGetVaultPortion_handlesOnlyDonation() public {
+    prizeToken.mint(address(this), 100);
+    prizeToken.approve(address(prizePool), 100);
+    prizePool.donatePrizeTokens(100);
+
+    assertEq(prizePool.getVaultPortion(address(vault2), 1, 1).unwrap(), 0);
+  }
+
   function testGetOpenDrawId() public {
     uint256 openDrawId = prizePool.getOpenDrawId();
     assertEq(openDrawId, 1);
