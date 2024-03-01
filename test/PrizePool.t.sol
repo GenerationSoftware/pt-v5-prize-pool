@@ -12,7 +12,7 @@ import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { TierCalculationLib } from "../src/libraries/TierCalculationLib.sol";
-import { MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS } from "../src/abstract/TieredLiquidityDistributor.sol";
+import { MAXIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS, NUMBER_OF_CANARY_TIERS } from "../src/abstract/TieredLiquidityDistributor.sol";
 import {
   PrizePool,
   CreatorIsZeroAddress,
@@ -66,6 +66,7 @@ contract PrizePoolTest is Test {
   address sender6 = 0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5;
 
   uint256 TIER_SHARES = 100;
+  uint256 CANARY_SHARES = 5;
   uint256 RESERVE_SHARES = 10;
 
   uint24 grandPrizePeriodDraws = 365;
@@ -114,7 +115,7 @@ contract PrizePoolTest is Test {
     twabController = new TwabController(uint32(drawPeriodSeconds), uint32(startTimestamp - 1 days));
 
     firstDrawOpensAt = uint48(startTimestamp + 1 days); // set draw start 1 day into future
-    initialNumberOfTiers = 3;
+    initialNumberOfTiers = MINIMUM_NUMBER_OF_TIERS;
 
     vm.mockCall(
       address(twabController),
@@ -141,6 +142,7 @@ contract PrizePoolTest is Test {
       grandPrizePeriodDraws,
       initialNumberOfTiers, // minimum number of tiers
       uint8(TIER_SHARES),
+      uint8(CANARY_SHARES),
       uint8(RESERVE_SHARES),
       drawTimeout
     );
@@ -224,7 +226,7 @@ contract PrizePoolTest is Test {
   }
 
   function testReserve_noRemainder() public {
-    contribute(310e18);
+    contribute(1e18 * prizePool.getTotalShares());
     awardDraw(winningRandomNumber);
 
     // reserve + remainder
@@ -281,7 +283,7 @@ contract PrizePoolTest is Test {
   function testReserve_withRemainder() public {
     contribute(100e18);
     awardDraw(winningRandomNumber);
-    assertEq(prizePool.reserve(), 3.22580645161290340e18);
+    assertEq(prizePool.reserve(), 4545454545454545550);
   }
 
   function testPendingReserveContributions_noDraw() public {
@@ -293,13 +295,15 @@ contract PrizePoolTest is Test {
 
   function testPendingReserveContributions_existingDraw() public {
     awardDraw(winningRandomNumber);
-    contribute(310e18);
-    uint256 firstPrizesPerShare = 310e18 / prizePool.getTotalShares();
-    uint256 remainder = 310e18 - (firstPrizesPerShare * prizePool.getTotalShares());
+    uint numShares = prizePool.computeTotalShares(prizePool.estimateNextNumberOfTiers());
+    uint amount = 1e18 * numShares;
+    contribute(amount);
+    uint256 firstPrizesPerShare = amount / numShares;
+    uint256 remainder = amount - (firstPrizesPerShare * numShares);
     assertEq(prizePool.pendingReserveContributions(), remainder + (firstPrizesPerShare * RESERVE_SHARES), "pending reserve contributions");
     awardDraw(winningRandomNumber);
-    // reclaim daily and canary => 200e18 reclaimed
-    uint reclaimedReserve = 200e18 * RESERVE_SHARES / prizePool.getTotalShares();
+    // reclaim daily and canary tiers
+    uint reclaimedReserve = (1e18 * (TIER_SHARES + 2 * CANARY_SHARES)) * RESERVE_SHARES / prizePool.getTotalShares();
     assertApproxEqAbs(prizePool.pendingReserveContributions(), reclaimedReserve, 1000, "no pending reserve contributions");
   }
 
@@ -374,8 +378,9 @@ contract PrizePoolTest is Test {
   }
 
   function testContributePrizeTokens_notLostOnSkippedDraw() public {
-    contribute(310e18);
-    assertEq(prizeToken.balanceOf(address(prizePool)), 310e18);
+    uint amount = 1e18 * prizePool.getTotalShares();
+    contribute(amount);
+    assertEq(prizeToken.balanceOf(address(prizePool)), amount);
     assertEq(prizePool.getDrawIdToAward(), 1);
 
     // warp to skip a draw:
@@ -386,7 +391,7 @@ contract PrizePoolTest is Test {
     awardDraw(1234);
 
     // check if tier liquidity includes contribution from draws 1 + 2
-    assertEq(prizePool.getTotalContributedBetween(1, 1), 310e18);
+    assertEq(prizePool.getTotalContributedBetween(1, 1), amount);
     assertEq(prizePool.getTotalContributedBetween(2, 2), 0);
     assertEq(prizePool.getTierRemainingLiquidity(0), 100e18);
   }
@@ -902,6 +907,7 @@ contract PrizePoolTest is Test {
       grandPrizePeriodDraws,
       startingTiers, // higher number of tiers
       100,
+      5,
       10,
       drawTimeout
     );
@@ -914,8 +920,62 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.numberOfTiers(), startingTiers, "starting tiers");
   }
 
-  function testAwardDraw_shrinkTiers() public {
-    uint8 startingTiers = 5;
+  function testAwardDraw_same() public {
+    contribute(1e18);
+    awardDraw(1234);
+    // now tiers can change
+    _claimAllPrizes(prizePool.numberOfTiers()-1);
+    awardDraw(1234);
+    assertEq(prizePool.numberOfTiers(), MINIMUM_NUMBER_OF_TIERS, "tiers has not changed");
+  }
+
+  function testAwardDraw_expandingTiers() public {
+    contribute(1e18);
+    awardDraw(1234);
+    // claim all tiers
+    _claimAllPrizes(prizePool.numberOfTiers());
+
+    vm.expectEmit();
+    emit DrawAwarded(
+      2,
+      245,
+      MINIMUM_NUMBER_OF_TIERS,
+      MINIMUM_NUMBER_OF_TIERS+1,
+      45454545454545576 /*reserve from output*/,
+      UD34x4.wrap(45454545454545450000) /*prize tokens per share from output*/,
+      firstDrawOpensAt + drawPeriodSeconds
+    );
+    awardDraw(245);
+    assertEq(prizePool.numberOfTiers(), MINIMUM_NUMBER_OF_TIERS+1, "grow by 1");
+  }
+
+  function testAwardDraw_shrinkOne() public {
+    contribute(1e18);
+    awardDraw(1234);
+    // claim all prizes no matter what
+    _claimAllPrizes(prizePool.numberOfTiers());
+    contribute(1e18); // ensure there is prize money
+    awardDraw(245);
+
+    // do not claim the canary prizes
+    _claimAllPrizes(prizePool.numberOfTiers() - 2);
+
+    vm.expectEmit();
+    emit DrawAwarded(
+      3,
+      245,
+      MINIMUM_NUMBER_OF_TIERS+1,
+      MINIMUM_NUMBER_OF_TIERS,
+      78125000000000236 /*reserve from output*/,
+      UD34x4.wrap(78124999999999990000) /*prize tokens per share from output*/,
+      firstDrawOpensAt + drawPeriodSeconds*2
+    );
+    awardDraw(245);
+    assertEq(prizePool.numberOfTiers(), MINIMUM_NUMBER_OF_TIERS, "grow by 1");
+  }
+
+  function testAwardDraw_shrinkMoreThan1() public {
+    uint8 startingTiers = MINIMUM_NUMBER_OF_TIERS + 2;
 
     // reset prize pool at higher tiers
     params = ConstructorParams(
@@ -928,71 +988,17 @@ contract PrizePoolTest is Test {
       grandPrizePeriodDraws,
       startingTiers, // higher number of tiers
       100,
+      5,
       10,
       drawTimeout
     );
     prizePool = newPrizePool();
 
-    contribute(510e18);
-
-    assertEq(prizePool.estimateNextNumberOfTiers(), 4, "will reduce to 4");
-
+    contribute(prizePool.getTotalShares() * 1e18);
     awardDraw(1234);
-
-    assertEq(prizePool.reserve(), 10e18, "reserve after first draw");
-
-    assertEq(prizePool.numberOfTiers(), startingTiers, "number of tiers has not changed");
-    vm.expectEmit();
-    emit DrawAwarded(
-      2,
-      4567,
-      startingTiers,
-      4, // change is limited to 1 tier
-      17317073170731707600 /*reserve from output*/,
-      UD34x4.wrap(17317073170731707310000) /*prize tokens per share from output*/,
-      firstDrawOpensAt + drawPeriodSeconds
-    );
-
+    // no claims
     awardDraw(4567);
-
-    assertEq(prizePool.numberOfTiers(), 4, "number of tiers");
-
-    assertEq(prizePool.reserve(), 17317073170731707600, "size of reserve");
-  }
-
-  function testAwardDraw_expandingTiers() public {
-    contribute(1e18);
-    awardDraw(1234);
-
-    // claim tier 0
-    mockTwab(address(this), address(this), 0);
-    claimPrize(address(this), 0, 0);
-
-    // claim tier 1
-    for (uint32 i = 0; i < 4; i++) {
-      mockTwab(address(this), sender1, 1);
-      claimPrize(sender1, 1, i);
-    }
-
-    // claim tier 2 (canary)
-    for (uint32 i = 0; i < 16; i++) {
-      mockTwab(address(this), sender2, 2);
-      claimPrize(sender2, 2, i);
-    }
-
-    assertEq(prizePool.numberOfTiers(), 3);
-    vm.expectEmit();
-    emit DrawAwarded(
-      2,
-      245,
-      3,
-      4,
-      34177045153614792 /*reserve from output*/,
-      UD34x4.wrap(34177045153614390000) /*prize tokens per share from output*/,
-      firstDrawOpensAt + drawPeriodSeconds
-    );
-    awardDraw(245);
-    assertEq(prizePool.numberOfTiers(), 4);
+    assertEq(prizePool.numberOfTiers(), startingTiers - 1, "number of tiers decreased by 1");
   }
 
   function testAwardDraw_multipleDraws() public {
@@ -1008,12 +1014,32 @@ contract PrizePoolTest is Test {
 
   function testAwardDraw_emitsEvent() public {
     vm.expectEmit();
-    emit DrawAwarded(1, 12345, 3, 3, 0, UD34x4.wrap(0), firstDrawOpensAt);
+    emit DrawAwarded(1, 12345, MINIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS, 0, UD34x4.wrap(0), firstDrawOpensAt);
     awardDraw(12345);
   }
 
+  function testEstimateNextNumberOfTiers_firstDrawNoChange() public {
+    assertEq(prizePool.estimateNextNumberOfTiers(), MINIMUM_NUMBER_OF_TIERS, "no change");
+  }
+
+  function testEstimateNextNumberOfTiers_grow() public {
+    contribute(100e18);
+    awardDraw(1234);
+    _claimAllPrizes(prizePool.numberOfTiers());
+    assertEq(prizePool.estimateNextNumberOfTiers(), MINIMUM_NUMBER_OF_TIERS+1, "increase by 1");
+  }
+
+  function testEstimateNextNumberOfTiers_shrink() public {
+    params.numberOfTiers = 7;
+    prizePool = newPrizePool();
+    contribute(100e18);
+    awardDraw(1234);
+    // no claims, now it'll decrease
+    assertEq(prizePool.estimateNextNumberOfTiers(), 6, "decrease by 1");
+  }
+
   function testGetTotalShares() public {
-    assertEq(prizePool.getTotalShares(), TIER_SHARES * 3 + RESERVE_SHARES);
+    assertEq(prizePool.getTotalShares(), (uint(MINIMUM_NUMBER_OF_TIERS) - uint(NUMBER_OF_CANARY_TIERS)) * uint(TIER_SHARES) + RESERVE_SHARES + NUMBER_OF_CANARY_TIERS * uint(CANARY_SHARES));
   }
 
   function testGetRemainingTierLiquidity_invalidTier() public {
@@ -1041,11 +1067,11 @@ contract PrizePoolTest is Test {
   }
 
   function testGetRemainingTierLiquidity_allTiers() public {
-    contribute(310e18);
+    contribute(1e18 * prizePool.getTotalShares());
     awardDraw(winningRandomNumber);
     assertEq(prizePool.getTierRemainingLiquidity(0), 100e18);
     assertEq(prizePool.getTierRemainingLiquidity(1), 100e18);
-    assertEq(prizePool.getTierRemainingLiquidity(2), 100e18);
+    assertEq(prizePool.getTierRemainingLiquidity(2), 5e18);
   }
 
   function testIsWinner_noDraw() public {
@@ -1265,17 +1291,17 @@ contract PrizePoolTest is Test {
   }
 
   function testComputeNextNumberOfTiers_zero() public {
-    assertEq(prizePool.computeNextNumberOfTiers(0), 3);
+    assertEq(prizePool.computeNextNumberOfTiers(0), MINIMUM_NUMBER_OF_TIERS);
   }
 
   function testComputeNextNumberOfTiers_deviationLess() public {
     // no canary tiers taken
-    assertEq(prizePool.computeNextNumberOfTiers(3), 3);
+    assertEq(prizePool.computeNextNumberOfTiers(3), MINIMUM_NUMBER_OF_TIERS);
   }
 
   function testComputeNextNumberOfTiers_deviationMore() public {
     // deviation is ok
-    assertEq(prizePool.computeNextNumberOfTiers(8), 3);
+    assertEq(prizePool.computeNextNumberOfTiers(8), MINIMUM_NUMBER_OF_TIERS);
   }
 
   function testComputeNextNumberOfTiers_canaryPrizes() public {
@@ -1302,9 +1328,10 @@ contract PrizePoolTest is Test {
   }
 
   function testComputeNextNumberOfTiers_drop_maxDecreaseBy1() public {
-    params.numberOfTiers = 5;
+    params.numberOfTiers = 7;
     prizePool = newPrizePool();
-    assertEq(prizePool.computeNextNumberOfTiers(0), 4);
+    awardDraw(1234);
+    assertEq(prizePool.computeNextNumberOfTiers(0), 6);
   }
 
   function testClaimPrize_secondTier_claimTwice() public {
@@ -1769,5 +1796,15 @@ contract PrizePoolTest is Test {
     emit SetDrawManager(drawManager);
     _prizePool.setDrawManager(drawManager);
     return _prizePool;
+  }
+
+  function _claimAllPrizes(uint8 _tiersToClaim) internal {
+    for (uint8 tier = 0; tier < _tiersToClaim; tier++) {
+      uint prizes = 4**tier;
+      for (uint32 prize = 0; prize < prizes; prize++) {
+        mockTwab(address(this), address(this), tier);
+        claimPrize(address(this), tier, prize);
+      }
+    }
   }
 }
