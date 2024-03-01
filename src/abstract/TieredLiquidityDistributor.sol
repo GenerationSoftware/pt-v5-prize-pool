@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, convert } from "prb-math/UD60x18.sol";
@@ -229,7 +227,7 @@ contract TieredLiquidityDistributor {
 
     uint8 start = _computeReclamationStart(numTiers, _nextNumberOfTiers);
     uint8 end = _nextNumberOfTiers;
-    for (uint8 i = start; i != end; i++) {
+    for (uint8 i = start; i < end; i++) {
       _tiers[i] = Tier({
         drawId: _awardingDraw,
         prizeTokenPerShare: _prizeTokenPerShare,
@@ -267,7 +265,7 @@ contract TieredLiquidityDistributor {
       // need to redistribute to the canary tier and any new tiers (if expanding)
       uint8 start = _computeReclamationStart(_numberOfTiers, _nextNumberOfTiers);
       uint8 end = _numberOfTiers;
-      for (uint8 i = start; i != end; i++) {
+      for (uint8 i = start; i < end; i++) {
         reclaimedLiquidity = reclaimedLiquidity.add(
           _getTierRemainingLiquidity(
             fromUD34x4toUD60x18(_tiers[i].prizeTokenPerShare),
@@ -344,10 +342,15 @@ contract TieredLiquidityDistributor {
     return uint256(_numberOfTiers-2) * uint256(tierShares) + uint256(reserveShares) + uint256(canaryShares) * 2;
   }
 
+  /// @notice Determines at which tier we need to start reclaiming liquidity.
+  /// @param _numberOfTiers The current number of tiers
+  /// @param _nextNumberOfTiers The next number of tiers
+  /// @return The tier to start reclaiming liquidity from
   function _computeReclamationStart(uint8 _numberOfTiers, uint8 _nextNumberOfTiers) internal pure returns (uint8) {
-    // if we are expanding, need to reset the canary tiers and all of the new tiers
-    // else reset the daily and canary tiers
-    return _nextNumberOfTiers > _numberOfTiers ? _numberOfTiers - NUMBER_OF_CANARY_TIERS : _nextNumberOfTiers - NUMBER_OF_CANARY_TIERS - 1;
+    // we must always reset the canary tiers, both old and new. 
+    // if the next num is less than the num tiers, then the first canary tiers to reset are the last of the next tiers
+    // otherwise, the canary tiers to reset are the last of the current tiers
+    return (_nextNumberOfTiers > _numberOfTiers ? _numberOfTiers : _nextNumberOfTiers) - NUMBER_OF_CANARY_TIERS;
   }
 
   /// @notice Consumes liquidity from the given tier.
