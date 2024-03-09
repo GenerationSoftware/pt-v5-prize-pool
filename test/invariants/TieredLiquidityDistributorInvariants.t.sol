@@ -30,7 +30,7 @@ contract TieredLiquidityDistributorInvariants is Test {
   // Failure case regression test (2023-05-26)
   function testInvariantFailure_Case_2023_05_26() external {
     distributor.awardDraw(4, 253012247290373118207);
-    distributor.awardDraw(3, 99152290762372054017);
+    distributor.awardDraw(4, 99152290762372054017);
     distributor.awardDraw(255, 792281625142643375935439);
     distributor.consumeLiquidity(1);
     distributor.consumeLiquidity(0);

@@ -137,6 +137,7 @@ struct ConstructorParams {
   uint24 grandPrizePeriodDraws;
   uint8 numberOfTiers;
   uint8 tierShares;
+  uint8 canaryShares;
   uint8 reserveShares; // 112 bits since prev word, meaning 144 bits left
   uint24 drawTimeout; // if the timeout elapses without a new draw, then the prize pool shuts down. The timeout resets when a draw is awarded.
 }
@@ -295,6 +296,7 @@ contract PrizePool is TieredLiquidityDistributor {
       params.tierLiquidityUtilizationRate,
       params.numberOfTiers,
       params.tierShares,
+      params.canaryShares,
       params.reserveShares,
       params.grandPrizePeriodDraws
     )
@@ -424,9 +426,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint8 _numTiers = numberOfTiers;
     uint8 _nextNumberOfTiers = _numTiers;
 
-    if (lastAwardedDrawId_ != 0) {
-      _nextNumberOfTiers = computeNextNumberOfTiers(_claimCount);
-    }
+    _nextNumberOfTiers = computeNextNumberOfTiers(_claimCount);
 
     // If any draws were skipped from the last awarded draw to the one we are awarding, the contribution
     // from those skipped draws will be included in the new distributions.
@@ -548,7 +548,9 @@ contract PrizePool is TieredLiquidityDistributor {
       _claimRewardRecipient
     );
 
-    prizeToken.safeTransfer(_prizeRecipient, amount);
+    if (amount > 0) {
+      prizeToken.safeTransfer(_prizeRecipient, amount);
+    }
 
     return tierLiquidity.prizeSize;
   }
@@ -771,16 +773,20 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param _claimCount The number of prize claims
   /// @return The estimated number of tiers + the canary tier
   function computeNextNumberOfTiers(uint32 _claimCount) public view returns (uint8) {
-    // claimCount is expected to be the estimated number of claims for the current prize tier.
-    uint8 nextNumberOfTiers = _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount) + 1;
-    // limit change to 1 tier
-    uint8 _numTiers = numberOfTiers;
-    if (nextNumberOfTiers > _numTiers) {
-      nextNumberOfTiers = _numTiers + 1;
-    } else if (nextNumberOfTiers < _numTiers) {
-      nextNumberOfTiers = _numTiers - 1;
+    if (_lastAwardedDrawId != 0) {
+      // claimCount is expected to be the estimated number of claims for the current prize tier.
+      uint8 nextNumberOfTiers = _estimateNumberOfTiersUsingPrizeCountPerDraw(_claimCount);
+      // limit change to 1 tier
+      uint8 _numTiers = numberOfTiers;
+      if (nextNumberOfTiers > _numTiers) {
+        nextNumberOfTiers = _numTiers + 1;
+      } else if (nextNumberOfTiers < _numTiers) {
+        nextNumberOfTiers = _numTiers - 1;
+      }
+      return nextNumberOfTiers;
+    } else {
+      return numberOfTiers;
     }
-    return nextNumberOfTiers;
   }
 
   function shutdownBalanceOf(address _vault, address _account) public view returns (uint256) {
@@ -1013,7 +1019,11 @@ contract PrizePool is TieredLiquidityDistributor {
 
     uint256 totalDonated = DrawAccumulatorLib.getDisbursedBetween(_vaultAccumulator[DONATOR], _startDrawIdInclusive, _endDrawIdInclusive);
 
-    // vaultContributed / totalContributed
+    uint256 total = totalContributed - totalDonated;
+
+    if (total == 0) {
+      return sd(0);
+    }
     return
       totalContributed != 0
         ? sd(
@@ -1024,7 +1034,7 @@ contract PrizePool is TieredLiquidityDistributor {
               _endDrawIdInclusive
             )
           )
-        ).div(sd(SafeCast.toInt256(totalContributed - totalDonated)))
+        ).div(sd(SafeCast.toInt256(total)))
         : sd(0);
   }
 

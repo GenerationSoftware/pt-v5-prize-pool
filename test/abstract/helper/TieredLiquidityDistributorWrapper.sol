@@ -11,10 +11,11 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
     uint256 _tierLiquidityUtilizationRate,
     uint8 _numberOfTiers,
     uint8 _tierShares,
+    uint8 _canaryShares,
     uint8 _reserveShares,
     uint24 _grandPrizePeriodDraws
   )
-    TieredLiquidityDistributor(_tierLiquidityUtilizationRate, _numberOfTiers, _tierShares, _reserveShares, _grandPrizePeriodDraws)
+    TieredLiquidityDistributor(_tierLiquidityUtilizationRate, _numberOfTiers, _tierShares, _canaryShares, _reserveShares, _grandPrizePeriodDraws)
   {}
 
   function awardDraw(uint8 _nextNumTiers, uint256 liquidity) external {
@@ -24,21 +25,6 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   function consumeLiquidity(uint8 _tier, uint96 _liquidity) external {
     Tier memory _tierData = _getTier(_tier, numberOfTiers);
     _consumeLiquidity(_tierData, _tier, _liquidity);
-  }
-
-  function remainingTierLiquidity(uint8 _tier) external view returns (uint112) {
-    return uint112(getTierRemainingLiquidity(_tier));
-    // uint8 shares = tierShares;
-    // Tier memory tier = _getTier(_tier, numberOfTiers);
-    // return
-    //   uint112(
-    //     convert(
-    //       _getTierRemainingLiquidity(
-    //         fromUD34x4toUD60x18(tier.prizeTokenPerShare),
-    //         fromUD34x4toUD60x18(prizeTokenPerShare)
-    //       )
-    //     )
-    //   );
   }
 
   function computeNewDistributions(
