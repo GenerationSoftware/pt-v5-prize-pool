@@ -1136,6 +1136,41 @@ contract PrizePoolTest is Test {
     assertFalse(prizePool.isWinner(address(this), msg.sender, 1, 0), "still not a winner");
   }
 
+  function testIsWinner_normalPrizes() public {
+    uint iterations = 20; //grandPrizePeriodDraws;
+    uint users = 50;
+
+    uint balance = 1e18;
+    uint totalSupply = users * balance;
+
+    uint256 random = uint256(keccak256(abi.encode(1234)));
+
+    uint[] memory prizeCounts = new uint[](iterations);
+    uint totalPrizeCount;
+
+    for (uint i = 0; i < iterations; i++) {
+      contribute(100e18);
+      awardDraw(random);
+      for (uint u = 0; u < users; u++) {
+        address user = makeAddr(string(abi.encodePacked(u)));
+        for (uint8 t = 0; t < prizePool.numberOfTiers() - 1; t++) {
+          mockTwabForUser(address(this), user, t, balance);
+          mockTwabTotalSupply(address(this), t, totalSupply);
+          for (uint32 p = 0; p < prizePool.getTierPrizeCount(t); p++) {
+            if (prizePool.isWinner(address(this), user, t, p)) {
+              prizeCounts[i]++;
+            }
+          }
+        }
+      }
+      // console2.log("Iteration %s prize count: %s", i, prizeCounts[i]);
+      totalPrizeCount += prizeCounts[i];
+      random = uint256(keccak256(abi.encode(random)));
+    }
+
+    console2.log("Average number of prizes: ", totalPrizeCount / iterations);
+  }
+
   function testWasClaimed_not() public {
     assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
     assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
@@ -1668,12 +1703,8 @@ contract PrizePoolTest is Test {
   function testGetVaultUserBalanceAndTotalSupplyTwab() public {
     awardDraw(winningRandomNumber);
     uint24 lastAwardedDrawId = prizePool.getLastAwardedDrawId();
-    mockTwab(
-      address(this),
-      msg.sender,
-      prizePool.drawClosesAt(0),
-      prizePool.drawClosesAt(lastAwardedDrawId)
-    );
+    mockGetAverageBalanceBetween(address(this), msg.sender, 1, lastAwardedDrawId, 366e30);
+    mockTwabTotalSupplyDrawRange(address(this), 1, lastAwardedDrawId, 1e30);
     (uint256 twab, uint256 twabTotalSupply) = prizePool.getVaultUserBalanceAndTotalSupplyTwab(
       address(this),
       msg.sender,
@@ -1689,43 +1720,43 @@ contract PrizePoolTest is Test {
     prizePool.computeRangeStartDrawIdInclusive(1, 0);
   }
 
-  function mockGetAverageBalanceBetween(
-    address _vault,
-    address _user,
-    uint48 _startTime,
-    uint48 _endTime,
-    uint256 _result
-  ) internal {
-    vm.mockCall(
-      address(twabController),
-      abi.encodeWithSelector(
-        TwabController.getTwabBetween.selector,
-        _vault,
-        _user,
-        _startTime,
-        _endTime
-      ),
-      abi.encode(_result)
-    );
-  }
+  // function mockGetAverageBalanceBetween(
+  //   address _vault,
+  //   address _user,
+  //   uint48 _startTime,
+  //   uint48 _endTime,
+  //   uint256 _result
+  // ) internal {
+  //   vm.mockCall(
+  //     address(twabController),
+  //     abi.encodeWithSelector(
+  //       TwabController.getTwabBetween.selector,
+  //       _vault,
+  //       _user,
+  //       _startTime,
+  //       _endTime
+  //     ),
+  //     abi.encode(_result)
+  //   );
+  // }
 
-  function mockGetAverageTotalSupplyBetween(
-    address _vault,
-    uint32 _startTime,
-    uint32 _endTime,
-    uint256 _result
-  ) internal {
-    vm.mockCall(
-      address(twabController),
-      abi.encodeWithSelector(
-        TwabController.getTotalSupplyTwabBetween.selector,
-        _vault,
-        _startTime,
-        _endTime
-      ),
-      abi.encode(_result)
-    );
-  }
+  // function mockGetAverageTotalSupplyBetween(
+  //   address _vault,
+  //   uint32 _startTime,
+  //   uint32 _endTime,
+  //   uint256 _result
+  // ) internal {
+  //   vm.mockCall(
+  //     address(twabController),
+  //     abi.encodeWithSelector(
+  //       TwabController.getTotalSupplyTwabBetween.selector,
+  //       _vault,
+  //       _startTime,
+  //       _endTime
+  //     ),
+  //     abi.encode(_result)
+  //   );
+  // }
 
   function contribute(uint256 amountContributed) public {
     contribute(amountContributed, address(this));
@@ -1755,31 +1786,95 @@ contract PrizePoolTest is Test {
     return prizePool.claimPrize(sender, tier, prizeIndex, sender, fee, feeRecipient);
   }
 
-  function mockTwab(address _vault, address _account, uint256 startTime, uint256 endTime) public {
-    mockGetAverageBalanceBetween(_vault, _account, uint32(startTime), uint32(endTime), 366e30);
-    mockGetAverageTotalSupplyBetween(_vault, uint32(startTime), uint32(endTime), 1e30);
+  function mockTwab(address _vault, address _account, uint8 _tier) public {
+    mockTwabForUser(_vault, _account, _tier, 366e30);
+    mockTwabTotalSupply(_vault, _tier, 1e30);
   }
 
-  function mockTwabDrawRange(address _vault, address _account, uint24 startDrawIdInclusive, uint24 endDrawIdInclusive, uint256 amount) public {
+  function mockTwabForUser(address _vault, address _account, uint8 _tier, uint256 _balance) public {
+    uint24 endDraw = prizePool.getLastAwardedDrawId();
+    uint24 durationDraws = prizePool.getTierAccrualDurationInDraws(_tier);
+    uint24 startDraw = prizePool.computeRangeStartDrawIdInclusive(endDraw, durationDraws);
+    mockGetAverageBalanceBetween(_vault, _account, startDraw, endDraw, _balance);
+  }
+
+  function mockTwabTotalSupply(address _vault, uint8 _tier, uint256 _totalSupply) public {
+    uint24 endDraw = prizePool.getLastAwardedDrawId();
+    uint24 durationDraws = prizePool.getTierAccrualDurationInDraws(_tier);
+    uint24 startDraw = prizePool.computeRangeStartDrawIdInclusive(endDraw, durationDraws);
+    mockTwabTotalSupplyDrawRange(_vault, startDraw, endDraw, _totalSupply);
+  }
+
+  function mockGetAverageBalanceBetween(address _vault, address _account, uint24 startDrawIdInclusive, uint24 endDrawIdInclusive, uint256 amount) public {
     uint48 startTime = prizePool.drawOpensAt(startDrawIdInclusive);
     uint48 endTime = prizePool.drawClosesAt(endDrawIdInclusive);
-    mockGetAverageBalanceBetween(_vault, _account, uint32(startTime), uint32(endTime), amount);
+    // mockGetAverageBalanceBetween(_vault, _account, uint32(startTime), uint32(endTime), amount);
+    vm.mockCall(
+      address(twabController),
+      abi.encodeWithSelector(
+        TwabController.getTwabBetween.selector,
+        _vault,
+        _account,
+        startTime,
+        endTime
+      ),
+      abi.encode(amount)
+    );
   }
 
   function mockTwabTotalSupplyDrawRange(address _vault, uint24 startDrawIdInclusive, uint24 endDrawIdInclusive, uint256 amount) public {
     uint48 startTime = prizePool.drawOpensAt(startDrawIdInclusive);
     uint48 endTime = prizePool.drawClosesAt(endDrawIdInclusive);
-    mockGetAverageTotalSupplyBetween(_vault, uint32(startTime), uint32(endTime), amount);
+    // mockGetAverageTotalSupplyBetween(_vault, uint32(startTime), uint32(endTime), amount);
+    vm.mockCall(
+      address(twabController),
+      abi.encodeWithSelector(
+        TwabController.getTotalSupplyTwabBetween.selector,
+        _vault,
+        startTime,
+        endTime
+      ),
+      abi.encode(amount)
+    );
   }
 
-  function mockTwab(address _vault, address _account, uint8 _tier) public {
-    uint24 endDraw = prizePool.getLastAwardedDrawId();
-    uint24 durationDraws = prizePool.getTierAccrualDurationInDraws(_tier);
-    uint24 startDraw = prizePool.computeRangeStartDrawIdInclusive(endDraw, durationDraws);
-    uint48 startTime = prizePool.drawOpensAt(startDraw);
-    uint48 endTime = prizePool.drawClosesAt(endDraw);
-    mockTwab(_vault, _account, startTime, endTime);
-  }
+  // function mockGetAverageBalanceBetween(
+  //   address _vault,
+  //   address _user,
+  //   uint48 _startTime,
+  //   uint48 _endTime,
+  //   uint256 _result
+  // ) internal {
+  //   vm.mockCall(
+  //     address(twabController),
+  //     abi.encodeWithSelector(
+  //       TwabController.getTwabBetween.selector,
+  //       _vault,
+  //       _user,
+  //       _startTime,
+  //       _endTime
+  //     ),
+  //     abi.encode(_result)
+  //   );
+  // }
+
+  // function mockGetAverageTotalSupplyBetween(
+  //   address _vault,
+  //   uint32 _startTime,
+  //   uint32 _endTime,
+  //   uint256 _result
+  // ) internal {
+  //   vm.mockCall(
+  //     address(twabController),
+  //     abi.encodeWithSelector(
+  //       TwabController.getTotalSupplyTwabBetween.selector,
+  //       _vault,
+  //       _startTime,
+  //       _endTime
+  //     ),
+  //     abi.encode(_result)
+  //   );
+  // }
 
   function grandPrizeRangeStart(uint24 endDrawIdInclusive) public view returns (uint24) {
     return prizePool.computeRangeStartDrawIdInclusive(endDrawIdInclusive, grandPrizePeriodDraws);
@@ -1794,7 +1889,7 @@ contract PrizePoolTest is Test {
   function mockShutdownTwab(uint256 userTwab, uint256 totalSupplyTwab) public {
     (uint24 startDrawId, uint24 shutdownDrawId) = shutdownRangeDrawIds();
     // console2.log("mockShutdownTwab ", startDrawId, shutdownDrawId);
-    mockTwabDrawRange(address(this), msg.sender, startDrawId, shutdownDrawId, userTwab);
+    mockGetAverageBalanceBetween(address(this), msg.sender, startDrawId, shutdownDrawId, userTwab);
     mockTwabTotalSupplyDrawRange(address(this), startDrawId, shutdownDrawId, totalSupplyTwab);
   }
 
