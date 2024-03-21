@@ -52,6 +52,13 @@ error InsufficientRewardsError(uint256 requested, uint256 available);
 /// @param prizeIndex The prize index
 error DidNotWin(address vault, address winner, uint8 tier, uint32 prizeIndex);
 
+/// @notice Emitted when the prize being claimed has already been claimed
+/// @param vault The vault address
+/// @param winner The address checked for the prize
+/// @param tier The prize tier
+/// @param prizeIndex The prize index
+error AlreadyClaimed(address vault, address winner, uint8 tier, uint32 prizeIndex);
+
 /// @notice Emitted when the claim reward exceeds the maximum.
 /// @param reward The reward being claimed
 /// @param maxReward The max reward that can be claimed
@@ -510,7 +517,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     if (_claimedPrizes[msg.sender][_winner][lastAwardedDrawId_][_tier][_prizeIndex]) {
-      return 0;
+      revert AlreadyClaimed(msg.sender, _winner, _tier, _prizeIndex);
     }
 
     _claimedPrizes[msg.sender][_winner][lastAwardedDrawId_][_tier][_prizeIndex] = true;

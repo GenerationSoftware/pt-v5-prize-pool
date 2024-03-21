@@ -25,6 +25,7 @@ import {
   DrawTimeoutGTGrandPrizePeriodDraws,
   PrizePoolNotShutdown,
   DidNotWin,
+  AlreadyClaimed,
   RangeSizeZero,
   RewardTooLarge,
   ContributionGTDeltaBalance,
@@ -1294,8 +1295,9 @@ contract PrizePoolTest is Test {
     mockTwab(address(this), msg.sender, 0);
     uint256 prize = prizePool.getTierPrizeSize(0);
     assertEq(claimPrize(msg.sender, 0, 0), prize, "prize size");
-    // second claim is zero
-    assertEq(claimPrize(msg.sender, 0, 0), 0, "no more prize");
+    // second claim reverts
+    vm.expectRevert(abi.encodeWithSelector(AlreadyClaimed.selector, address(this), msg.sender, 0, 0));
+    claimPrize(msg.sender, 0, 0);
   }
 
   function testComputeNextNumberOfTiers_zero() public {
