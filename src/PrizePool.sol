@@ -789,6 +789,12 @@ contract PrizePool is TieredLiquidityDistributor {
     }
   }
 
+  /// @notice Returns the shutdown balance for a given vault and account. The prize pool must already be shutdown.
+  /// @dev The shutdown balance is the amount of prize tokens that a user can claim after the prize pool has been shutdown.
+  /// @dev The shutdown balance is calculated using the user's TWAB and the total supply TWAB, whose timeranges are the grand prize period prior to the shutdown timestamp.
+  /// @param _vault The vault to check
+  /// @param _account The account to check
+  /// @return The shutdown balance for the given vault and account
   function shutdownBalanceOf(address _vault, address _account) public view returns (uint256) {
     if (!isShutdown()) {
       return 0;
@@ -847,6 +853,10 @@ contract PrizePool is TieredLiquidityDistributor {
     return balance;
   }
 
+  /// @notice Withdraws the shutdown balance for a given vault the sender
+  /// @param _vault The sender's vault whose shutdown balance should be withdrawn
+  /// @param _recipient The address to send the shutdown balance to
+  /// @return The amount of prize tokens withdrawn
   function withdrawShutdownBalance(address _vault, address _recipient) external returns (uint256) {
     if (!isShutdown()) {
       revert PrizePoolNotShutdown();
@@ -860,18 +870,24 @@ contract PrizePool is TieredLiquidityDistributor {
     return balance;
   }
 
+  /// @notice Returns the draw ID that will be awarded prior to the prize pool being shutdown
+  /// @return The draw id
   function drawIdPriorToShutdown() public view returns (uint24) {
     return _lastAwardedDrawId + drawTimeout;
   }
 
+  /// @notice Returns the timestamp at which the prize pool will be considered inactive and shutdown
+  /// @return The timestamp at which the prize pool will be considered inactive
   function shutdownAt() public view returns (uint256) {
     uint256 twabShutdownAt = twabController.lastObservationAt();
     uint256 drawTimeoutAt_ = drawTimeoutAt();
     return drawTimeoutAt_ < twabShutdownAt ? drawTimeoutAt_ : twabShutdownAt;
   }
 
-  function isShutdown() public view returns (bool shutdown) {
-    shutdown = block.timestamp >= shutdownAt();
+  /// @notice Returns whether the prize pool has been shutdown
+  /// @return True if shutdown, false otherwise
+  function isShutdown() public view returns (bool) {
+    return block.timestamp >= shutdownAt();
   }
 
   /**
@@ -961,6 +977,10 @@ contract PrizePool is TieredLiquidityDistributor {
       );
   }
 
+  /// @notice Compute the start draw id for a range given the end draw id and range size
+  /// @param _endDrawIdInclusive The end draw id (inclusive) of the range
+  /// @param _rangeSize The size of the range
+  /// @return The start draw id (inclusive) of the range
   function computeRangeStartDrawIdInclusive(uint24 _endDrawIdInclusive, uint24 _rangeSize) public pure returns (uint24) {
     if (_rangeSize != 0) {
       return _rangeSize > _endDrawIdInclusive ? 1 : _endDrawIdInclusive - _rangeSize + 1;
@@ -1038,6 +1058,7 @@ contract PrizePool is TieredLiquidityDistributor {
         : sd(0);
   }
 
+  /// @notice Modifier that requires the prize pool not to be shutdown
   modifier notShutdown() {
     if (isShutdown()) {
       revert PrizePoolShutdown();
