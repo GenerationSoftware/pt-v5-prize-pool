@@ -10,6 +10,9 @@ import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4to
 import { TierCalculationLib } from "../libraries/TierCalculationLib.sol";
 
 /// @notice Struct that tracks tier liquidity information.
+/// @param drawId The draw ID that the tier was last updated for
+/// @param prizeSize The size of the prize for the tier at the drawId
+/// @param prizeTokenPerShare The total prize tokens per share that have already been consumed for this tier.
 struct Tier {
   uint24 drawId;
   uint104 prizeSize;
@@ -110,7 +113,10 @@ contract TieredLiquidityDistributor {
   /// @notice The percentage of tier liquidity to target for utilization.  
   UD60x18 public immutable tierLiquidityUtilizationRate;
 
-  /// @notice The current number of prize tokens per share.
+  /// @notice The number of prize tokens that have accrued per share for all time.
+  /// @dev This is an ever-increasing exchange rate that is used to calculate the prize liquidity for each tier.
+  /// @dev Each tier holds a separate tierPrizeTokenPerShare; the delta between the tierPrizeTokenPerShare and
+  /// the prizeTokenPerShare * tierShares is the available liquidity they have.
   UD34x4 public prizeTokenPerShare;
 
   /// @notice The number of tiers for the last awarded draw. The last tier is the canary tier.
@@ -416,10 +422,17 @@ contract TieredLiquidityDistributor {
     return prizeSize > type(uint104).max ? type(uint104).max : uint104(prizeSize);
   }
 
+  /// @notice Returns whether the given tier is a canary tier
+  /// @param _tier The tier to check
+  /// @return True if the passed tier is a canary tier, false otherwise
   function isCanaryTier(uint8 _tier) public view returns (bool) {
     return _tier >= numberOfTiers - NUMBER_OF_CANARY_TIERS;
   }
 
+  /// @notice Returns the number of shares for the given tier and number of tiers.
+  /// @param _tier The tier to compute the number of shares for
+  /// @param _numberOfTiers The number of tiers
+  /// @return The number of shares
   function _numShares(uint8 _tier, uint8 _numberOfTiers) internal view returns (uint8) {
     uint8 result = _tier > _numberOfTiers - 3 ? canaryShares : tierShares;
     return result;
