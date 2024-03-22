@@ -1838,44 +1838,6 @@ contract PrizePoolTest is Test {
     );
   }
 
-  // function mockGetAverageBalanceBetween(
-  //   address _vault,
-  //   address _user,
-  //   uint48 _startTime,
-  //   uint48 _endTime,
-  //   uint256 _result
-  // ) internal {
-  //   vm.mockCall(
-  //     address(twabController),
-  //     abi.encodeWithSelector(
-  //       TwabController.getTwabBetween.selector,
-  //       _vault,
-  //       _user,
-  //       _startTime,
-  //       _endTime
-  //     ),
-  //     abi.encode(_result)
-  //   );
-  // }
-
-  // function mockGetAverageTotalSupplyBetween(
-  //   address _vault,
-  //   uint32 _startTime,
-  //   uint32 _endTime,
-  //   uint256 _result
-  // ) internal {
-  //   vm.mockCall(
-  //     address(twabController),
-  //     abi.encodeWithSelector(
-  //       TwabController.getTotalSupplyTwabBetween.selector,
-  //       _vault,
-  //       _startTime,
-  //       _endTime
-  //     ),
-  //     abi.encode(_result)
-  //   );
-  // }
-
   function grandPrizeRangeStart(uint24 endDrawIdInclusive) public view returns (uint24) {
     return prizePool.computeRangeStartDrawIdInclusive(endDrawIdInclusive, grandPrizePeriodDraws);
   }
