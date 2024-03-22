@@ -11,7 +11,7 @@ import { TierCalculationLib } from "../libraries/TierCalculationLib.sol";
 
 /// @notice Struct that tracks tier liquidity information.
 /// @param drawId The draw ID that the tier was last updated for
-/// @param prizeSize The size of the prize for the tier for the drawId
+/// @param prizeSize The size of the prize for the tier at the drawId
 /// @param prizeTokenPerShare The total prize tokens per share that have already been consumed for this tier.
 struct Tier {
   uint24 drawId;
