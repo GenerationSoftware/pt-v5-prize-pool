@@ -224,7 +224,7 @@ contract TieredLiquidityDistributor {
     uint8 numTiers = numberOfTiers;
     UD34x4 _prizeTokenPerShare = prizeTokenPerShare;
     UD60x18 _prizeTokenPerShareUD60x18 = fromUD34x4toUD60x18(_prizeTokenPerShare);
-    (uint96 newReserve, UD60x18 newPrizeTokenPerShare) = _computeNewDistributions(
+    (uint96 deltaReserve, UD60x18 newPrizeTokenPerShare) = _computeNewDistributions(
       numTiers,
       _nextNumberOfTiers,
       _prizeTokenPerShareUD60x18,
@@ -250,7 +250,7 @@ contract TieredLiquidityDistributor {
     numberOfTiers = _nextNumberOfTiers;
     _lastAwardedDrawId = _awardingDraw;
     lastAwardedDrawAwardedAt = uint48(block.timestamp);
-    _reserve += newReserve;
+    _reserve += deltaReserve;
   }
 
   /// @notice Computes the liquidity that will be distributed for the next awarded draw given the next number of tiers and prize liquidity.
@@ -258,14 +258,14 @@ contract TieredLiquidityDistributor {
   /// @param _nextNumberOfTiers The next number of tiers to use to compute distribution
   /// @param _currentPrizeTokenPerShare The current prize token per share
   /// @param _prizeTokenLiquidity The amount of fresh liquidity to distribute across the tiers and reserve
-  /// @return newReserve The amount of liquidity that will be added to the reserve
+  /// @return deltaReserve The amount of liquidity that will be added to the reserve
   /// @return newPrizeTokenPerShare The new prize token per share
   function _computeNewDistributions(
     uint8 _numberOfTiers,
     uint8 _nextNumberOfTiers,
     UD60x18 _currentPrizeTokenPerShare,
     uint256 _prizeTokenLiquidity
-  ) internal view returns (uint96 newReserve, UD60x18 newPrizeTokenPerShare) {
+  ) internal view returns (uint96 deltaReserve, UD60x18 newPrizeTokenPerShare) {
     UD60x18 reclaimedLiquidity;
     {
       // need to redistribute to the canary tier and any new tiers (if expanding)
@@ -288,7 +288,7 @@ contract TieredLiquidityDistributor {
 
     newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(convert(deltaPrizeTokensPerShare));
 
-    newReserve = SafeCast.toUint96(
+    deltaReserve = SafeCast.toUint96(
       // reserve portion of new liquidity
       deltaPrizeTokensPerShare *
         reserveShares +
