@@ -853,7 +853,7 @@ contract PrizePool is TieredLiquidityDistributor {
     return balance;
   }
 
-  /// @notice Withdraws the shutdown balance for a given vault the sender
+  /// @notice Withdraws the shutdown balance for a given vault and sender
   /// @param _vault The sender's vault whose shutdown balance should be withdrawn
   /// @param _recipient The address to send the shutdown balance to
   /// @return The amount of prize tokens withdrawn
