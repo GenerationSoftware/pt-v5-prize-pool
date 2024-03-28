@@ -169,43 +169,43 @@ contract TieredLiquidityDistributor {
 
     TIER_ODDS_0 = sd(1).div(sd(int24(_grandPrizePeriodDraws)));
     TIER_ODDS_EVERY_DRAW = SD59x18.wrap(1000000000000000000);
-    TIER_ODDS_1_5 = TierCalculationLib.getTierOdds(1, 4, _grandPrizePeriodDraws);
-    TIER_ODDS_1_6 = TierCalculationLib.getTierOdds(1, 5, _grandPrizePeriodDraws);
-    TIER_ODDS_2_6 = TierCalculationLib.getTierOdds(2, 5, _grandPrizePeriodDraws);
-    TIER_ODDS_1_7 = TierCalculationLib.getTierOdds(1, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_2_7 = TierCalculationLib.getTierOdds(2, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_3_7 = TierCalculationLib.getTierOdds(3, 6, _grandPrizePeriodDraws);
-    TIER_ODDS_1_8 = TierCalculationLib.getTierOdds(1, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_2_8 = TierCalculationLib.getTierOdds(2, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_3_8 = TierCalculationLib.getTierOdds(3, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_4_8 = TierCalculationLib.getTierOdds(4, 7, _grandPrizePeriodDraws);
-    TIER_ODDS_1_9 = TierCalculationLib.getTierOdds(1, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_2_9 = TierCalculationLib.getTierOdds(2, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_3_9 = TierCalculationLib.getTierOdds(3, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_4_9 = TierCalculationLib.getTierOdds(4, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_5_9 = TierCalculationLib.getTierOdds(5, 8, _grandPrizePeriodDraws);
-    TIER_ODDS_1_10 = TierCalculationLib.getTierOdds(1, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_2_10 = TierCalculationLib.getTierOdds(2, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_3_10 = TierCalculationLib.getTierOdds(3, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_4_10 = TierCalculationLib.getTierOdds(4, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_5_10 = TierCalculationLib.getTierOdds(5, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_6_10 = TierCalculationLib.getTierOdds(6, 9, _grandPrizePeriodDraws);
-    TIER_ODDS_1_11 = TierCalculationLib.getTierOdds(1, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_2_11 = TierCalculationLib.getTierOdds(2, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_3_11 = TierCalculationLib.getTierOdds(3, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_4_11 = TierCalculationLib.getTierOdds(4, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_5_11 = TierCalculationLib.getTierOdds(5, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_6_11 = TierCalculationLib.getTierOdds(6, 10, _grandPrizePeriodDraws);
-    TIER_ODDS_7_11 = TierCalculationLib.getTierOdds(7, 10, _grandPrizePeriodDraws);
+    TIER_ODDS_1_5 = TierCalculationLib.getTierOdds(1, 3, _grandPrizePeriodDraws);
+    TIER_ODDS_1_6 = TierCalculationLib.getTierOdds(1, 4, _grandPrizePeriodDraws);
+    TIER_ODDS_2_6 = TierCalculationLib.getTierOdds(2, 4, _grandPrizePeriodDraws);
+    TIER_ODDS_1_7 = TierCalculationLib.getTierOdds(1, 5, _grandPrizePeriodDraws);
+    TIER_ODDS_2_7 = TierCalculationLib.getTierOdds(2, 5, _grandPrizePeriodDraws);
+    TIER_ODDS_3_7 = TierCalculationLib.getTierOdds(3, 5, _grandPrizePeriodDraws);
+    TIER_ODDS_1_8 = TierCalculationLib.getTierOdds(1, 6, _grandPrizePeriodDraws);
+    TIER_ODDS_2_8 = TierCalculationLib.getTierOdds(2, 6, _grandPrizePeriodDraws);
+    TIER_ODDS_3_8 = TierCalculationLib.getTierOdds(3, 6, _grandPrizePeriodDraws);
+    TIER_ODDS_4_8 = TierCalculationLib.getTierOdds(4, 6, _grandPrizePeriodDraws);
+    TIER_ODDS_1_9 = TierCalculationLib.getTierOdds(1, 7, _grandPrizePeriodDraws);
+    TIER_ODDS_2_9 = TierCalculationLib.getTierOdds(2, 7, _grandPrizePeriodDraws);
+    TIER_ODDS_3_9 = TierCalculationLib.getTierOdds(3, 7, _grandPrizePeriodDraws);
+    TIER_ODDS_4_9 = TierCalculationLib.getTierOdds(4, 7, _grandPrizePeriodDraws);
+    TIER_ODDS_5_9 = TierCalculationLib.getTierOdds(5, 7, _grandPrizePeriodDraws);
+    TIER_ODDS_1_10 = TierCalculationLib.getTierOdds(1, 8, _grandPrizePeriodDraws);
+    TIER_ODDS_2_10 = TierCalculationLib.getTierOdds(2, 8, _grandPrizePeriodDraws);
+    TIER_ODDS_3_10 = TierCalculationLib.getTierOdds(3, 8, _grandPrizePeriodDraws);
+    TIER_ODDS_4_10 = TierCalculationLib.getTierOdds(4, 8, _grandPrizePeriodDraws);
+    TIER_ODDS_5_10 = TierCalculationLib.getTierOdds(5, 8, _grandPrizePeriodDraws);
+    TIER_ODDS_6_10 = TierCalculationLib.getTierOdds(6, 8, _grandPrizePeriodDraws);
+    TIER_ODDS_1_11 = TierCalculationLib.getTierOdds(1, 9, _grandPrizePeriodDraws);
+    TIER_ODDS_2_11 = TierCalculationLib.getTierOdds(2, 9, _grandPrizePeriodDraws);
+    TIER_ODDS_3_11 = TierCalculationLib.getTierOdds(3, 9, _grandPrizePeriodDraws);
+    TIER_ODDS_4_11 = TierCalculationLib.getTierOdds(4, 9, _grandPrizePeriodDraws);
+    TIER_ODDS_5_11 = TierCalculationLib.getTierOdds(5, 9, _grandPrizePeriodDraws);
+    TIER_ODDS_6_11 = TierCalculationLib.getTierOdds(6, 9, _grandPrizePeriodDraws);
+    TIER_ODDS_7_11 = TierCalculationLib.getTierOdds(7, 9, _grandPrizePeriodDraws);
 
-    ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS = _sumTierPrizeCounts(3);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS = _sumTierPrizeCounts(4);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS = _sumTierPrizeCounts(5);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS = _sumTierPrizeCounts(6);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS = _sumTierPrizeCounts(7);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS = _sumTierPrizeCounts(8);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS = _sumTierPrizeCounts(9);
-    ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS = _sumTierPrizeCounts(10);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_4_TIERS = _sumTierPrizeCounts(4);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_5_TIERS = _sumTierPrizeCounts(5);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_6_TIERS = _sumTierPrizeCounts(6);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_7_TIERS = _sumTierPrizeCounts(7);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_8_TIERS = _sumTierPrizeCounts(8);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_9_TIERS = _sumTierPrizeCounts(9);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_10_TIERS = _sumTierPrizeCounts(10);
+    ESTIMATED_PRIZES_PER_DRAW_FOR_11_TIERS = _sumTierPrizeCounts(11);
   }
 
   /// @notice Adjusts the number of tiers and distributes new liquidity.
@@ -563,8 +563,9 @@ contract TieredLiquidityDistributor {
   }
 
   /// @notice Computes the expected number of prizes for a given number of tiers.
-  /// @dev Includes the canary tier
-  /// @param _numTiers The number of tiers
+  /// @dev Includes the first canary tier prizes, but not the second since the first is expected to
+  /// be claimed.
+  /// @param _numTiers The number of tiers, including canaries
   /// @return The expected number of prizes, canary included.
   function _sumTierPrizeCounts(uint8 _numTiers) internal view returns (uint32) {
     uint32 prizeCount;
@@ -572,7 +573,7 @@ contract TieredLiquidityDistributor {
     do {
       prizeCount += TierCalculationLib.tierPrizeCountPerDraw(i, getTierOdds(i, _numTiers));
       i++;
-    } while (i < _numTiers);
+    } while (i < _numTiers - 1);
     return prizeCount;
   }
 
