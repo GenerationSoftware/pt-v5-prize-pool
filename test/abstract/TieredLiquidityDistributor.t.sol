@@ -402,12 +402,12 @@ contract TieredLiquidityDistributorTest is Test {
   function testEstimatedPrizeCount_allTiers() public {
     assertEq(distributor.estimatedPrizeCount(4), 20, "num tiers 4");
     assertEq(distributor.estimatedPrizeCount(5), 80, "num tiers 5");
-    assertEq(distributor.estimatedPrizeCount(6), 322, "num tiers 6");
-    assertEq(distributor.estimatedPrizeCount(7), 1294, "num tiers 7");
-    assertEq(distributor.estimatedPrizeCount(8), 5204, "num tiers 8");
-    assertEq(distributor.estimatedPrizeCount(9), 20901, "num tiers 9");
-    assertEq(distributor.estimatedPrizeCount(10), 83894, "num tiers 10");
-    assertEq(distributor.estimatedPrizeCount(11), 336579, "num tiers 11");
+    assertEq(distributor.estimatedPrizeCount(6), 320, "num tiers 6");
+    assertEq(distributor.estimatedPrizeCount(7), 1283, "num tiers 7");
+    assertEq(distributor.estimatedPrizeCount(8), 5139, "num tiers 8");
+    assertEq(distributor.estimatedPrizeCount(9), 20580, "num tiers 9");
+    assertEq(distributor.estimatedPrizeCount(10), 82408, "num tiers 10");
+    assertEq(distributor.estimatedPrizeCount(11), 329958, "num tiers 11");
     assertEq(distributor.estimatedPrizeCount(12), 0, "num tiers 12");
   }
 
@@ -415,14 +415,14 @@ contract TieredLiquidityDistributorTest is Test {
     // 16 canary 1 daily + 64 canary 2 daily = 80
     assertEq(distributor.sumTierPrizeCounts(5), 80, "num tiers 5");
     // 64 + 256 = ~320
-    assertEq(distributor.sumTierPrizeCounts(6), 322, "num tiers 6");
+    assertEq(distributor.sumTierPrizeCounts(6), 320, "num tiers 6");
     // 256 + 1024 = ~1280
-    assertEq(distributor.sumTierPrizeCounts(7), 1294, "num tiers 7");
+    assertEq(distributor.sumTierPrizeCounts(7), 1283, "num tiers 7");
     // 1024 + 4096 = ~5120 (plus a few prizes from non-daily tiers)
-    assertEq(distributor.sumTierPrizeCounts(8), 5204, "num tiers 8");
-    assertEq(distributor.sumTierPrizeCounts(9), 20901, "num tiers 9");
-    assertEq(distributor.sumTierPrizeCounts(10), 83894, "num tiers 10");
-    assertEq(distributor.sumTierPrizeCounts(11), 336579, "num tiers 11");
+    assertEq(distributor.sumTierPrizeCounts(8), 5139, "num tiers 8");
+    assertEq(distributor.sumTierPrizeCounts(9), 20580, "num tiers 9");
+    assertEq(distributor.sumTierPrizeCounts(10), 82408, "num tiers 10");
+    assertEq(distributor.sumTierPrizeCounts(11), 329958, "num tiers 11");
     assertEq(distributor.sumTierPrizeCounts(12), 0, "num tiers 12");
   }
 

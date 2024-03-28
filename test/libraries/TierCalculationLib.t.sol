@@ -25,8 +25,8 @@ contract TierCalculationLibTest is Test {
 
   function testGetTierOdds_tier4() public {
     assertEq(unwrap(wrapper.getTierOdds(0, 4, 365)), 2739726027397260);
-    assertEq(unwrap(wrapper.getTierOdds(1, 4, 365)), 19579642462506911);
-    assertEq(unwrap(wrapper.getTierOdds(2, 4, 365)), 139927275620255364);
+    assertEq(unwrap(wrapper.getTierOdds(1, 4, 365)), 8089033552608040);
+    assertEq(unwrap(wrapper.getTierOdds(2, 4, 365)), 33163436331078433);
     assertEq(unwrap(wrapper.getTierOdds(3, 4, 365)), 1e18);
   }
 
@@ -37,11 +37,11 @@ contract TierCalculationLibTest is Test {
     );
     assertEq(
       TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(1, 4, 365)),
-      52
+      124
     );
     assertEq(
       TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(2, 4, 365)),
-      8
+      31
     );
     assertEq(
       TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(3, 4, 365)),
