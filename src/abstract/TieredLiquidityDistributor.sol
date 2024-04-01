@@ -533,6 +533,19 @@ contract TieredLiquidityDistributor {
     return 0;
   }
 
+  /// @notice Estimates the prize count for the given tier, including BOTH canary tiers
+  /// @param numTiers The number of tiers
+  /// @return The estimated prize count across all tiers, including both canary tiers.
+  function estimatedPrizeCountWithBothCanaries(
+    uint8 numTiers
+  ) public view returns (uint32) {
+    if (numTiers >= MINIMUM_NUMBER_OF_TIERS && numTiers <= MAXIMUM_NUMBER_OF_TIERS) {
+      return estimatedPrizeCount(numTiers) + uint32(TierCalculationLib.prizeCount(numTiers - 1));
+    } else {
+      return 0;
+    }
+  }
+
   /// @notice Estimates the number of tiers for the given prize count.
   /// @dev Can return lower than the minimum, so that minimum can be detected
   /// @param _prizeCount The number of prizes that were claimed

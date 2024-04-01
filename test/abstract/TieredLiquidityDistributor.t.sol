@@ -411,6 +411,15 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.estimatedPrizeCount(12), 0, "num tiers 12");
   }
 
+  function testEstimatedPrizeCountWithBothCanaries() public {
+    assertEq(distributor.estimatedPrizeCountWithBothCanaries(3), 0, "num tiers 3");
+    assertEq(distributor.estimatedPrizeCountWithBothCanaries(4), 20 + 4**3, "num tiers 4");
+    assertEq(distributor.estimatedPrizeCountWithBothCanaries(5), 80 + 4**4, "num tiers 5");
+    assertEq(distributor.estimatedPrizeCountWithBothCanaries(6), 320 + 4**5, "num tiers 6");
+    assertEq(distributor.estimatedPrizeCountWithBothCanaries(7), 1283 + 4**6, "num tiers 7");
+    assertEq(distributor.estimatedPrizeCountWithBothCanaries(12), 0, "num tiers 12");
+  }
+
   function testSumTierPrizeCounts() public {
     // 16 canary 1 daily + 64 canary 2 daily = 80
     assertEq(distributor.sumTierPrizeCounts(5), 80, "num tiers 5");
