@@ -495,10 +495,16 @@ contract TieredLiquidityDistributor {
     return result;
   }
 
-  /// @notice Estimates the number of prizes for the current number of tiers, including the canary tier
+  /// @notice Estimates the number of prizes for the current number of tiers, including the first canary tier
   /// @return The estimated number of prizes including the canary tier
   function estimatedPrizeCount() external view returns (uint32) {
     return estimatedPrizeCount(numberOfTiers);
+  }
+
+  /// @notice Estimates the number of prizes for the current number of tiers, including both canary tiers
+  /// @return The estimated number of prizes including both canary tiers
+  function estimatedPrizeCountWithBothCanaries() external view returns (uint32) {
+    return estimatedPrizeCountWithBothCanaries(numberOfTiers);
   }
 
   /// @notice Returns the balance of the reserve.
@@ -507,7 +513,7 @@ contract TieredLiquidityDistributor {
     return _reserve;
   }
 
-  /// @notice Estimates the prize count for the given tier. It expects no prizes are claimed for the last canary tier
+  /// @notice Estimates the prize count for the given number of tiers, including the first canary tier. It expects no prizes are claimed for the last canary tier
   /// @param numTiers The number of prize tiers
   /// @return The estimated total number of prizes
   function estimatedPrizeCount(
