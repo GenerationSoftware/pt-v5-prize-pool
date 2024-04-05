@@ -21,6 +21,9 @@ import {
 } from "../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorTest is Test {
+  
+  event ReserveConsumed(uint256 amount);
+
   TieredLiquidityDistributorWrapper public distributor;
 
   uint24 grandPrizePeriodDraws;
@@ -159,6 +162,38 @@ contract TieredLiquidityDistributorTest is Test {
     assertEq(distributor.getTierRemainingLiquidity(1), 100e18, "tier 1");
     assertEq(distributor.getTierRemainingLiquidity(2), 5e18, "tier 2");
     assertEq(distributor.getTierRemainingLiquidity(3), 5e18, "tier 3");
+  }
+
+  // regression test to see if there are any unaccounted rounding errors on consumeLiquidity
+  function testConsumeLiquidity_roundingErrors() public {
+    distributor = new TieredLiquidityDistributorWrapper(
+      tierLiquidityUtilizationRate,
+      numberOfTiers,
+      100,
+      9,
+      0,
+      grandPrizePeriodDraws
+    );
+    distributor.awardDraw(MINIMUM_NUMBER_OF_TIERS, 218e18); // 100 for each tier + 9 for each canary
+
+    uint256 reserveBefore = distributor.reserve();
+
+    // There is 9e18 liquidity available for tier 3.
+    // Each time we consume 1 liquidity we will lose 0.00001 to rounding errors in
+    // the tier.prizeTokenPerShare value. Over time, this will accumulate and lead 
+    // to the tier thinking is has more remainingLiquidity than it actually does.
+    for (uint i = 1; i <= 10000; i++) {
+      distributor.consumeLiquidity(3, 1);
+      assertEq(distributor.getTierRemainingLiquidity(3) + (distributor.reserve() - reserveBefore), 9e18 - i);
+    }
+
+    // Test that we can still consume the rest of the liquidity even it if dips in the reserve
+    assertEq(distributor.getTierRemainingLiquidity(3), 9e18 - 90000); // 10000 consumed + 10000 rounding errors, rounding up by 8 each time
+    assertEq(distributor.reserve(), 80000);
+    vm.expectEmit();
+    emit ReserveConsumed(80000); // equal to the rounding errors (8 for each one)
+    distributor.consumeLiquidity(3, 9e18 - 10000); // we only consumed 10000, so we should still be able to consume the rest by dipping into reserve
+    assertEq(distributor.getTierRemainingLiquidity(3), 0);
   }
 
   function testConsumeLiquidity_partial() public {
