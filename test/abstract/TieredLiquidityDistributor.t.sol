@@ -12,7 +12,6 @@ import {
   TierLiquidityUtilizationRateGreaterThanOne,
   TierLiquidityUtilizationRateCannotBeZero,
   InsufficientLiquidity,
-  fromUD34x4toUD60x18,
   convert,
   SD59x18,
   sd,
@@ -276,9 +275,9 @@ contract TieredLiquidityDistributorTest is Test {
     // uint96 amount = 100e18;
     distributor.awardDraw(15, amount);
 
-    UD60x18 prizeTokenPerShare = fromUD34x4toUD60x18(distributor.prizeTokenPerShare());
-    uint256 total = convert(
-      prizeTokenPerShare.mul(convert(distributor.getTotalShares() - distributor.reserveShares()))
+    uint128 prizeTokenPerShare = distributor.prizeTokenPerShare();
+    uint256 total = (
+      prizeTokenPerShare * (distributor.getTotalShares() - distributor.reserveShares())
     ) + distributor.reserve();
     assertEq(total, amount, "prize token per share against total shares");
 
