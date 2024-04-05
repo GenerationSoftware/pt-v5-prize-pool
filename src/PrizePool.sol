@@ -581,7 +581,10 @@ contract PrizePool is TieredLiquidityDistributor {
     _totalWithdrawn = SafeCast.toUint128(_totalWithdrawn + _amount);
     _totalRewardsToBeClaimed = SafeCast.toUint104(_totalRewardsToBeClaimed - _amount);
 
-    prizeToken.safeTransfer(_to, _amount);
+    // skip transfer if recipient is the prize pool (tokens stay in this contract)
+    if (_to != address(this)) {
+      prizeToken.safeTransfer(_to, _amount);
+    }
 
     emit WithdrawRewards(msg.sender, _to, _amount, _available);
   }
