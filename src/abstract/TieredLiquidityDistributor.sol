@@ -386,15 +386,17 @@ contract TieredLiquidityDistributor {
       _tierStruct.prizeTokenPerShare = prizeTokenPerShare;
     } else {
       uint8 _remainder = uint8(_liquidity % _tierShares);
-      uint8 _overConsumption = _remainder == 0 ? 0 : _tierShares - _remainder;
-      if (_overConsumption > 0) {
+      uint8 _roundUpConsumption = _remainder == 0 ? 0 : _tierShares - _remainder;
+      if (_roundUpConsumption > 0) {
         // We must round up our tier prize token per share value to ensure we don't over-award the tier's
-        // liquidity, but any over-consumption can be contributed to the reserve so every wei is accounted
-        // for.
-        _reserve += _overConsumption;
+        // liquidity, but any extra rounded up consumption can be contributed to the reserve so every wei
+        // is accounted for.
+        _reserve += _roundUpConsumption;
       }
 
-      _tierStruct.prizeTokenPerShare += SafeCast.toUint104(uint256(_liquidity) + _overConsumption) / _tierShares;
+      // We know that the rounded up `liquidity` won't exceed the `remainingLiquidity` since the `remainingLiquidity`
+      // is an integer multiple of `_tierShares` and we check above that `_liquidity <= remainingLiquidity`.
+      _tierStruct.prizeTokenPerShare += SafeCast.toUint104(uint256(_liquidity) + _roundUpConsumption) / _tierShares;
     }
 
     _tiers[_tier] = _tierStruct;
