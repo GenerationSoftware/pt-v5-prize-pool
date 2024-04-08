@@ -1579,6 +1579,16 @@ contract PrizePoolTest is Test {
     prizePool.withdrawRewards(address(1), 5e17);
   }
 
+  function testWithdrawRewards_transferToPrizePool() public {
+    contribute(100e18);
+    awardDraw(winningRandomNumber);
+    mockTwab(address(this), msg.sender, 0);
+    claimPrize(msg.sender, 0, 0, 1e18, address(this));
+    prizePool.withdrawRewards(address(prizePool), 1e18); // leave the tokens in the prize pool
+    assertEq(prizeToken.balanceOf(address(this)), 0);
+    assertEq(prizeToken.balanceOf(address(prizePool)) - prizePool.accountedBalance(), 1e18); // tokens are in prize pool
+  }
+
   function testDrawToAward_zeroDraw() public {
     // current time *is* lastAwardedDrawAwardedAt
     assertEq(prizePool.getDrawIdToAward(), 1);
