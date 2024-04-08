@@ -3,8 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/console2.sol";
 
-import { TieredLiquidityDistributor, Tier, fromUD34x4toUD60x18, convert } from "../../../src/abstract/TieredLiquidityDistributor.sol";
-import { UD60x18 } from "prb-math/UD60x18.sol";
+import { TieredLiquidityDistributor, Tier } from "../../../src/abstract/TieredLiquidityDistributor.sol";
 
 contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   constructor(
@@ -30,10 +29,10 @@ contract TieredLiquidityDistributorWrapper is TieredLiquidityDistributor {
   function computeNewDistributions(
     uint8 _numberOfTiers,
     uint8 _nextNumberOfTiers,
-    UD60x18 _currentPrizeTokenPerShare,
+    uint128 _currentPrizeTokenPerShare,
     uint256 _prizeTokenLiquidity
-  ) external view returns (uint96, UD60x18) {
-    (uint96 newReserve, UD60x18 newPrizeTokenPerShare) = _computeNewDistributions(
+  ) external view returns (uint96, uint128) {
+    (uint96 newReserve, uint128 newPrizeTokenPerShare) = _computeNewDistributions(
       _numberOfTiers,
       _nextNumberOfTiers,
       _currentPrizeTokenPerShare,

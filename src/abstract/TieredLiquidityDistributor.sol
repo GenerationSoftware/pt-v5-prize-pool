@@ -6,7 +6,6 @@ import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
 import { UD60x18, ud, convert } from "prb-math/UD60x18.sol";
 
-import { UD34x4, fromUD60x18 as fromUD60x18toUD34x4, intoUD60x18 as fromUD34x4toUD60x18 } from "../libraries/UD34x4.sol";
 import { TierCalculationLib } from "../libraries/TierCalculationLib.sol";
 
 /// @notice Struct that tracks tier liquidity information.
@@ -16,7 +15,7 @@ import { TierCalculationLib } from "../libraries/TierCalculationLib.sol";
 struct Tier {
   uint24 drawId;
   uint104 prizeSize;
-  UD34x4 prizeTokenPerShare;
+  uint128 prizeTokenPerShare;
 }
 
 /// @notice Emitted when the number of tiers is less than the minimum number of tiers.
@@ -117,7 +116,7 @@ contract TieredLiquidityDistributor {
   /// @dev This is an ever-increasing exchange rate that is used to calculate the prize liquidity for each tier.
   /// @dev Each tier holds a separate tierPrizeTokenPerShare; the delta between the tierPrizeTokenPerShare and
   /// the prizeTokenPerShare * tierShares is the available liquidity they have.
-  UD34x4 public prizeTokenPerShare;
+  uint128 public prizeTokenPerShare;
 
   /// @notice The number of tiers for the last awarded draw. The last tier is the canary tier.
   uint8 public numberOfTiers;
@@ -222,12 +221,11 @@ contract TieredLiquidityDistributor {
     }
 
     uint8 numTiers = numberOfTiers;
-    UD34x4 _prizeTokenPerShare = prizeTokenPerShare;
-    UD60x18 _prizeTokenPerShareUD60x18 = fromUD34x4toUD60x18(_prizeTokenPerShare);
-    (uint96 deltaReserve, UD60x18 newPrizeTokenPerShare) = _computeNewDistributions(
+    uint128 _prizeTokenPerShare = prizeTokenPerShare;
+    (uint96 deltaReserve, uint128 newPrizeTokenPerShare) = _computeNewDistributions(
       numTiers,
       _nextNumberOfTiers,
-      _prizeTokenPerShareUD60x18,
+      _prizeTokenPerShare,
       _prizeTokenLiquidity
     );
 
@@ -240,13 +238,13 @@ contract TieredLiquidityDistributor {
         prizeSize: _computePrizeSize(
           i,
           _nextNumberOfTiers,
-          _prizeTokenPerShareUD60x18,
+          _prizeTokenPerShare,
           newPrizeTokenPerShare
         )
       });
     }
 
-    prizeTokenPerShare = fromUD60x18toUD34x4(newPrizeTokenPerShare);
+    prizeTokenPerShare = newPrizeTokenPerShare;
     numberOfTiers = _nextNumberOfTiers;
     _lastAwardedDrawId = _awardingDraw;
     lastAwardedDrawAwardedAt = uint48(block.timestamp);
@@ -263,30 +261,30 @@ contract TieredLiquidityDistributor {
   function _computeNewDistributions(
     uint8 _numberOfTiers,
     uint8 _nextNumberOfTiers,
-    UD60x18 _currentPrizeTokenPerShare,
+    uint128 _currentPrizeTokenPerShare,
     uint256 _prizeTokenLiquidity
-  ) internal view returns (uint96 deltaReserve, UD60x18 newPrizeTokenPerShare) {
-    UD60x18 reclaimedLiquidity;
+  ) internal view returns (uint96 deltaReserve, uint128 newPrizeTokenPerShare) {
+    uint256 reclaimedLiquidity;
     {
       // need to redistribute to the canary tier and any new tiers (if expanding)
       uint8 start = _computeReclamationStart(_numberOfTiers, _nextNumberOfTiers);
       uint8 end = _numberOfTiers;
       for (uint8 i = start; i < end; i++) {
-        reclaimedLiquidity = reclaimedLiquidity.add(
+        reclaimedLiquidity = reclaimedLiquidity + (
           _getTierRemainingLiquidity(
-            fromUD34x4toUD60x18(_tiers[i].prizeTokenPerShare),
+            _tiers[i].prizeTokenPerShare,
             _currentPrizeTokenPerShare,
-            i
+            _numShares(i, _numberOfTiers)
           )
         );
       }
     }
 
-    uint256 totalNewLiquidity = _prizeTokenLiquidity + convert(reclaimedLiquidity);
+    uint256 totalNewLiquidity = _prizeTokenLiquidity + reclaimedLiquidity;
     uint256 nextTotalShares = computeTotalShares(_nextNumberOfTiers);
     uint256 deltaPrizeTokensPerShare = totalNewLiquidity / nextTotalShares;
 
-    newPrizeTokenPerShare = _currentPrizeTokenPerShare.add(convert(deltaPrizeTokensPerShare));
+    newPrizeTokenPerShare = SafeCast.toUint128(_currentPrizeTokenPerShare + deltaPrizeTokensPerShare);
 
     deltaReserve = SafeCast.toUint96(
       // reserve portion of new liquidity
@@ -328,8 +326,8 @@ contract TieredLiquidityDistributor {
       tier.prizeSize = _computePrizeSize(
         _tier,
         _numberOfTiers,
-        fromUD34x4toUD60x18(tier.prizeTokenPerShare),
-        fromUD34x4toUD60x18(prizeTokenPerShare)
+        tier.prizeTokenPerShare,
+        prizeTokenPerShare
       );
     }
     return tier;
@@ -364,13 +362,12 @@ contract TieredLiquidityDistributor {
   /// @param _tier The tier number
   /// @param _liquidity The amount of liquidity to consume
   function _consumeLiquidity(Tier memory _tierStruct, uint8 _tier, uint104 _liquidity) internal {
+    uint8 _tierShares = _numShares(_tier, numberOfTiers);
     uint104 remainingLiquidity = SafeCast.toUint104(
-      convert(
-        _getTierRemainingLiquidity(
-          fromUD34x4toUD60x18(_tierStruct.prizeTokenPerShare),
-          fromUD34x4toUD60x18(prizeTokenPerShare),
-          _tier
-        )
+      _getTierRemainingLiquidity(
+        _tierStruct.prizeTokenPerShare,
+        prizeTokenPerShare,
+        _tierShares
       )
     );
 
@@ -388,10 +385,18 @@ contract TieredLiquidityDistributor {
       emit ReserveConsumed(excess);
       _tierStruct.prizeTokenPerShare = prizeTokenPerShare;
     } else {
-      _tierStruct.prizeTokenPerShare = UD34x4.wrap(
-        UD34x4.unwrap(_tierStruct.prizeTokenPerShare) +
-          UD34x4.unwrap(fromUD60x18toUD34x4(convert(_liquidity).div(convert(_numShares(_tier, numberOfTiers)))))
-      );
+      uint8 _remainder = uint8(_liquidity % _tierShares);
+      uint8 _roundUpConsumption = _remainder == 0 ? 0 : _tierShares - _remainder;
+      if (_roundUpConsumption > 0) {
+        // We must round up our tier prize token per share value to ensure we don't over-award the tier's
+        // liquidity, but any extra rounded up consumption can be contributed to the reserve so every wei
+        // is accounted for.
+        _reserve += _roundUpConsumption;
+      }
+
+      // We know that the rounded up `liquidity` won't exceed the `remainingLiquidity` since the `remainingLiquidity`
+      // is an integer multiple of `_tierShares` and we check above that `_liquidity <= remainingLiquidity`.
+      _tierStruct.prizeTokenPerShare += SafeCast.toUint104(uint256(_liquidity) + _roundUpConsumption) / _tierShares;
     }
 
     _tiers[_tier] = _tierStruct;
@@ -406,18 +411,19 @@ contract TieredLiquidityDistributor {
   function _computePrizeSize(
     uint8 _tier,
     uint8 _numberOfTiers,
-    UD60x18 _tierPrizeTokenPerShare,
-    UD60x18 _prizeTokenPerShare
+    uint128 _tierPrizeTokenPerShare,
+    uint128 _prizeTokenPerShare
   ) internal view returns (uint104) {
-    uint256 prizeSize;
-    if (_prizeTokenPerShare.gt(_tierPrizeTokenPerShare)) {
-      prizeSize = _computePrizeSize(
-        _tierPrizeTokenPerShare,
-        _prizeTokenPerShare,
-        convert(TierCalculationLib.prizeCount(_tier)),
-        _numShares(_tier, _numberOfTiers)
-      );
-    }
+    uint256 prizeCount = TierCalculationLib.prizeCount(_tier);
+    uint256 remainingTierLiquidity = _getTierRemainingLiquidity(
+      _tierPrizeTokenPerShare,
+      _prizeTokenPerShare,
+      _numShares(_tier, _numberOfTiers)
+    );
+
+    uint256 prizeSize = convert(
+      convert(remainingTierLiquidity).mul(tierLiquidityUtilizationRate).div(convert(prizeCount))
+    );
 
     return prizeSize > type(uint104).max ? type(uint104).max : uint104(prizeSize);
   }
@@ -438,41 +444,17 @@ contract TieredLiquidityDistributor {
     return result;
   }
 
-  /// @notice Computes the prize size with the given parameters.
-  /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
-  /// @param _prizeTokenPerShare The global prizeTokenPerShare
-  /// @param _fractionalPrizeCount The prize count as UD60x18
-  /// @param _shares The number of shares that the tier has
-  /// @return The prize size
-  function _computePrizeSize(
-    UD60x18 _tierPrizeTokenPerShare,
-    UD60x18 _prizeTokenPerShare,
-    UD60x18 _fractionalPrizeCount,
-    uint8 _shares
-  ) internal view returns (uint256) {
-    return
-      convert(
-        _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(_shares)).mul(tierLiquidityUtilizationRate).div(
-          _fractionalPrizeCount
-        )
-      );
-  }
-
   /// @notice Computes the remaining liquidity available to a tier.
   /// @param _tier The tier to compute the liquidity for
   /// @return The remaining liquidity
   function getTierRemainingLiquidity(uint8 _tier) public view returns (uint256) {
     uint8 _numTiers = numberOfTiers;
     if (TierCalculationLib.isValidTier(_tier, _numTiers)) {
-      UD60x18 remaining = _getTierRemainingLiquidity(
-        fromUD34x4toUD60x18(_getTier(_tier, _numTiers).prizeTokenPerShare),
-        fromUD34x4toUD60x18(prizeTokenPerShare),
-        _tier
+      return _getTierRemainingLiquidity(
+        _getTier(_tier, _numTiers).prizeTokenPerShare,
+        prizeTokenPerShare,
+        _numShares(_tier, _numTiers)
       );
-      uint result = convert(
-        remaining
-      );
-      return result;
     } else {
       return 0;
     }
@@ -481,17 +463,17 @@ contract TieredLiquidityDistributor {
   /// @notice Computes the remaining tier liquidity.
   /// @param _tierPrizeTokenPerShare The prizeTokenPerShare of the Tier struct
   /// @param _prizeTokenPerShare The global prizeTokenPerShare
+  /// @param _tierShares The number of shares for the tier
   /// @return The remaining available liquidity
   function _getTierRemainingLiquidity(
-    UD60x18 _tierPrizeTokenPerShare,
-    UD60x18 _prizeTokenPerShare,
-    uint8 _tier
-  ) internal view returns (UD60x18) {
-    uint8 numShares = _numShares(_tier, numberOfTiers);
-    UD60x18 result =
-      _tierPrizeTokenPerShare.gte(_prizeTokenPerShare)
-        ? ud(0)
-        : _prizeTokenPerShare.sub(_tierPrizeTokenPerShare).mul(convert(numShares));
+    uint128 _tierPrizeTokenPerShare,
+    uint128 _prizeTokenPerShare,
+    uint8 _tierShares
+  ) internal pure returns (uint256) {
+    uint256 result =
+      _tierPrizeTokenPerShare >= _prizeTokenPerShare
+        ? 0
+        : uint256(_prizeTokenPerShare - _tierPrizeTokenPerShare) * _tierShares;
     return result;
   }
 

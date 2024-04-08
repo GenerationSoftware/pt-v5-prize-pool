@@ -8,7 +8,6 @@ import { SD59x18, convert, sd } from "prb-math/SD59x18.sol";
 import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
-import { UD34x4, intoUD60x18 as fromUD34x4toUD60x18 } from "./libraries/UD34x4.sol";
 import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
 import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
@@ -194,7 +193,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint8 lastNumTiers,
     uint8 numTiers,
     uint104 reserve,
-    UD34x4 prizeTokensPerShare,
+    uint128 prizeTokensPerShare,
     uint48 drawOpenedAt
   );
 
@@ -671,7 +670,7 @@ contract PrizePool is TieredLiquidityDistributor {
     (uint104 newReserve, ) = _computeNewDistributions(
       _numTiers,
       lastAwardedDrawId_ == 0 ? _numTiers : computeNextNumberOfTiers(claimCount),
-      fromUD34x4toUD60x18(prizeTokenPerShare),
+      prizeTokenPerShare,
       getTotalContributedBetween(lastAwardedDrawId_ + 1, getDrawIdToAward())
     );
 

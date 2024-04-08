@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import {
   TieredLiquidityDistributor,
   Tier,
-  fromUD34x4toUD60x18,
   convert,
   MINIMUM_NUMBER_OF_TIERS
 } from "../../../src/abstract/TieredLiquidityDistributor.sol";
@@ -31,12 +30,10 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
 
     for (uint8 i = 0; i < numberOfTiers; i++) {
       Tier memory tier = _getTier(i, numberOfTiers);
-      availableLiquidity += convert(
-        _getTierRemainingLiquidity(
-          fromUD34x4toUD60x18(tier.prizeTokenPerShare),
-          fromUD34x4toUD60x18(prizeTokenPerShare),
-          i
-        )
+      availableLiquidity += _getTierRemainingLiquidity(
+        tier.prizeTokenPerShare,
+        prizeTokenPerShare,
+        _numShares(i, numberOfTiers)
       );
     }
 
@@ -50,12 +47,10 @@ contract TieredLiquidityDistributorFuzzHarness is TieredLiquidityDistributor {
 
     Tier memory tier_ = _getTier(tier, numberOfTiers);
     uint104 liq = uint104(
-      convert(
-        _getTierRemainingLiquidity(
-          fromUD34x4toUD60x18(tier_.prizeTokenPerShare),
-          fromUD34x4toUD60x18(prizeTokenPerShare),
-          _tier
-        )
+      _getTierRemainingLiquidity(
+        tier_.prizeTokenPerShare,
+        prizeTokenPerShare,
+        _numShares(_tier, numberOfTiers)
       )
     );
 

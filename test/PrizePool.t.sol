@@ -6,7 +6,6 @@ import "forge-std/Test.sol";
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { sd, SD59x18 } from "prb-math/SD59x18.sol";
-import { UD34x4, fromUD34x4 } from "../src/libraries/UD34x4.sol";
 import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
@@ -88,7 +87,7 @@ contract PrizePoolTest is Test {
     uint8 lastNumTiers,
     uint8 numTiers,
     uint104 reserve,
-    UD34x4 prizeTokensPerShare,
+    uint128 prizeTokensPerShare,
     uint48 drawOpenedAt
   );
   event SetDrawManager(address indexed drawManager);
@@ -637,7 +636,7 @@ contract PrizePoolTest is Test {
     uint24 expectedDrawId = 1;
 
     vm.expectEmit(true, true, true, false);
-    emit DrawAwarded(expectedDrawId, 12345, 3, 3, 0, UD34x4.wrap(0), firstDrawOpensAt);
+    emit DrawAwarded(expectedDrawId, 12345, 3, 3, 0, 0, firstDrawOpensAt);
     vm.warp(prizePool.drawClosesAt(prizePool.getOpenDrawId()));
     uint24 closedDrawId = prizePool.awardDraw(12345);
 
@@ -692,7 +691,7 @@ contract PrizePoolTest is Test {
     uint256 remainder = 100e18 - liquidityPerShare * prizePool.getTotalShares();
 
     assertEq(
-      fromUD34x4(prizePool.prizeTokenPerShare()),
+      prizePool.prizeTokenPerShare(),
       liquidityPerShare,
       "prize token per share"
     );
@@ -951,7 +950,7 @@ contract PrizePoolTest is Test {
       MINIMUM_NUMBER_OF_TIERS,
       MINIMUM_NUMBER_OF_TIERS+1,
       45454545454545576 /*reserve from output*/,
-      UD34x4.wrap(45454545454545450000) /*prize tokens per share from output*/,
+      4545454545454545 /*prize tokens per share from output*/,
       firstDrawOpensAt + drawPeriodSeconds
     );
     awardDraw(245);
@@ -976,7 +975,7 @@ contract PrizePoolTest is Test {
       MINIMUM_NUMBER_OF_TIERS+1,
       MINIMUM_NUMBER_OF_TIERS,
       78125000000000236 /*reserve from output*/,
-      UD34x4.wrap(78124999999999990000) /*prize tokens per share from output*/,
+      7812499999999999 /*prize tokens per share from output*/,
       firstDrawOpensAt + drawPeriodSeconds*2
     );
     awardDraw(245);
@@ -1023,7 +1022,7 @@ contract PrizePoolTest is Test {
 
   function testAwardDraw_emitsEvent() public {
     vm.expectEmit();
-    emit DrawAwarded(1, 12345, MINIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS, 0, UD34x4.wrap(0), firstDrawOpensAt);
+    emit DrawAwarded(1, 12345, MINIMUM_NUMBER_OF_TIERS, MINIMUM_NUMBER_OF_TIERS, 0, 0, firstDrawOpensAt);
     awardDraw(12345);
   }
 
@@ -1062,14 +1061,17 @@ contract PrizePoolTest is Test {
     uint256 tierLiquidity = TIER_SHARES * (100e18 / prizePool.getTotalShares());
 
     assertEq(prizePool.getTierRemainingLiquidity(1), tierLiquidity, "second tier");
+    
+    // Get the initial reserve to compare any additions after claim
+    uint256 initialReserve = prizePool.reserve();
 
     mockTwab(address(this), sender1, 1);
     uint256 prize = prizePool.getTierPrizeSize(1);
     assertEq(claimPrize(sender1, 1, 0), prize, "second tier prize 1");
 
-    // reduce by prize
+    // reduced by prize
     assertEq(
-      prizePool.getTierRemainingLiquidity(1),
+      prizePool.getTierRemainingLiquidity(1) + (prizePool.reserve() - initialReserve), // rounding errors are dumped in the reserve
       tierLiquidity - prize,
       "second tier liquidity post claim 1"
     );
