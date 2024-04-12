@@ -390,7 +390,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Allows a user to donate prize tokens to the prize pool.
   /// @param _amount The amount of tokens to donate. The amount should already be approved for transfer.
   function donatePrizeTokens(uint256 _amount) external {
-    prizeToken.transferFrom(msg.sender, address(this), _amount);
+    prizeToken.safeTransferFrom(msg.sender, address(this), _amount);
     contributePrizeTokens(DONATOR, _amount);
   }
 
