@@ -130,13 +130,13 @@ contract TieredLiquidityDistributor {
   /// @notice The amount of available reserve.
   uint96 internal _reserve;
 
-  /**
-   * @notice Constructs a new Prize Pool.
-   * @param _tierLiquidityUtilizationRate The target percentage of tier liquidity to utilize each draw
-   * @param _numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
-   * @param _tierShares The number of shares to allocate to each tier
-   * @param _reserveShares The number of shares to allocate to the reserve.
-   */
+  /// @notice Constructs a new Prize Pool.
+  /// @param _tierLiquidityUtilizationRate The target percentage of tier liquidity to utilize each draw
+  /// @param _numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
+  /// @param _tierShares The number of shares to allocate to each tier
+  /// @param _canaryShares The number of shares to allocate to each canary tier
+  /// @param _reserveShares The number of shares to allocate to the reserve.
+  /// @param _grandPrizePeriodDraws The number of draws between grand prizes
   constructor(
     uint256 _tierLiquidityUtilizationRate,
     uint8 _numberOfTiers,

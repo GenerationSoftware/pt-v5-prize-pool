@@ -18,9 +18,12 @@ error DrawAwarded(uint24 drawId, uint24 newestDrawId);
 /// @param endDrawId The end draw ID of the range
 error InvalidDrawRange(uint24 startDrawId, uint24 endDrawId);
 
+/// @notice The accumulator observation record
+/// @param available The total amount available as of this Observation
+/// @param disbursed The total amount disbursed in the past
 struct Observation {
-  uint96 available; // track the total amount available as of this Observation
-  uint160 disbursed; // track the total accumulated previously
+  uint96 available;
+  uint160 disbursed;
 }
 
 /// @title Draw Accumulator Lib
@@ -37,6 +40,9 @@ library DrawAccumulatorLib {
   }
 
   /// @notice An accumulator for a draw.
+  /// @param ringBufferInfo The metadata for the drawRingBuffer
+  /// @param drawRingBuffer The ring buffer of draw ids
+  /// @param observations The observations for each draw id
   struct Accumulator {
     RingBufferInfo ringBufferInfo; // 32 bits
     uint24[366] drawRingBuffer; // 8784 bits
