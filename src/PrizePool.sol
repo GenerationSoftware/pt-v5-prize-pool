@@ -476,7 +476,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param _prizeRecipient The recipient of the prize
   /// @param _claimReward The claimReward associated with claiming the prize.
   /// @param _claimRewardRecipient The address to receive the claimReward.
-  /// @return Total prize amount claimed (payout and claimRewards combined). If the prize was already claimed it returns zero.
+  /// @return Total prize amount claimed (payout and claimRewards combined).
   function claimPrize(
     address _winner,
     uint8 _tier,
