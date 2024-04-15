@@ -148,7 +148,7 @@ struct ConstructorParams {
 }
 
 /// @title PoolTogether V5 Prize Pool
-/// @author PoolTogether Inc Team
+/// @author G9 Software Inc. & PoolTogether Inc. Team
 /// @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
 contract PrizePool is TieredLiquidityDistributor {
   using SafeERC20 for IERC20;
