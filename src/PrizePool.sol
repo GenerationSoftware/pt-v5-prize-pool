@@ -120,19 +120,18 @@ error OnlyCreator();
 /// @notice Emitted when the draw manager has already been set
 error DrawManagerAlreadySet();
 
-/**
- * @notice Constructor Parameters
- * @param prizeToken The token to use for prizes
- * @param twabController The Twab Controller to retrieve time-weighted average balances from
- * @param drawManager The Draw Manager address that will award draws
- * @param tierLiquidityUtilizationRate The rate at which liquidity is utilized for prize tiers. This allows for deviations in prize claims; if 0.75e18 then it is 75% utilization so it can accommodate 25% deviation in more prize claims.
- * @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
- * @param firstDrawOpensAt The timestamp at which the first draw will open.
- * @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
- * @param tierShares The number of shares to allocate to each tier
- * @param reserveShares The number of shares to allocate to the reserve.
- * @param drawTimeout The number of draws that need to be missed before the prize pool shuts down
- */
+/// @notice Constructor Parameters
+/// @param prizeToken The token to use for prizes
+/// @param twabController The Twab Controller to retrieve time-weighted average balances from
+/// @param creator The address that will be permitted to finish prize pool initialization after deployment
+/// @param tierLiquidityUtilizationRate The rate at which liquidity is utilized for prize tiers. This allows for deviations in prize claims; if 0.75e18 then it is 75% utilization so it can accommodate 25% deviation in more prize claims.
+/// @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
+/// @param firstDrawOpensAt The timestamp at which the first draw will open.
+/// @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
+/// @param tierShares The number of shares to allocate to each tier
+/// @param canaryShares The number of shares to allocate to each canary tier
+/// @param reserveShares The number of shares to allocate to the reserve.
+/// @param drawTimeout The number of draws that need to be missed before the prize pool shuts down
 struct ConstructorParams {
   IERC20 prizeToken;
   TwabController twabController; // 160bits
@@ -148,11 +147,9 @@ struct ConstructorParams {
   uint24 drawTimeout; // if the timeout elapses without a new draw, then the prize pool shuts down. The timeout resets when a draw is awarded.
 }
 
-/**
- * @title PoolTogether V5 Prize Pool
- * @author PoolTogether Inc Team
- * @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
- */
+/// @title PoolTogether V5 Prize Pool
+/// @author G9 Software Inc. & PoolTogether Inc. Team
+/// @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
 contract PrizePool is TieredLiquidityDistributor {
   using SafeERC20 for IERC20;
 
@@ -164,6 +161,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param recipient The address of the prize recipient
   /// @param drawId The draw ID of the draw that was claimed.
   /// @param tier The prize tier that was claimed.
+  /// @param prizeIndex The index of the prize that was claimed
   /// @param payout The amount of prize tokens that were paid out to the winner
   /// @param claimReward The amount of prize tokens that were paid to the claimer
   /// @param claimRewardRecipient The address that the claimReward was sent to
@@ -355,6 +353,8 @@ contract PrizePool is TieredLiquidityDistributor {
     _;
   }
 
+  /// @notice Sets the Draw Manager contract on the prize pool. Can only be called once by the creator.
+  /// @param _drawManager The address of the Draw Manager contract
   function setDrawManager(address _drawManager) external {
     if (msg.sender != creator) {
       revert OnlyCreator();
@@ -460,25 +460,23 @@ contract PrizePool is TieredLiquidityDistributor {
     return awardingDrawId;
   }
 
-  /**
-   * @notice Claims a prize for a given winner and tier.
-   * @dev This function takes in an address _winner, a uint8 _tier, a uint96 _claimReward, and an
-   * address _claimRewardRecipient. It checks if _winner is actually the winner of the _tier for the calling vault.
-   * If so, it calculates the prize size and transfers it to the winner. If not, it reverts with an error message.
-   * The function then checks the claim record of _winner to see if they have already claimed the prize for the
-   * awarded draw. If not, it updates the claim record with the claimed tier and emits a ClaimedPrize event with
-   * information about the claim.
-   * Note that this function can modify the state of the contract by updating the claim record, changing the largest
-   * tier claimed and the claim count, and transferring prize tokens. The function is marked as external which
-   * means that it can be called from outside the contract.
-   * @param _tier The tier of the prize to be claimed.
-   * @param _winner The address of the eligible winner
-   * @param _prizeIndex The prize to claim for the winner. Must be less than the prize count for the tier.
-   * @param _prizeRecipient The recipient of the prize
-   * @param _claimReward The claimReward associated with claiming the prize.
-   * @param _claimRewardRecipient The address to receive the claimReward.
-   * @return Total prize amount claimed (payout and claimRewards combined). If the prize was already claimed it returns zero.
-   */
+  /// @notice Claims a prize for a given winner and tier.
+  /// @dev This function takes in an address _winner, a uint8 _tier, a uint96 _claimReward, and an
+  /// address _claimRewardRecipient. It checks if _winner is actually the winner of the _tier for the calling vault.
+  /// If so, it calculates the prize size and transfers it to the winner. If not, it reverts with an error message.
+  /// The function then checks the claim record of _winner to see if they have already claimed the prize for the
+  /// awarded draw. If not, it updates the claim record with the claimed tier and emits a ClaimedPrize event with
+  /// information about the claim.
+  /// Note that this function can modify the state of the contract by updating the claim record, changing the largest
+  /// tier claimed and the claim count, and transferring prize tokens. The function is marked as external which
+  /// means that it can be called from outside the contract.
+  /// @param _tier The tier of the prize to be claimed.
+  /// @param _winner The address of the eligible winner
+  /// @param _prizeIndex The prize to claim for the winner. Must be less than the prize count for the tier.
+  /// @param _prizeRecipient The recipient of the prize
+  /// @param _claimReward The claimReward associated with claiming the prize.
+  /// @param _claimRewardRecipient The address to receive the claimReward.
+  /// @return Total prize amount claimed (payout and claimRewards combined).
   function claimPrize(
     address _winner,
     uint8 _tier,
@@ -487,10 +485,8 @@ contract PrizePool is TieredLiquidityDistributor {
     uint96 _claimReward,
     address _claimRewardRecipient
   ) external returns (uint256) {
-    /**
-     * @dev Claims cannot occur after a draw has been finalized (1 period after a draw closes). This prevents
-     * the reserve from changing while the following draw is being awarded.
-     */
+    /// @dev Claims cannot occur after a draw has been finalized (1 period after a draw closes). This prevents
+    /// the reserve from changing while the following draw is being awarded.
     uint24 lastAwardedDrawId_ = _lastAwardedDrawId;
     if (isDrawFinalized(lastAwardedDrawId_)) {
       revert ClaimPeriodExpired();
@@ -561,11 +557,9 @@ contract PrizePool is TieredLiquidityDistributor {
     return tierLiquidity.prizeSize;
   }
 
-  /**
-   * @notice Withdraws earned rewards for the caller.
-   * @param _to The address to transfer the rewards to
-   * @param _amount The amount of rewards to withdraw
-   */
+  /// @notice Withdraws earned rewards for the caller.
+  /// @param _to The address to transfer the rewards to
+  /// @param _amount The amount of rewards to withdraw
   function withdrawRewards(address _to, uint256 _amount) external {
     uint256 _available = _rewards[msg.sender];
 
@@ -692,19 +686,15 @@ contract PrizePool is TieredLiquidityDistributor {
     return _claimedPrizes[_vault][_winner][_lastAwardedDrawId][_tier][_prizeIndex];
   }
 
-  /**
-   * @notice Returns the balance of rewards earned for the given address.
-   * @param _recipient The recipient to retrieve the reward balance for
-   * @return The balance of rewards for the given recipient
-   */
+  /// @notice Returns the balance of rewards earned for the given address.
+  /// @param _recipient The recipient to retrieve the reward balance for
+  /// @return The balance of rewards for the given recipient
   function rewardBalance(address _recipient) external view returns (uint256) {
     return _rewards[_recipient];
   }
 
-  /**
-   * @notice Computes and returns the next number of tiers based on the current prize claim counts. This number may change throughout the draw
-   * @return The next number of tiers
-   */
+  /// @notice Computes and returns the next number of tiers based on the current prize claim counts. This number may change throughout the draw
+  /// @return The next number of tiers
   function estimateNextNumberOfTiers() external view returns (uint8) {
     return computeNextNumberOfTiers(claimCount);
   }
@@ -899,9 +889,8 @@ contract PrizePool is TieredLiquidityDistributor {
     return block.timestamp >= shutdownAt();
   }
 
-  /**
-   * Returns the timestamp at which the prize pool will be considered inactive
-   */
+  /// @notice Returns the timestamp at which the prize pool will be considered inactive
+  /// @return The timestamp at which the prize pool has timed out and becomes inactive
   function drawTimeoutAt() public view returns (uint256) { 
     return drawClosesAt(drawIdPriorToShutdown());
   }
@@ -922,14 +911,12 @@ contract PrizePool is TieredLiquidityDistributor {
       );
   }
 
-  /**
-   * @notice Checks if the given user has won the prize for the specified tier in the given vault.
-   * @param _vault The address of the vault to check
-   * @param _user The address of the user to check for the prize
-   * @param _tier The tier for which the prize is to be checked
-   * @param _prizeIndex The prize index to check. Must be less than prize count for the tier
-   * @return A boolean value indicating whether the user has won the prize or not
-   */
+  /// @notice Checks if the given user has won the prize for the specified tier in the given vault.
+  /// @param _vault The address of the vault to check
+  /// @param _user The address of the user to check for the prize
+  /// @param _tier The tier for which the prize is to be checked
+  /// @param _prizeIndex The prize index to check. Must be less than prize count for the tier
+  /// @return A boolean value indicating whether the user has won the prize or not
   function isWinner(
     address _vault,
     address _user,
@@ -998,16 +985,14 @@ contract PrizePool is TieredLiquidityDistributor {
     }
   }
 
-  /**
-   * @notice Returns the time-weighted average balance (TWAB) and the TWAB total supply for the specified user in the given vault over a specified period.
-   * @dev This function calculates the TWAB for a user by calling the getTwabBetween function of the TWAB controller for a specified period of time.
-   * @param _vault The address of the vault for which to get the TWAB.
-   * @param _user The address of the user for which to get the TWAB.
-   * @param _startDrawIdInclusive The starting draw for the range (inclusive)
-   * @param _endDrawIdInclusive The end draw for the range (inclusive)
-   * @return twab The TWAB for the specified user in the given vault over the specified period.
-   * @return twabTotalSupply The TWAB total supply over the specified period.
-   */
+  /// @notice Returns the time-weighted average balance (TWAB) and the TWAB total supply for the specified user in the given vault over a specified period.
+  /// @dev This function calculates the TWAB for a user by calling the getTwabBetween function of the TWAB controller for a specified period of time.
+  /// @param _vault The address of the vault for which to get the TWAB.
+  /// @param _user The address of the user for which to get the TWAB.
+  /// @param _startDrawIdInclusive The starting draw for the range (inclusive)
+  /// @param _endDrawIdInclusive The end draw for the range (inclusive)
+  /// @return twab The TWAB for the specified user in the given vault over the specified period.
+  /// @return twabTotalSupply The TWAB total supply over the specified period.
   function getVaultUserBalanceAndTotalSupplyTwab(
     address _vault,
     address _user,
@@ -1024,13 +1009,11 @@ contract PrizePool is TieredLiquidityDistributor {
     );
   }
 
-  /**
-   * @notice Calculates the portion of the vault's contribution to the prize pool over a specified duration in draws.
-   * @param _vault The address of the vault for which to calculate the portion.
-   * @param _startDrawIdInclusive The starting draw ID (inclusive) of the draw range to calculate the contribution portion for.
-   * @param _endDrawIdInclusive The ending draw ID (inclusive) of the draw range to calculate the contribution portion for.
-   * @return The portion of the vault's contribution to the prize pool over the specified duration in draws.
-   */
+  /// @notice Calculates the portion of the vault's contribution to the prize pool over a specified duration in draws.
+  /// @param _vault The address of the vault for which to calculate the portion.
+  /// @param _startDrawIdInclusive The starting draw ID (inclusive) of the draw range to calculate the contribution portion for.
+  /// @param _endDrawIdInclusive The ending draw ID (inclusive) of the draw range to calculate the contribution portion for.
+  /// @return The portion of the vault's contribution to the prize pool over the specified duration in draws.
   function getVaultPortion(
     address _vault,
     uint24 _startDrawIdInclusive,
