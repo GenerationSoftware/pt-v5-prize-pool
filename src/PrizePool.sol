@@ -123,7 +123,7 @@ error DrawManagerAlreadySet();
 /// @notice Constructor Parameters
 /// @param prizeToken The token to use for prizes
 /// @param twabController The Twab Controller to retrieve time-weighted average balances from
-/// @param drawManager The Draw Manager address that will award draws
+/// @param creator The address that will be permitted to finish prize pool initialization after deployment
 /// @param tierLiquidityUtilizationRate The rate at which liquidity is utilized for prize tiers. This allows for deviations in prize claims; if 0.75e18 then it is 75% utilization so it can accommodate 25% deviation in more prize claims.
 /// @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
 /// @param firstDrawOpensAt The timestamp at which the first draw will open.
