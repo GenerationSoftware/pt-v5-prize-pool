@@ -129,6 +129,7 @@ error DrawManagerAlreadySet();
 /// @param firstDrawOpensAt The timestamp at which the first draw will open.
 /// @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
 /// @param tierShares The number of shares to allocate to each tier
+/// @param canaryShares The number of shares to allocate to each canary tier
 /// @param reserveShares The number of shares to allocate to the reserve.
 /// @param drawTimeout The number of draws that need to be missed before the prize pool shuts down
 struct ConstructorParams {
