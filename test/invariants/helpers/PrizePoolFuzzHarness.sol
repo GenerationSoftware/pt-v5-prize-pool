@@ -119,6 +119,10 @@ contract PrizePoolFuzzHarness is CommonBase, StdCheats, StdUtils, CurrentTimeCon
     prizePool.contributeReserve(_amount);
   }
 
+  function shutdown() public increaseCurrentTime(_timeIncrease()) {
+    vm.warp(prizePool.shutdownAt());
+  }
+
   function allocateRewardFromReserve(uint256 actorSeed) public increaseCurrentTime(_timeIncrease()) prankDrawManager {
     // console2.log("allocateRewardFromReserve");
     uint96 amount = prizePool.reserve();

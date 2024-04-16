@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { console2 } from "forge-std/console2.sol";
+
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
@@ -158,6 +160,7 @@ struct ConstructorParams {
 /// @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
 contract PrizePool is TieredLiquidityDistributor {
   using SafeERC20 for IERC20;
+  using DrawAccumulatorLib for DrawAccumulatorLib.Accumulator;
 
   /* ============ Events ============ */
 
@@ -250,9 +253,6 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Tracks the total rewards accrued for a claimer or draw completer.
   mapping(address recipient => uint256 rewards) internal _rewards;
 
-  /// @notice Records the last shutdown withdrawal for an account
-  mapping(address vault => mapping(address user => uint24 drawId)) internal _lastShutdownWithdrawal;
-
   /// @notice The special value for the donator address. Contributions from this address are excluded from the total odds.
   /// @dev 0x000...F2EE because it's free money!
   address public constant DONATOR = 0x000000000000000000000000000000000000F2EE;
@@ -295,6 +295,18 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /// @notice The total amount of rewards that have yet to be claimed
   uint104 internal _totalRewardsToBeClaimed;
+
+  /// @notice The observation at which the shutdown balance was recorded
+  Observation shutdownObservation;
+  
+  /// @notice The balance available to be withdrawn at shutdown
+  uint256 shutdownBalance;
+
+  /// @notice The total contributed observation that was used for the last withdrawal for a vault and account
+  mapping(address vault => mapping(address account => Observation lastWithdrawalTotalContributedObservation)) internal _withdrawalObservations;
+
+  /// @notice The shutdown portion of liquidity for a vault and account
+  mapping(address vault => mapping(address account => SD59x18 shutdownPortion)) internal _shutdownPortions;
 
   /* ============ Constructor ============ */
 
@@ -404,7 +416,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Allows the Manager to allocate a reward from the reserve to a recipient.
   /// @param _to The address to allocate the rewards to
   /// @param _amount The amount of tokens for the reward
-  function allocateRewardFromReserve(address _to, uint96 _amount) external onlyDrawManager {
+  function allocateRewardFromReserve(address _to, uint96 _amount) external onlyDrawManager notShutdown {
     if (_amount > _reserve) {
       revert InsufficientReserve(_amount, _reserve);
     }
@@ -623,8 +635,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint24 _endDrawIdInclusive
   ) external view returns (uint256) {
     return
-      DrawAccumulatorLib.getDisbursedBetween(
-        _vaultAccumulator[_vault],
+      _vaultAccumulator[_vault].getDisbursedBetween(
         _startDrawIdInclusive,
         _endDrawIdInclusive
       );
@@ -639,8 +650,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint24 _endDrawIdInclusive
   ) external view returns (uint256) {
     return
-      DrawAccumulatorLib.getDisbursedBetween(
-        _vaultAccumulator[DONATOR],
+      _vaultAccumulator[DONATOR].getDisbursedBetween(
         _startDrawIdInclusive,
         _endDrawIdInclusive
       );
@@ -710,20 +720,26 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Computes how many tokens have been accounted for
   /// @return The balance of tokens that have been accounted for
   function accountedBalance() public view returns (uint256) {
-    Observation memory obs = _totalAccumulator.observations[
-      DrawAccumulatorLib.newestDrawId(_totalAccumulator)
-    ];
-    // obs.disbursed includes the reserve, prizes, and prize liquidity
-    // obs.disbursed is the total amount of tokens all-time contributed by vaults and released. These tokens may:
-    //    - still be held for future prizes
-    //    - have been given as prizes
-    //    - have been captured as fees
+    return _accountedBalance(_totalAccumulator.newestObservation());
+  }
 
-    // obs.available is the total number of tokens that WILL be disbursed in the future.
-    // _directlyContributedReserve are tokens that have been contributed directly to the reserve
-    // totalWithdrawn represents all tokens that have been withdrawn as prizes or rewards
-
-    return (obs.available + obs.disbursed) + uint256(_directlyContributedReserve) - uint256(_totalWithdrawn);
+  /// @notice Returns the balance available at the time of shutdown, less rewards to be claimed.
+  /// @dev This function will compute and store the current balance if it has not yet been set.
+  /// @return balance The balance that is available for depositors to withdraw
+  /// @return observation The observation used to compute the balance
+  function getShutdownInfo() public returns (uint256 balance, Observation memory observation) {
+    if (!isShutdown()) {
+      return (balance, observation);
+    }
+    if (shutdownObservation.disbursed + shutdownObservation.available == 0) {
+      observation = _totalAccumulator.newestObservation();
+      shutdownObservation = observation;
+      balance = _accountedBalance(observation) - _totalRewardsToBeClaimed;
+      shutdownBalance = balance;
+    } else {
+      observation = shutdownObservation;
+      balance = shutdownBalance;
+    }
   }
 
   /// @notice Returns the open draw ID based on the current block timestamp.
@@ -733,11 +749,18 @@ contract PrizePool is TieredLiquidityDistributor {
   /// we know that no draws have been awarded yet.
   /// @return The ID of the draw period that the current block is in
   function getOpenDrawId() public view returns (uint24) {
+    return getDrawId(block.timestamp);
+  }
+
+  /// @notice Returns the open draw id for the given timestamp
+  /// @param _timestamp The timestamp to get the draw id for
+  /// @return The ID of the open draw that the timestamp is in
+  function getDrawId(uint256 _timestamp) public view returns (uint24) {
     uint48 _firstDrawOpensAt = firstDrawOpensAt;
     return
-      (block.timestamp < _firstDrawOpensAt)
+      (_timestamp < _firstDrawOpensAt)
         ? 1
-        : (uint24((block.timestamp - _firstDrawOpensAt) / drawPeriodSeconds) + 1);
+        : (uint24((_timestamp - _firstDrawOpensAt) / drawPeriodSeconds) + 1);
   }
 
   /// @notice Returns the next draw ID that can be awarded.
@@ -791,20 +814,12 @@ contract PrizePool is TieredLiquidityDistributor {
     }
   }
 
-  /// @notice Returns the shutdown balance for a given vault and account. The prize pool must already be shutdown.
-  /// @dev The shutdown balance is the amount of prize tokens that a user can claim after the prize pool has been shutdown.
-  /// @dev The shutdown balance is calculated using the user's TWAB and the total supply TWAB, whose time ranges are the
-  /// grand prize period prior to the shutdown timestamp.
-  /// @param _vault The vault to check
-  /// @param _account The account to check
-  /// @return The shutdown balance for the given vault and account
-  function shutdownBalanceOf(address _vault, address _account) public view returns (uint256) {
-    if (!isShutdown()) {
-      return 0;
-    }
-
-    // any liquidity prior to now
-    uint24 shutdownDrawId = drawIdPriorToShutdown();
+  /// @notice Returns the given account and vault's portion of the shutdown balance.
+  /// @param _vault The vault whose contributions are measured
+  /// @param _account The account whose vault twab is measured
+  /// @return The portion of the shutdown balance that the account is entitled to.
+  function getShutdownPortion(address _vault, address _account) public view returns (SD59x18) {
+    uint24 shutdownDrawId = getDrawIdPriorToShutdown();
     uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(shutdownDrawId, grandPrizePeriodDraws);
 
     SD59x18 vaultPortion = getVaultPortion(
@@ -820,40 +835,48 @@ contract PrizePool is TieredLiquidityDistributor {
       shutdownDrawId
     );
 
-    uint24 drawIdToAward = getDrawIdToAward();
-    uint24 lastWithdrawalDrawId = _lastShutdownWithdrawal[_vault][_account];
-
-    uint256 liquidity;
-
-    uint24 claimStartDrawId;
-
-    // if there are previously disbursed funds, then we need to exclude prev claims.
-    if (_lastAwardedDrawId != 0 && lastWithdrawalDrawId < shutdownDrawId) {
-      // subtract whatever (if anything) was contributed after the shutdown draw id and the rewards to be claimed
-      uint256 liquidityAfter;
-      if (shutdownDrawId < drawIdToAward) {
-        liquidityAfter += getTotalContributedBetween(shutdownDrawId + 1, drawIdToAward);
-      }
-      liquidity = accountedBalance() - liquidityAfter - _totalRewardsToBeClaimed;
-      claimStartDrawId = shutdownDrawId;
-    } else {
-      claimStartDrawId = lastWithdrawalDrawId; 
-    }
-    
-    if (claimStartDrawId < drawIdToAward) {
-      liquidity += getTotalContributedBetween(claimStartDrawId + 1, drawIdToAward);
+    if (_vaultTwabTotalSupply == 0) {
+      return SD59x18.wrap(0);
     }
 
+    return vaultPortion.mul(
+      convert(int256(_userTwab)).div(convert(int256(_vaultTwabTotalSupply)))
+    );
+  }
+
+  /// @notice Returns the shutdown balance for a given vault and account. The prize pool must already be shutdown.
+  /// @dev The shutdown balance is the amount of prize tokens that a user can claim after the prize pool has been shutdown.
+  /// @dev The shutdown balance is calculated using the user's TWAB and the total supply TWAB, whose time ranges are the
+  /// grand prize period prior to the shutdown timestamp.
+  /// @param _vault The vault to check
+  /// @param _account The account to check
+  /// @return The shutdown balance for the given vault and account
+  function shutdownBalanceOf(address _vault, address _account) public returns (uint256) {
+    if (!isShutdown()) {
+      return 0;
+    }
+
+    Observation memory withdrawalObservation = _withdrawalObservations[_vault][_account];
+    SD59x18 shutdownPortion;
     uint256 balance;
-    if (liquidity != 0 && _vaultTwabTotalSupply != 0) {
-      balance = uint256(convert(
-        vaultPortion.mul(
-          convert(int256(_userTwab)).div(convert(int256(_vaultTwabTotalSupply)))
-        ).mul(convert(int256(liquidity)))
-      ));
+
+    // if we haven't withdrawn yet, add the portion of the shutdown balance
+    if ((withdrawalObservation.available + withdrawalObservation.disbursed) == 0) {
+      shutdownPortion = getShutdownPortion(_vault, _account);
+      _shutdownPortions[_vault][_account] = shutdownPortion;
+      (balance, withdrawalObservation) = getShutdownInfo();
+    } else {
+      shutdownPortion = _shutdownPortions[_vault][_account];
     }
 
-    return balance;
+    // if there are new rewards
+    // current "draw id to award" observation - last withdraw observation
+    Observation memory newestObs = _totalAccumulator.newestObservation();
+    balance += (newestObs.available + newestObs.disbursed) - (withdrawalObservation.available + withdrawalObservation.disbursed);
+
+    _withdrawalObservations[_vault][_account] = newestObs;
+
+    return uint256(convert(shutdownPortion.mul(convert(int256(balance)))));
   }
 
   /// @notice Withdraws the shutdown balance for a given vault and sender
@@ -866,7 +889,6 @@ contract PrizePool is TieredLiquidityDistributor {
     }
     uint256 balance = shutdownBalanceOf(_vault, msg.sender);
     if (balance > 0) {
-      _lastShutdownWithdrawal[_vault][msg.sender] = getDrawIdToAward();
       prizeToken.safeTransfer(_recipient, balance);
       _totalWithdrawn += uint128(balance);
     }
@@ -875,8 +897,8 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /// @notice Returns the draw ID that will be awarded prior to the prize pool being shutdown
   /// @return The draw id
-  function drawIdPriorToShutdown() public view returns (uint24) {
-    return _lastAwardedDrawId + drawTimeout;
+  function getDrawIdPriorToShutdown() public view returns (uint24) {
+    return getDrawId(shutdownAt()) - 1;
   }
 
   /// @notice Returns the timestamp at which the prize pool will be considered inactive and shutdown
@@ -896,7 +918,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Returns the timestamp at which the prize pool will be considered inactive
   /// @return The timestamp at which the prize pool has timed out and becomes inactive
   function drawTimeoutAt() public view returns (uint256) { 
-    return drawClosesAt(drawIdPriorToShutdown());
+    return drawClosesAt(_lastAwardedDrawId + drawTimeout);
   }
 
   /// @notice Returns the total prize tokens contributed between the given draw ids, inclusive.
@@ -908,8 +930,7 @@ contract PrizePool is TieredLiquidityDistributor {
     uint24 _endDrawIdInclusive
   ) public view returns (uint256) {
     return
-      DrawAccumulatorLib.getDisbursedBetween(
-        _totalAccumulator,
+      _totalAccumulator.getDisbursedBetween(
         _startDrawIdInclusive,
         _endDrawIdInclusive
       );
@@ -1029,13 +1050,12 @@ contract PrizePool is TieredLiquidityDistributor {
       return sd(0);
     }
 
-    uint256 totalContributed = DrawAccumulatorLib.getDisbursedBetween(
-      _totalAccumulator,
+    uint256 totalContributed = _totalAccumulator.getDisbursedBetween(
       _startDrawIdInclusive,
       _endDrawIdInclusive
     );
 
-    uint256 totalDonated = DrawAccumulatorLib.getDisbursedBetween(_vaultAccumulator[DONATOR], _startDrawIdInclusive, _endDrawIdInclusive);
+    uint256 totalDonated = _vaultAccumulator[DONATOR].getDisbursedBetween(_startDrawIdInclusive, _endDrawIdInclusive);
 
     uint256 total = totalContributed - totalDonated;
 
@@ -1046,14 +1066,27 @@ contract PrizePool is TieredLiquidityDistributor {
       totalContributed != 0
         ? sd(
           SafeCast.toInt256(
-            DrawAccumulatorLib.getDisbursedBetween(
-              _vaultAccumulator[_vault],
+            _vaultAccumulator[_vault].getDisbursedBetween(
               _startDrawIdInclusive,
               _endDrawIdInclusive
             )
           )
         ).div(sd(SafeCast.toInt256(total)))
         : sd(0);
+  }
+
+  function _accountedBalance(Observation memory _observation) internal view returns (uint256) {
+    // obs.disbursed includes the reserve, prizes, and prize liquidity
+    // obs.disbursed is the total amount of tokens all-time contributed by vaults and released. These tokens may:
+    //    - still be held for future prizes
+    //    - have been given as prizes
+    //    - have been captured as fees
+
+    // obs.available is the total number of tokens that WILL be disbursed in the future.
+    // _directlyContributedReserve are tokens that have been contributed directly to the reserve
+    // totalWithdrawn represents all tokens that have been withdrawn as prizes or rewards
+
+    return (_observation.available + _observation.disbursed) + uint256(_directlyContributedReserve) - uint256(_totalWithdrawn);
   }
 
   /// @notice Modifier that requires the prize pool not to be shutdown

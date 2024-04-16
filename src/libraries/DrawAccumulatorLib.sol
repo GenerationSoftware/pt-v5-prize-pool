@@ -124,6 +124,15 @@ library DrawAccumulatorLib {
       ];
   }
 
+  /// @notice Returns the newest draw id from the accumulator.
+  /// @param accumulator The accumulator to get the newest draw id from
+  /// @return The newest draw id
+  function newestObservation(Accumulator storage accumulator) internal view returns (Observation memory) {
+    return accumulator.observations[
+      newestDrawId(accumulator)
+    ];
+  }
+
   /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
   /// @param _accumulator The accumulator to get the disbursed balance from
   /// @param _startDrawId The start draw id, inclusive
