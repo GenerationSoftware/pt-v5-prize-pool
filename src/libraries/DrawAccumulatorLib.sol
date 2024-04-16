@@ -5,15 +5,15 @@ pragma solidity ^0.8.19;
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 
-/// @notice Emitted when adding balance for draw zero.
+/// @notice Thrown when adding balance for draw zero.
 error AddToDrawZero();
 
-/// @notice Emitted when an action can't be done on a closed draw.
+/// @notice Thrown when an action can't be done on a closed draw.
 /// @param drawId The ID of the closed draw
 /// @param newestDrawId The newest draw ID
 error DrawAwarded(uint24 drawId, uint24 newestDrawId);
 
-/// @notice Emitted when a draw range is not strictly increasing.
+/// @notice Thrown when a draw range is not strictly increasing.
 /// @param startDrawId The start draw ID of the range
 /// @param endDrawId The end draw ID of the range
 error InvalidDrawRange(uint24 startDrawId, uint24 endDrawId);

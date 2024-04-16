@@ -18,21 +18,21 @@ struct Tier {
   uint128 prizeTokenPerShare;
 }
 
-/// @notice Emitted when the number of tiers is less than the minimum number of tiers.
+/// @notice Thrown when the number of tiers is less than the minimum number of tiers.
 /// @param numTiers The invalid number of tiers
 error NumberOfTiersLessThanMinimum(uint8 numTiers);
 
-/// @notice Emitted when the number of tiers is greater than the max tiers
+/// @notice Thrown when the number of tiers is greater than the max tiers
 /// @param numTiers The invalid number of tiers
 error NumberOfTiersGreaterThanMaximum(uint8 numTiers);
 
-/// @notice Emitted when the tier liquidity utilization rate is greater than 1.
+/// @notice Thrown when the tier liquidity utilization rate is greater than 1.
 error TierLiquidityUtilizationRateGreaterThanOne();
 
-/// @notice Emitted when the tier liquidity utilization rate is 0.
+/// @notice Thrown when the tier liquidity utilization rate is 0.
 error TierLiquidityUtilizationRateCannotBeZero();
 
-/// @notice Emitted when there is insufficient liquidity to consume.
+/// @notice Thrown when there is insufficient liquidity to consume.
 /// @param requestedLiquidity The requested amount of liquidity
 error InsufficientLiquidity(uint104 requestedLiquidity);
 
