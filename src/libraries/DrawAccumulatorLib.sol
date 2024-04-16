@@ -28,7 +28,8 @@ struct Observation {
 
 /// @title Draw Accumulator Lib
 /// @author G9 Software Inc.
-/// @notice This contract distributes tokens over time according to an exponential weighted average. Time is divided into discrete "draws", of which each is allocated tokens.
+/// @notice This contract distributes tokens over time according to an exponential weighted average.
+/// Time is divided into discrete "draws", of which each is allocated tokens.
 library DrawAccumulatorLib {
   /// @notice The maximum number of observations that can be recorded.
   uint16 internal constant MAX_CARDINALITY = 366;
@@ -55,7 +56,8 @@ library DrawAccumulatorLib {
   /// @notice Adds balance for the given draw id to the accumulator.
   /// @param accumulator The accumulator to add to
   /// @param _amount The amount of balance to add
-  /// @param _drawId The draw id to which to add balance to. This must be greater than or equal to the previous addition's draw id.
+  /// @param _drawId The draw id to which to add balance to. This must be greater than or equal to the previous
+  /// addition's draw id.
   /// @return True if a new observation was created, false otherwise.
   function add(
     Accumulator storage accumulator,
