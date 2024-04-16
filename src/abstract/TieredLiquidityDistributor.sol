@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { SD59x18, sd } from "prb-math/SD59x18.sol";
-import { UD60x18, ud, convert } from "prb-math/UD60x18.sol";
+import { UD60x18, convert } from "prb-math/UD60x18.sol";
 
 import { TierCalculationLib } from "../libraries/TierCalculationLib.sol";
 
