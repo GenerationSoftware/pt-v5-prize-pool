@@ -729,6 +729,7 @@ contract PrizePool is TieredLiquidityDistributor {
     if (!isShutdown()) {
       return (balance, observation);
     }
+    // if not initialized
     if (shutdownObservation.disbursed + shutdownObservation.available == 0) {
       observation = _totalAccumulator.newestObservation();
       shutdownObservation = observation;
@@ -816,7 +817,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param _vault The vault whose contributions are measured
   /// @param _account The account whose vault twab is measured
   /// @return The portion of the shutdown balance that the account is entitled to.
-  function getShutdownPortion(address _vault, address _account) public view returns (SD59x18) {
+  function computeShutdownPortion(address _vault, address _account) public view returns (SD59x18) {
     uint24 shutdownDrawId = getDrawIdPriorToShutdown();
     uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(shutdownDrawId, grandPrizePeriodDraws);
 
@@ -860,7 +861,7 @@ contract PrizePool is TieredLiquidityDistributor {
 
     // if we haven't withdrawn yet, add the portion of the shutdown balance
     if ((withdrawalObservation.available + withdrawalObservation.disbursed) == 0) {
-      shutdownPortion = getShutdownPortion(_vault, _account);
+      shutdownPortion = computeShutdownPortion(_vault, _account);
       _shutdownPortions[_vault][_account] = shutdownPortion;
       (balance, withdrawalObservation) = getShutdownInfo();
     } else {
