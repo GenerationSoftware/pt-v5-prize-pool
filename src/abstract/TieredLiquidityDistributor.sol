@@ -333,13 +333,13 @@ contract TieredLiquidityDistributor {
     return tier;
   }
 
-  /// @notice Computes the total shares in the system. That is `(number of tiers * tier shares) + reserve shares`.
+  /// @notice Computes the total shares in the system.
   /// @return The total shares
   function getTotalShares() external view returns (uint256) {
     return computeTotalShares(numberOfTiers);
   }
 
-  /// @notice Computes the total shares in the system given the number of tiers. That is `(number of tiers * tier shares) + reserve shares`.
+  /// @notice Computes the total shares in the system given the number of tiers.
   /// @param _numberOfTiers The number of tiers to calculate the total shares for
   /// @return The total shares
   function computeTotalShares(uint8 _numberOfTiers) public view returns (uint256) {
@@ -351,9 +351,9 @@ contract TieredLiquidityDistributor {
   /// @param _nextNumberOfTiers The next number of tiers
   /// @return The tier to start reclaiming liquidity from
   function _computeReclamationStart(uint8 _numberOfTiers, uint8 _nextNumberOfTiers) internal pure returns (uint8) {
-    // we must always reset the canary tiers, both old and new. 
-    // if the next num is less than the num tiers, then the first canary tiers to reset are the last of the next tiers
-    // otherwise, the canary tiers to reset are the last of the current tiers
+    // We must always reset the canary tiers, both old and new. 
+    // If the next num is less than the num tiers, then the first canary tiers to reset are the last of the next tiers.
+    // Otherwise, the canary tiers to reset are the last of the current tiers.
     return (_nextNumberOfTiers > _numberOfTiers ? _numberOfTiers : _nextNumberOfTiers) - NUMBER_OF_CANARY_TIERS;
   }
 
@@ -535,7 +535,6 @@ contract TieredLiquidityDistributor {
   }
 
   /// @notice Estimates the number of tiers for the given prize count.
-  /// @dev Can return lower than the minimum, so that minimum can be detected
   /// @param _prizeCount The number of prizes that were claimed
   /// @return The estimated tier
   function _estimateNumberOfTiersUsingPrizeCountPerDraw(
@@ -567,7 +566,7 @@ contract TieredLiquidityDistributor {
   /// @dev Includes the first canary tier prizes, but not the second since the first is expected to
   /// be claimed.
   /// @param _numTiers The number of tiers, including canaries
-  /// @return The expected number of prizes, canary included.
+  /// @return The expected number of prizes, first canary included.
   function _sumTierPrizeCounts(uint8 _numTiers) internal view returns (uint32) {
     uint32 prizeCount;
     uint8 i = 0;
