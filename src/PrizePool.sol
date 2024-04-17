@@ -8,7 +8,7 @@ import { SD59x18, convert, sd } from "prb-math/SD59x18.sol";
 import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
-import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, Observation, MAX_OBSERVATION_CARDINALITY } from "./libraries/DrawAccumulatorLib.sol";
 import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
@@ -119,6 +119,11 @@ error OnlyCreator();
 
 /// @notice Thrown when the draw manager has already been set
 error DrawManagerAlreadySet();
+
+/// @notice Thrown when the grand prize period is too large
+/// @param grandPrizePeriodDraws The set grand prize period
+/// @param maxGrandPrizePeriodDraws The max grand prize period
+error GrandPrizePeriodDrawsTooLarge(uint24 grandPrizePeriodDraws, uint24 maxGrandPrizePeriodDraws);
 
 /// @notice Constructor Parameters
 /// @param prizeToken The token to use for prizes
@@ -342,6 +347,10 @@ contract PrizePool is TieredLiquidityDistributor {
       revert FirstDrawOpensInPast();
     }
 
+    if (params.grandPrizePeriodDraws >= MAX_OBSERVATION_CARDINALITY) {
+      revert GrandPrizePeriodDrawsTooLarge(params.grandPrizePeriodDraws, MAX_OBSERVATION_CARDINALITY - 1);
+    }
+
     uint48 twabPeriodOffset = params.twabController.PERIOD_OFFSET();
     uint48 twabPeriodLength = params.twabController.PERIOD_LENGTH();
 
@@ -406,23 +415,11 @@ contract PrizePool is TieredLiquidityDistributor {
       revert ContributionGTDeltaBalance(_amount, _deltaBalance);
     }
 
-    uint24 _drawId;
-
-    if (isShutdown()) {
-      // We "freeze" the accumulator ring buffer when shutdown to ensure no old observations are dropped.
-      // We DO NOT contribute to the vault's accumulator after shutdown since the vault portion no longer
-      // matters after shutdown has occurred. 
-      // Any new contributions will be made to the draw ID immediately after shutdown.
-      // The shutdown balances are calculated using the newest observations and do not rely on draw ID.
-      _drawId = getDrawIdPriorToShutdown() + 1;
-      _totalAccumulator.add(_amount, _drawId);
-    } else {
-      _drawId = getOpenDrawId();
-      _vaultAccumulator[_prizeVault].add(_amount, _drawId);
-      _totalAccumulator.add(_amount, _drawId);
-    }
+    uint24 _openDrawId = getOpenDrawId();
+    _vaultAccumulator[_prizeVault].add(_amount, _openDrawId);
+    _totalAccumulator.add(_amount, _openDrawId);
     
-    emit ContributePrizeTokens(_prizeVault, _drawId, _amount);
+    emit ContributePrizeTokens(_prizeVault, _openDrawId, _amount);
     return _deltaBalance;
   }
 
@@ -679,6 +676,19 @@ contract PrizePool is TieredLiquidityDistributor {
       );
   }
 
+  /// @notice Returns the newest observation for the total accumulator
+  /// @return The newest observation
+  function getTotalAccumulatorNewestObservation() external view returns (Observation memory) {
+    return _totalAccumulator.newestObservation();
+  }
+
+  /// @notice Returns the newest observation for the specified vault accumulator
+  /// @param _vault The vault to check
+  /// @return The newest observation for the vault
+  function getVaultAccumulatorNewestObservation(address _vault) external view returns (Observation memory) {
+    return _vaultAccumulator[_vault].newestObservation();
+  }
+
   /// @notice Computes the expected duration prize accrual for a tier.
   /// @param _tier The tier to check
   /// @return The number of draws
@@ -725,6 +735,23 @@ contract PrizePool is TieredLiquidityDistributor {
     return _claimedPrizes[_vault][_winner][_lastAwardedDrawId][_tier][_prizeIndex];
   }
 
+  /// @notice Returns whether the winner has claimed the tier for the specified draw
+  /// @param _vault The vault to check
+  /// @param _winner The account to check
+  /// @param _drawId The draw ID to check
+  /// @param _tier The tier to check
+  /// @param _prizeIndex The prize index to check
+  /// @return True if the winner claimed the tier for the specified draw, false otherwise.
+  function wasClaimed(
+    address _vault,
+    address _winner,
+    uint24 _drawId,
+    uint8 _tier,
+    uint32 _prizeIndex
+  ) external view returns (bool) {
+    return _claimedPrizes[_vault][_winner][_drawId][_tier][_prizeIndex];
+  }
+
   /// @notice Returns the balance of rewards earned for the given address.
   /// @param _recipient The recipient to retrieve the reward balance for
   /// @return The balance of rewards for the given recipient
@@ -760,11 +787,6 @@ contract PrizePool is TieredLiquidityDistributor {
       shutdownObservation = observation;
       balance = _accountedBalance(observation) - _totalRewardsToBeClaimed;
       shutdownBalance = balance;
-
-      // We force an observation on the total accumulator immediately after shutdown to initiate
-      // the observation "freeze". This is the observation that all new contributions will be
-      // added to such that the ring buffer no longer drops any old data.
-      _totalAccumulator.add(0, getDrawIdPriorToShutdown() + 1);
     } else {
       observation = shutdownObservation;
       balance = shutdownBalance;
@@ -776,9 +798,12 @@ contract PrizePool is TieredLiquidityDistributor {
   /// going to the inaccessible draw zero.
   /// @dev First draw has an ID of `1`. This means that if `_lastAwardedDrawId` is zero,
   /// we know that no draws have been awarded yet.
+  /// @dev Capped at the shutdown draw ID if the prize pool has shutdown.
   /// @return The ID of the draw period that the current block is in
   function getOpenDrawId() public view returns (uint24) {
-    return getDrawId(block.timestamp);
+    uint24 shutdownDrawId = getShutdownDrawId();
+    uint24 openDrawId = getDrawId(block.timestamp);
+    return openDrawId > shutdownDrawId ? shutdownDrawId : openDrawId;
   }
 
   /// @notice Returns the open draw id for the given timestamp
@@ -848,20 +873,20 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param _account The account whose vault twab is measured
   /// @return The portion of the shutdown balance that the account is entitled to.
   function computeShutdownPortion(address _vault, address _account) public view returns (ShutdownPortion memory) {
-    uint24 shutdownDrawId = getDrawIdPriorToShutdown();
-    uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(shutdownDrawId, grandPrizePeriodDraws);
+    uint24 drawIdPriorToShutdown = getShutdownDrawId() - 1;
+    uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(drawIdPriorToShutdown, grandPrizePeriodDraws);
 
     (uint256 vaultContrib, uint256 totalContrib) = _getVaultShares(
       _vault,
       startDrawIdInclusive,
-      shutdownDrawId
+      drawIdPriorToShutdown
     );
 
     (uint256 _userTwab, uint256 _vaultTwabTotalSupply) = getVaultUserBalanceAndTotalSupplyTwab(
       _vault,
       _account,
       startDrawIdInclusive,
-      shutdownDrawId
+      drawIdPriorToShutdown
     );
 
     if (_vaultTwabTotalSupply == 0) {
@@ -925,10 +950,10 @@ contract PrizePool is TieredLiquidityDistributor {
     return balance;
   }
 
-  /// @notice Returns the draw ID that will be awarded prior to the prize pool being shutdown
+  /// @notice Returns the open draw ID at the time of shutdown.
   /// @return The draw id
-  function getDrawIdPriorToShutdown() public view returns (uint24) {
-    return getDrawId(shutdownAt()) - 1;
+  function getShutdownDrawId() public view returns (uint24) {
+    return getDrawId(shutdownAt());
   }
 
   /// @notice Returns the timestamp at which the prize pool will be considered inactive and shutdown
