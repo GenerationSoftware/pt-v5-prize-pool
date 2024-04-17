@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.24;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
+
+// The maximum number of observations that can be recorded.
+uint16 constant MAX_OBSERVATION_CARDINALITY = 366;
 
 /// @notice Thrown when adding balance for draw zero.
 error AddToDrawZero();
@@ -26,19 +29,17 @@ struct Observation {
   uint160 disbursed;
 }
 
+/// @notice The metadata for using the ring buffer.
+struct RingBufferInfo {
+  uint16 nextIndex;
+  uint16 cardinality;
+}
+
 /// @title Draw Accumulator Lib
 /// @author G9 Software Inc.
 /// @notice This contract distributes tokens over time according to an exponential weighted average.
 /// Time is divided into discrete "draws", of which each is allocated tokens.
 library DrawAccumulatorLib {
-  /// @notice The maximum number of observations that can be recorded.
-  uint16 internal constant MAX_CARDINALITY = 366;
-
-  /// @notice The metadata for using the ring buffer.
-  struct RingBufferInfo {
-    uint16 nextIndex;
-    uint16 cardinality;
-  }
 
   /// @notice An accumulator for a draw.
   /// @param ringBufferInfo The metadata for the drawRingBuffer
@@ -70,7 +71,7 @@ library DrawAccumulatorLib {
     RingBufferInfo memory ringBufferInfo = accumulator.ringBufferInfo;
 
     uint24 newestDrawId_ = accumulator.drawRingBuffer[
-      RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY)
+      RingBufferLib.newestIndex(ringBufferInfo.nextIndex, MAX_OBSERVATION_CARDINALITY)
     ];
 
     if (_drawId < newestDrawId_) {
@@ -82,7 +83,7 @@ library DrawAccumulatorLib {
     Observation memory newestObservation_ = accumulatorObservations[newestDrawId_];
     if (_drawId != newestDrawId_) {
       uint16 cardinality = ringBufferInfo.cardinality;
-      if (ringBufferInfo.cardinality < MAX_CARDINALITY) {
+      if (ringBufferInfo.cardinality < MAX_OBSERVATION_CARDINALITY) {
         cardinality += 1;
       } else {
         // Delete the old observation to save gas (older than 1 year)
@@ -99,7 +100,7 @@ library DrawAccumulatorLib {
       });
 
       accumulator.ringBufferInfo = RingBufferInfo({
-        nextIndex: uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_CARDINALITY)),
+        nextIndex: uint16(RingBufferLib.nextIndex(ringBufferInfo.nextIndex, MAX_OBSERVATION_CARDINALITY)),
         cardinality: cardinality
       });
 
@@ -120,8 +121,17 @@ library DrawAccumulatorLib {
   function newestDrawId(Accumulator storage accumulator) internal view returns (uint256) {
     return
       accumulator.drawRingBuffer[
-        RingBufferLib.newestIndex(accumulator.ringBufferInfo.nextIndex, MAX_CARDINALITY)
+        RingBufferLib.newestIndex(accumulator.ringBufferInfo.nextIndex, MAX_OBSERVATION_CARDINALITY)
       ];
+  }
+
+  /// @notice Returns the newest draw id from the accumulator.
+  /// @param accumulator The accumulator to get the newest draw id from
+  /// @return The newest draw id
+  function newestObservation(Accumulator storage accumulator) internal view returns (Observation memory) {
+    return accumulator.observations[
+      newestDrawId(accumulator)
+    ];
   }
 
   /// @notice Gets the balance that was disbursed between the given start and end draw ids, inclusive.
@@ -148,7 +158,7 @@ library DrawAccumulatorLib {
       RingBufferLib.oldestIndex(
         ringBufferInfo.nextIndex,
         ringBufferInfo.cardinality,
-        MAX_CARDINALITY
+        MAX_OBSERVATION_CARDINALITY
       )
     );
     uint16 newestIndex = uint16(
