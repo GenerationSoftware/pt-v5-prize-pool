@@ -832,7 +832,6 @@ contract PrizePool is TieredLiquidityDistributor {
     uint24 shutdownDrawId = getDrawIdPriorToShutdown();
     uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(shutdownDrawId, grandPrizePeriodDraws);
 
-
     (uint256 vaultContrib, uint256 totalContrib) = _getVaultShares(
       _vault,
       startDrawIdInclusive,
@@ -845,7 +844,6 @@ contract PrizePool is TieredLiquidityDistributor {
       startDrawIdInclusive,
       shutdownDrawId
     );
-
 
     if (_vaultTwabTotalSupply == 0) {
       return ShutdownPortion(0, 0);
@@ -866,7 +864,6 @@ contract PrizePool is TieredLiquidityDistributor {
       return 0;
     }
 
-
     Observation memory withdrawalObservation = _withdrawalObservations[_vault][_account];
     ShutdownPortion memory shutdownPortion;
     uint256 balance;
@@ -883,7 +880,6 @@ contract PrizePool is TieredLiquidityDistributor {
     if (shutdownPortion.denominator == 0) {
       return 0;
     }
-
 
     // if there are new rewards
     // current "draw id to award" observation - last withdraw observation
