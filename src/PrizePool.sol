@@ -405,10 +405,24 @@ contract PrizePool is TieredLiquidityDistributor {
     if (_deltaBalance < _amount) {
       revert ContributionGTDeltaBalance(_amount, _deltaBalance);
     }
-    uint24 openDrawId_ = getOpenDrawId();
-    _vaultAccumulator[_prizeVault].add(_amount, openDrawId_);
-    _totalAccumulator.add(_amount, openDrawId_);
-    emit ContributePrizeTokens(_prizeVault, openDrawId_, _amount);
+
+    uint24 _drawId;
+
+    if (isShutdown()) {
+      // We "freeze" the accumulator ring buffer when shutdown to ensure no old observations are dropped.
+      // We DO NOT contribute to the vault's accumulator after shutdown since the vault portion no longer
+      // matters after shutdown has occurred. 
+      // Any new contributions will be made to the draw ID immediately after shutdown.
+      // The shutdown balances are calculated using the newest observations and do not rely on draw ID.
+      _drawId = getDrawIdPriorToShutdown() + 1;
+      _totalAccumulator.add(_amount, _drawId);
+    } else {
+      _drawId = getOpenDrawId();
+      _vaultAccumulator[_prizeVault].add(_amount, _drawId);
+      _totalAccumulator.add(_amount, _drawId);
+    }
+    
+    emit ContributePrizeTokens(_prizeVault, _drawId, _amount);
     return _deltaBalance;
   }
 
@@ -746,6 +760,11 @@ contract PrizePool is TieredLiquidityDistributor {
       shutdownObservation = observation;
       balance = _accountedBalance(observation) - _totalRewardsToBeClaimed;
       shutdownBalance = balance;
+
+      // We force an observation on the total accumulator immediately after shutdown to initiate
+      // the observation "freeze". This is the observation that all new contributions will be
+      // added to such that the ring buffer no longer drops any old data.
+      _totalAccumulator.add(0, getDrawIdPriorToShutdown() + 1);
     } else {
       observation = shutdownObservation;
       balance = shutdownBalance;
