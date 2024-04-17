@@ -23,7 +23,7 @@ In PoolTogether V5 prizes are distributed through the Prize Pool contract. There
 - Accrued yield is sold by the Liquidator and sent to the Prize Pool.
 - Every "Draw" a random number is provided and given to the Prize Pool and the next set of prizes are available.
 - The Prize Pool determines a users chance of winning by reading historic data from the TWAB Controller.
-- The VRGDA Claimer allows users prizes to be claimed.
+- The Claimer allows users prizes to be claimed.
 
 ## Development
 
