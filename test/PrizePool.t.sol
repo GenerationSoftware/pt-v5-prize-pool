@@ -43,7 +43,8 @@ import {
   IncompatibleTwabPeriodOffset,
   ClaimPeriodExpired,
   PrizePoolShutdown,
-  Observation
+  Observation,
+  ShutdownPortion
 } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
@@ -901,6 +902,23 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.accountedBalance(), 660e18 - (630e18/6 + 630e18/3) - 0.1e18 - remainder, "final balance");
   }
 
+  function test_computeShutdownPortion_empty() public {
+    vm.warp(prizePool.shutdownAt());
+    ShutdownPortion memory portion = prizePool.computeShutdownPortion(address(this), bob);
+    assertEq(portion.numerator, 0);
+    assertEq(portion.denominator, 0);
+  }
+
+  function test_computeShutdownPortion_nonZero() public {
+    contribute(220e18, vault);
+    uint newTime = prizePool.shutdownAt();
+    vm.warp(newTime);
+    mockShutdownTwab(0.5e18, 1e18, bob, vault);
+    ShutdownPortion memory portion = prizePool.computeShutdownPortion(vault, bob);
+    assertEq(portion.numerator, 220e18 * 0.5e18);
+    assertEq(portion.denominator, 220e18 * 1e18);
+  }
+
   function test_withdrawShutdownBalance_notShutdown() public {
     vm.expectRevert(abi.encodeWithSelector(PrizePoolNotShutdown.selector));
     assertEq(prizePool.withdrawShutdownBalance(address(this), msg.sender), 0);
@@ -976,6 +994,13 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.withdrawShutdownBalance(address(this), msg.sender), 150e18);
     assertEq(prizePool.withdrawShutdownBalance(address(this), msg.sender), 0);
     vm.stopPrank();
+  }
+
+  function test_getDrawId() public {
+    assertEq(prizePool.getDrawId(0), 1, "before start");
+    assertEq(prizePool.getDrawId(firstDrawOpensAt), 1, "at start");
+    assertEq(prizePool.getDrawId(firstDrawOpensAt + drawPeriodSeconds/2), 1, "after start");
+    assertEq(prizePool.getDrawId(firstDrawOpensAt + drawPeriodSeconds), 2, "after first draw");
   }
 
   function test_getShutdownInfo_notShutdown() public {
@@ -2057,7 +2082,10 @@ contract PrizePoolTest is Test {
 
   function mockShutdownTwab(uint256 userTwab, uint256 totalSupplyTwab, address account, address _vault) public {
     (uint24 startDrawId, uint24 shutdownDrawId) = shutdownRangeDrawIds();
-    // console2.log("mockShutdownTwab ", startDrawId, shutdownDrawId);
+    console2.log("mockShutdownTwab ", startDrawId, shutdownDrawId);
+    console2.log("shutdown close time", prizePool.drawClosesAt(shutdownDrawId));
+    console2.log("account: ", account);
+    console2.log("vault: ", vault);
     mockGetAverageBalanceBetween(_vault, account, startDrawId, shutdownDrawId, userTwab);
     mockTwabTotalSupplyDrawRange(_vault, startDrawId, shutdownDrawId, totalSupplyTwab);
   }
