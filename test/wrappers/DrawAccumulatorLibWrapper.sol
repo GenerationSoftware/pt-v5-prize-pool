@@ -2,14 +2,18 @@
 
 pragma solidity ^0.8.19;
 
-import { DrawAccumulatorLib, Observation } from "../../src/libraries/DrawAccumulatorLib.sol";
+import { DrawAccumulatorLib, Observation, RingBufferInfo } from "../../src/libraries/DrawAccumulatorLib.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 import { E, SD59x18, sd, unwrap } from "prb-math/SD59x18.sol";
 
 // Note: Need to store the results from the library in a variable to be picked up by forge coverage
 // See: https://github.com/foundry-rs/foundry/pull/3128#issuecomment-1241245086
 contract DrawAccumulatorLibWrapper {
-  DrawAccumulatorLib.Accumulator public accumulator;
+  DrawAccumulatorLib.Accumulator internal accumulator;
+
+  function getRingBufferInfo() public view returns (RingBufferInfo memory) {
+    return accumulator.ringBufferInfo;
+  }
 
   function getDrawRingBuffer(uint16 index) public view returns (uint24) {
     return accumulator.drawRingBuffer[index];
@@ -42,9 +46,7 @@ contract DrawAccumulatorLibWrapper {
   }
 
   function newestObservation() public view returns (Observation memory) {
-    Observation memory result = accumulator.observations[
-      DrawAccumulatorLib.newestDrawId(accumulator)
-    ];
+    Observation memory result = DrawAccumulatorLib.newestObservation(accumulator);
     return result;
   }
 

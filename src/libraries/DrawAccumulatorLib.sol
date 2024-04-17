@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.24;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
@@ -26,6 +26,12 @@ struct Observation {
   uint160 disbursed;
 }
 
+/// @notice The metadata for using the ring buffer.
+struct RingBufferInfo {
+  uint16 nextIndex;
+  uint16 cardinality;
+}
+
 /// @title Draw Accumulator Lib
 /// @author G9 Software Inc.
 /// @notice This contract distributes tokens over time according to an exponential weighted average.
@@ -33,12 +39,6 @@ struct Observation {
 library DrawAccumulatorLib {
   /// @notice The maximum number of observations that can be recorded.
   uint16 internal constant MAX_CARDINALITY = 366;
-
-  /// @notice The metadata for using the ring buffer.
-  struct RingBufferInfo {
-    uint16 nextIndex;
-    uint16 cardinality;
-  }
 
   /// @notice An accumulator for a draw.
   /// @param ringBufferInfo The metadata for the drawRingBuffer

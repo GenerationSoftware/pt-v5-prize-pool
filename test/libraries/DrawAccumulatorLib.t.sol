@@ -50,13 +50,13 @@ contract DrawAccumulatorLibTest is Test {
   }
 
   function testAddSame() public {
-    DrawAccumulatorLib.add(accumulator, 100, 1);
-    DrawAccumulatorLib.add(accumulator, 200, 1);
+    wrapper.add(100, 1);
+    wrapper.add(200, 1);
 
-    assertEq(accumulator.ringBufferInfo.cardinality, 1);
-    assertEq(accumulator.ringBufferInfo.nextIndex, 1);
-    assertEq(accumulator.drawRingBuffer[0], 1);
-    assertEq(accumulator.observations[1].available, 300);
+    assertEq(wrapper.getCardinality(), 1);
+    assertEq(wrapper.getRingBufferInfo().nextIndex, 1);
+    assertEq(wrapper.getDrawRingBuffer(0), 1);
+    assertEq(wrapper.getObservation(1).available, 300);
   }
 
   function testAddSecond() public {
@@ -91,6 +91,17 @@ contract DrawAccumulatorLibTest is Test {
     assertEq(wrapper.getDrawRingBuffer(0), 367);
     assertGt(wrapper.getObservation(367).available, wrapper.getObservation(366).available);
     assertEq(wrapper.getObservation(1).available, 0); // deleted draw 1
+  }
+
+  function test_newestObservation() public {
+    wrapper.add(100, 1);
+    Observation memory observation = wrapper.newestObservation();
+    assertEq(observation.available, 100);
+
+    wrapper.add(200, 2);
+    observation = wrapper.newestObservation();
+    assertEq(observation.available, 200);
+    assertEq(observation.disbursed, 100);
   }
 
   function testGetDisbursedBetweenEmpty() public {

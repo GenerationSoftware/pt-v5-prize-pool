@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.24;
 
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
@@ -153,6 +153,14 @@ struct ConstructorParams {
   uint24 drawTimeout;
 }
 
+/// @notice A struct to represent a shutdown portion of liquidity for a vault and account
+/// @param numerator The numerator of the portion
+/// @param denominator The denominator of the portion
+struct ShutdownPortion {
+  uint256 numerator;
+  uint256 denominator;
+}
+
 /// @title PoolTogether V5 Prize Pool
 /// @author G9 Software Inc. & PoolTogether Inc. Team
 /// @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
@@ -304,7 +312,7 @@ contract PrizePool is TieredLiquidityDistributor {
   mapping(address vault => mapping(address account => Observation lastWithdrawalTotalContributedObservation)) internal _withdrawalObservations;
 
   /// @notice The shutdown portion of liquidity for a vault and account
-  mapping(address vault => mapping(address account => SD59x18 shutdownPortion)) internal _shutdownPortions;
+  mapping(address vault => mapping(address account => ShutdownPortion shutdownPortion)) internal _shutdownPortions;
 
   /* ============ Constructor ============ */
 
@@ -415,6 +423,9 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param _to The address to allocate the rewards to
   /// @param _amount The amount of tokens for the reward
   function allocateRewardFromReserve(address _to, uint96 _amount) external onlyDrawManager notShutdown {
+    if (_to == address(0)) {
+      revert RewardRecipientZeroAddress();
+    }
     if (_amount > _reserve) {
       revert InsufficientReserve(_amount, _reserve);
     }
@@ -817,11 +828,12 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param _vault The vault whose contributions are measured
   /// @param _account The account whose vault twab is measured
   /// @return The portion of the shutdown balance that the account is entitled to.
-  function computeShutdownPortion(address _vault, address _account) public view returns (SD59x18) {
+  function computeShutdownPortion(address _vault, address _account) public view returns (ShutdownPortion memory) {
     uint24 shutdownDrawId = getDrawIdPriorToShutdown();
     uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(shutdownDrawId, grandPrizePeriodDraws);
 
-    SD59x18 vaultPortion = getVaultPortion(
+
+    (uint256 vaultContrib, uint256 totalContrib) = _getVaultShares(
       _vault,
       startDrawIdInclusive,
       shutdownDrawId
@@ -834,13 +846,12 @@ contract PrizePool is TieredLiquidityDistributor {
       shutdownDrawId
     );
 
+
     if (_vaultTwabTotalSupply == 0) {
-      return SD59x18.wrap(0);
+      return ShutdownPortion(0, 0);
     }
 
-    return vaultPortion.mul(
-      convert(int256(_userTwab)).div(convert(int256(_vaultTwabTotalSupply)))
-    );
+    return ShutdownPortion(vaultContrib * _userTwab, totalContrib * _vaultTwabTotalSupply);
   }
 
   /// @notice Returns the shutdown balance for a given vault and account. The prize pool must already be shutdown.
@@ -855,8 +866,9 @@ contract PrizePool is TieredLiquidityDistributor {
       return 0;
     }
 
+
     Observation memory withdrawalObservation = _withdrawalObservations[_vault][_account];
-    SD59x18 shutdownPortion;
+    ShutdownPortion memory shutdownPortion;
     uint256 balance;
 
     // if we haven't withdrawn yet, add the portion of the shutdown balance
@@ -868,14 +880,17 @@ contract PrizePool is TieredLiquidityDistributor {
       shutdownPortion = _shutdownPortions[_vault][_account];
     }
 
+    if (shutdownPortion.denominator == 0) {
+      return 0;
+    }
+
+
     // if there are new rewards
     // current "draw id to award" observation - last withdraw observation
     Observation memory newestObs = _totalAccumulator.newestObservation();
     balance += (newestObs.available + newestObs.disbursed) - (withdrawalObservation.available + withdrawalObservation.disbursed);
 
-    _withdrawalObservations[_vault][_account] = newestObs;
-
-    return uint256(convert(shutdownPortion.mul(convert(int256(balance)))));
+    return (shutdownPortion.numerator * balance) / shutdownPortion.denominator;
   }
 
   /// @notice Withdraws the shutdown balance for a given vault and sender
@@ -887,6 +902,7 @@ contract PrizePool is TieredLiquidityDistributor {
       revert PrizePoolNotShutdown();
     }
     uint256 balance = shutdownBalanceOf(_vault, msg.sender);
+    _withdrawalObservations[_vault][msg.sender] = _totalAccumulator.newestObservation();
     if (balance > 0) {
       prizeToken.safeTransfer(_recipient, balance);
       _totalWithdrawn += uint128(balance);
@@ -1049,6 +1065,24 @@ contract PrizePool is TieredLiquidityDistributor {
       return sd(0);
     }
 
+    (uint256 vaultContributed, uint256 totalContributed) = _getVaultShares(_vault, _startDrawIdInclusive, _endDrawIdInclusive);
+
+    if (totalContributed == 0) {
+      return sd(0);
+    }
+
+    return sd(
+      SafeCast.toInt256(
+        vaultContributed
+      )
+    ).div(sd(SafeCast.toInt256(totalContributed)));
+  }
+
+  function _getVaultShares(
+    address _vault,
+    uint24 _startDrawIdInclusive,
+    uint24 _endDrawIdInclusive
+  ) internal view returns (uint256 shares, uint256 totalSupply) {
     uint256 totalContributed = _totalAccumulator.getDisbursedBetween(
       _startDrawIdInclusive,
       _endDrawIdInclusive
@@ -1056,22 +1090,12 @@ contract PrizePool is TieredLiquidityDistributor {
 
     uint256 totalDonated = _vaultAccumulator[DONATOR].getDisbursedBetween(_startDrawIdInclusive, _endDrawIdInclusive);
 
-    uint256 total = totalContributed - totalDonated;
+    totalSupply = totalContributed - totalDonated;
 
-    if (total == 0) {
-      return sd(0);
-    }
-    return
-      totalContributed != 0
-        ? sd(
-          SafeCast.toInt256(
-            _vaultAccumulator[_vault].getDisbursedBetween(
-              _startDrawIdInclusive,
-              _endDrawIdInclusive
-            )
-          )
-        ).div(sd(SafeCast.toInt256(total)))
-        : sd(0);
+    shares = _vaultAccumulator[_vault].getDisbursedBetween(
+      _startDrawIdInclusive,
+      _endDrawIdInclusive
+    );
   }
 
   function _accountedBalance(Observation memory _observation) internal view returns (uint256) {

@@ -55,6 +55,9 @@ contract PrizePoolTest is Test {
   address public vault;
   address public vault2;
 
+  address bob = makeAddr("bob");
+  address alice = makeAddr("alice");
+
   TwabController public twabController;
 
   address drawManager;
@@ -109,7 +112,7 @@ contract PrizePoolTest is Test {
   ConstructorParams params;
 
   function setUp() public {
-    drawTimeout = grandPrizePeriodDraws;
+    drawTimeout = 30; //grandPrizePeriodDraws;
     vm.warp(startTimestamp);
 
     prizeToken = new ERC20Mintable("PoolTogether POOL token", "POOL");
@@ -308,20 +311,35 @@ contract PrizePoolTest is Test {
     assertApproxEqAbs(prizePool.pendingReserveContributions(), reclaimedReserve, 1000, "no pending reserve contributions");
   }
 
-  function testAllocateRewardFromReserve_notManager() public {
+  function test_allocateRewardFromReserve_CallerNotDrawManager() public {
     vm.prank(address(0));
     vm.expectRevert(
       abi.encodeWithSelector(CallerNotDrawManager.selector, address(0), address(this))
     );
+    prizePool.allocateRewardFromReserve(vault, 1);
+  }
+
+  function test_allocateRewardFromReserve_RewardRecipientZeroAddress() public {
+    vm.expectRevert(
+      abi.encodeWithSelector(RewardRecipientZeroAddress.selector)
+    );
     prizePool.allocateRewardFromReserve(address(0), 1);
   }
 
-  function testAllocateRewardFromReserve_insuff() public {
+  function test_allocateRewardFromReserve_PrizePoolShutdown() public {
+    vm.warp(prizePool.shutdownAt());
+    vm.expectRevert(
+      abi.encodeWithSelector(PrizePoolShutdown.selector)
+    );
+    prizePool.allocateRewardFromReserve(address(0), 1);
+  }
+
+  function test_allocateRewardFromReserve_InsufficientReserve() public {
     vm.expectRevert(abi.encodeWithSelector(InsufficientReserve.selector, 1, 0));
     prizePool.allocateRewardFromReserve(address(this), 1);
   }
 
-  function testAllocateRewardFromReserve() public {
+  function test_allocateRewardFromReserve() public {
     contribute(310e18);
     awardDraw(winningRandomNumber);
     assertEq(prizeToken.balanceOf(address(this)), 0);
@@ -727,6 +745,15 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.getDrawIdPriorToShutdown(), 41, "draw id is the draw that ends before/on the timeout");
   }
 
+  function test_getDrawIdPriorToShutdown_twabShutdownAtLimit() public {
+    params.drawPeriodSeconds = type(uint24).max - (type(uint24).max % 1 days);
+    params.drawTimeout = type(uint16).max;
+    params.grandPrizePeriodDraws = params.drawTimeout;
+    prizePool = newPrizePool();
+    awardDraw(winningRandomNumber);
+    assertEq(prizePool.getDrawIdPriorToShutdown(), 256, "draw id is the draw that ends before the twab controller shutdown");
+  }
+
   function testDrawTimeoutAt_init() public {
     assertEq(prizePool.drawTimeoutAt(), firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
   }
@@ -773,6 +800,8 @@ contract PrizePoolTest is Test {
     contribute(100e18);
     vm.warp(prizePool.shutdownAt());
     mockShutdownTwab(1e18, 1e18);
+    assertApproxEqAbs(prizePool.shutdownBalanceOf(address(this), msg.sender), 100e18, 10000);
+    // should yield the same answer twice
     assertApproxEqAbs(prizePool.shutdownBalanceOf(address(this), msg.sender), 100e18, 10000);
   }
   
@@ -835,17 +864,54 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.shutdownBalanceOf(address(this), msg.sender), 50e18, "second claim");
   }
 
-  function testWithdrawShutdownBalance_notShutdown() public {
+  function test_shutdownBalanceOf_with_multiple_users_and_rewards() public {
+    // reserve = 10/220 * 660 = 30
+    // remaining = 630
+    // bob = 120*630e18/440
+    contribute(220e18, vault);
+    contribute(440e18, vault2);
+    awardDraw(1);
+    prizePool.allocateRewardFromReserve(bob, 0.1e18);
+    uint96 remainder = prizePool.reserve();    
+    prizePool.allocateRewardFromReserve(alice, remainder);
+    vm.warp(prizePool.shutdownAt());
+
+    mockShutdownTwab(0.5e18, 1e18, bob, vault);
+    mockShutdownTwab(500e18, 1000e18, alice, vault2);
+
+    uint bobShutdownBalance = 630e18/6;
+    uint aliceShutdownBalance = 630e18/3;
+    assertEq(prizePool.shutdownBalanceOf(vault, bob), bobShutdownBalance, "bob balance");
+    assertEq(prizePool.shutdownBalanceOf(vault2, alice), aliceShutdownBalance, "alice balance");
+    assertEq(prizePool.rewardBalance(bob), 0.1e18, "bob rewards");
+    assertEq(prizePool.rewardBalance(alice), remainder, "alice rewards");
+
+    vm.prank(bob);
+    prizePool.withdrawRewards(bob, 0.1e18);
+    vm.prank(bob);
+    prizePool.withdrawShutdownBalance(vault, bob);
+    assertEq(prizeToken.balanceOf(bob), bobShutdownBalance + 0.1e18, "bob token balance");
+
+    vm.prank(alice);
+    prizePool.withdrawShutdownBalance(vault2, alice);
+    vm.prank(alice);
+    prizePool.withdrawRewards(alice, remainder);
+    assertEq(prizeToken.balanceOf(alice), aliceShutdownBalance + remainder, "alice token balance");
+
+    assertEq(prizePool.accountedBalance(), 660e18 - (630e18/6 + 630e18/3) - 0.1e18 - remainder, "final balance");
+  }
+
+  function test_withdrawShutdownBalance_notShutdown() public {
     vm.expectRevert(abi.encodeWithSelector(PrizePoolNotShutdown.selector));
     assertEq(prizePool.withdrawShutdownBalance(address(this), msg.sender), 0);
   }
 
-  function testWithdrawShutdownBalance_init() public {
+  function test_withdrawShutdownBalance_init() public {
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
     assertEq(prizePool.withdrawShutdownBalance(address(this), msg.sender), 0);
   }
 
-  function testWithdrawShutdownBalance_contributeAfterShutdown() public {
+  function test_withdrawShutdownBalance_contributeAfterShutdown() public {
     prizePool = newPrizePool();
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
     mockShutdownTwab(0.5e18, 1e18);
@@ -858,7 +924,7 @@ contract PrizePoolTest is Test {
     vm.stopPrank();
   }
 
-  function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_oneClaim() public {
+  function test_withdrawShutdownBalance_contributeBeforeAndAfterShutdown_oneClaim() public {
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -870,7 +936,7 @@ contract PrizePoolTest is Test {
     vm.stopPrank();
   }
 
-  function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_claimTwice() public {
+  function test_withdrawShutdownBalance_contributeBeforeAndAfterShutdown_claimTwice() public {
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -882,7 +948,7 @@ contract PrizePoolTest is Test {
     vm.stopPrank();
   }
 
-  function testWithdrawShutdownBalance_contributeBeforeAndAfterShutdown_twoClaim() public {
+  function test_withdrawShutdownBalance_contributeBeforeAndAfterShutdown_twoClaim() public {
     prizePool = newPrizePool();
     contribute(100e18);
     vm.warp(firstDrawOpensAt + drawTimeout*drawPeriodSeconds);
@@ -895,7 +961,7 @@ contract PrizePoolTest is Test {
     vm.stopPrank();
   }
 
-  function testWithdrawShutdownBalance_onShutdown() public {
+  function test_withdrawShutdownBalance_onShutdown() public {
     prizePool = newPrizePool();
     contribute(100e18);
     awardDraw(winningRandomNumber);
@@ -1933,10 +1999,14 @@ contract PrizePoolTest is Test {
   }
 
   function mockShutdownTwab(uint256 userTwab, uint256 totalSupplyTwab, address account) public {
+    mockShutdownTwab(userTwab, totalSupplyTwab, account, address(this));
+  }
+
+  function mockShutdownTwab(uint256 userTwab, uint256 totalSupplyTwab, address account, address _vault) public {
     (uint24 startDrawId, uint24 shutdownDrawId) = shutdownRangeDrawIds();
     // console2.log("mockShutdownTwab ", startDrawId, shutdownDrawId);
-    mockGetAverageBalanceBetween(address(this), account, startDrawId, shutdownDrawId, userTwab);
-    mockTwabTotalSupplyDrawRange(address(this), startDrawId, shutdownDrawId, totalSupplyTwab);
+    mockGetAverageBalanceBetween(_vault, account, startDrawId, shutdownDrawId, userTwab);
+    mockTwabTotalSupplyDrawRange(_vault, startDrawId, shutdownDrawId, totalSupplyTwab);
   }
 
   function newPrizePool() public returns (PrizePool) {
