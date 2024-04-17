@@ -889,9 +889,9 @@ contract PrizePool is TieredLiquidityDistributor {
 
     // if we haven't withdrawn yet, add the portion of the shutdown balance
     if ((withdrawalObservation.available + withdrawalObservation.disbursed) == 0) {
+      (balance, withdrawalObservation) = getShutdownInfo();
       shutdownPortion = computeShutdownPortion(_vault, _account);
       _shutdownPortions[_vault][_account] = shutdownPortion;
-      (balance, withdrawalObservation) = getShutdownInfo();
     } else {
       shutdownPortion = _shutdownPortions[_vault][_account];
     }
