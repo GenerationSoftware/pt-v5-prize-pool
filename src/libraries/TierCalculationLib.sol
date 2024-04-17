@@ -58,14 +58,12 @@ library TierCalculationLib {
       return false;
     }
 
-    /*
-      The user-held portion of the total supply is the "winning zone".
-      If the above pseudo-random number falls within the winning zone, the user has won this tier.
-      However, we scale the size of the zone based on:
-        - Odds of the tier occurring
-        - Number of prizes
-        - Portion of prize that was contributed by the vault
-    */
+    /// The user-held portion of the total supply is the "winning zone".
+    /// If the above pseudo-random number falls within the winning zone, the user has won this tier.
+    /// However, we scale the size of the zone based on:
+    ///   - Odds of the tier occurring
+    ///   - Number of prizes
+    ///   - Portion of prize that was contributed by the vault
 
     return
       UniformRandomNumber.uniform(_userSpecificRandomNumber, _vaultTwabTotalSupply) <

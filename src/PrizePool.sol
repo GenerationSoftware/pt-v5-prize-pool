@@ -12,139 +12,145 @@ import { DrawAccumulatorLib, Observation } from "./libraries/DrawAccumulatorLib.
 import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
-/// @notice Emitted when the prize pool is constructed with a first draw open timestamp that is in the past
+/// @notice Thrown when the prize pool is constructed with a first draw open timestamp that is in the past
 error FirstDrawOpensInPast();
 
-/// @notice Emitted when the Twab Controller has an incompatible period length
+/// @notice Thrown when the Twab Controller has an incompatible period length
 error IncompatibleTwabPeriodLength();
 
-/// @notice Emitted when the Twab Controller has an incompatible period offset
+/// @notice Thrown when the Twab Controller has an incompatible period offset
 error IncompatibleTwabPeriodOffset();
 
-/// @notice Emitted when someone tries to set the draw manager with the zero address
+/// @notice Thrown when someone tries to set the draw manager with the zero address
 error DrawManagerIsZeroAddress();
 
-/// @notice Emitted when the passed creator is the zero address
+/// @notice Thrown when the passed creator is the zero address
 error CreatorIsZeroAddress();
 
-/// @notice Emitted when the caller is not the deployer.
+/// @notice Thrown when the caller is not the deployer.
 error NotDeployer();
 
-/// @notice Emitted when the range start draw id is computed with range of zero
+/// @notice Thrown when the range start draw id is computed with range of zero
 error RangeSizeZero();
 
-/// @notice Emitted if the prize pool has shutdown
+/// @notice Thrown if the prize pool has shutdown
 error PrizePoolShutdown();
 
-/// @notice Emitted if the prize pool is not shutdown
+/// @notice Thrown if the prize pool is not shutdown
 error PrizePoolNotShutdown();
 
-/// @notice Emitted when someone tries to withdraw too many rewards.
+/// @notice Thrown when someone tries to withdraw too many rewards.
 /// @param requested The requested reward amount to withdraw
 /// @param available The total reward amount available for the caller to withdraw
 error InsufficientRewardsError(uint256 requested, uint256 available);
 
-/// @notice Emitted when an address did not win the specified prize on a vault when claiming.
-/// @param winner The address checked for the prize
+/// @notice Thrown when an address did not win the specified prize on a vault when claiming.
 /// @param vault The vault address
+/// @param winner The address checked for the prize
 /// @param tier The prize tier
 /// @param prizeIndex The prize index
 error DidNotWin(address vault, address winner, uint8 tier, uint32 prizeIndex);
 
-/// @notice Emitted when the prize being claimed has already been claimed
+/// @notice Thrown when the prize being claimed has already been claimed
 /// @param vault The vault address
 /// @param winner The address checked for the prize
 /// @param tier The prize tier
 /// @param prizeIndex The prize index
 error AlreadyClaimed(address vault, address winner, uint8 tier, uint32 prizeIndex);
 
-/// @notice Emitted when the claim reward exceeds the maximum.
+/// @notice Thrown when the claim reward exceeds the maximum.
 /// @param reward The reward being claimed
 /// @param maxReward The max reward that can be claimed
 error RewardTooLarge(uint256 reward, uint256 maxReward);
 
-/// @notice Emitted when the contributed amount is more than the available, un-accounted balance.
+/// @notice Thrown when the contributed amount is more than the available, un-accounted balance.
 /// @param amount The contribution amount that is being claimed
 /// @param available The available un-accounted balance that can be claimed as a contribution
 error ContributionGTDeltaBalance(uint256 amount, uint256 available);
 
-/// @notice Emitted when the withdraw amount is greater than the available reserve.
+/// @notice Thrown when the withdraw amount is greater than the available reserve.
 /// @param amount The amount being withdrawn
 /// @param reserve The total reserve available for withdrawal
 error InsufficientReserve(uint104 amount, uint104 reserve);
 
-/// @notice Emitted when the winning random number is zero.
+/// @notice Thrown when the winning random number is zero.
 error RandomNumberIsZero();
 
-/// @notice Emitted when the draw cannot be awarded since it has not closed.
+/// @notice Thrown when the draw cannot be awarded since it has not closed.
 /// @param drawClosesAt The timestamp in seconds at which the draw closes
 error AwardingDrawNotClosed(uint48 drawClosesAt);
 
-/// @notice Emitted when prize index is greater or equal to the max prize count for the tier.
+/// @notice Thrown when prize index is greater or equal to the max prize count for the tier.
 /// @param invalidPrizeIndex The invalid prize index
 /// @param prizeCount The prize count for the tier
 /// @param tier The tier number
 error InvalidPrizeIndex(uint32 invalidPrizeIndex, uint32 prizeCount, uint8 tier);
 
-/// @notice Emitted when there are no awarded draws when a computation requires an awarded draw.
+/// @notice Thrown when there are no awarded draws when a computation requires an awarded draw.
 error NoDrawsAwarded();
 
-/// @notice Emitted when the Prize Pool is constructed with a draw timeout of zero
+/// @notice Thrown when the Prize Pool is constructed with a draw timeout of zero
 error DrawTimeoutIsZero();
 
-/// @notice Emitted when the Prize Pool is constructed with a draw timeout greater than the grand prize period draws
+/// @notice Thrown when the Prize Pool is constructed with a draw timeout greater than the grand prize period draws
 error DrawTimeoutGTGrandPrizePeriodDraws();
 
-/// @notice Emitted when attempting to claim from a tier that does not exist.
+/// @notice Thrown when attempting to claim from a tier that does not exist.
 /// @param tier The tier number that does not exist
 /// @param numberOfTiers The current number of tiers
 error InvalidTier(uint8 tier, uint8 numberOfTiers);
 
-/// @notice Emitted when the caller is not the draw manager.
+/// @notice Thrown when the caller is not the draw manager.
 /// @param caller The caller address
 /// @param drawManager The drawManager address
 error CallerNotDrawManager(address caller, address drawManager);
 
-/// @notice Emitted when someone tries to claim a prize that is zero size
+/// @notice Thrown when someone tries to claim a prize that is zero size
 error PrizeIsZero();
 
-/// @notice Emitted when someone tries to claim a prize, but sets the reward recipient address to the zero address.
+/// @notice Thrown when someone tries to claim a prize, but sets the reward recipient address to the zero address.
 error RewardRecipientZeroAddress();
 
-/// @notice Emitted when a claim is attempted after the claiming period has expired.
+/// @notice Thrown when a claim is attempted after the claiming period has expired.
 error ClaimPeriodExpired();
 
-/// @notice Emitted when anyone but the creator calls a privileged function
+/// @notice Thrown when anyone but the creator calls a privileged function
 error OnlyCreator();
 
-/// @notice Emitted when the draw manager has already been set
+/// @notice Thrown when the draw manager has already been set
 error DrawManagerAlreadySet();
 
 /// @notice Constructor Parameters
 /// @param prizeToken The token to use for prizes
 /// @param twabController The Twab Controller to retrieve time-weighted average balances from
 /// @param creator The address that will be permitted to finish prize pool initialization after deployment
-/// @param tierLiquidityUtilizationRate The rate at which liquidity is utilized for prize tiers. This allows for deviations in prize claims; if 0.75e18 then it is 75% utilization so it can accommodate 25% deviation in more prize claims.
-/// @param drawPeriodSeconds The number of seconds between draws. E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
-/// @param firstDrawOpensAt The timestamp at which the first draw will open.
-/// @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum number of tiers.
+/// @param tierLiquidityUtilizationRate The rate at which liquidity is utilized for prize tiers. This allows
+/// for deviations in prize claims; if 0.75e18 then it is 75% utilization so it can accommodate 25% deviation
+/// in more prize claims.
+/// @param drawPeriodSeconds The number of seconds between draws.
+/// E.g. a Prize Pool with a daily draw should have a draw period of 86400 seconds.
+/// @param firstDrawOpensAt The timestamp at which the first draw will open
+/// @param grandPrizePeriodDraws The target number of draws to pass between each grand prize
+/// @param numberOfTiers The number of tiers to start with. Must be greater than or equal to the minimum
+/// number of tiers
 /// @param tierShares The number of shares to allocate to each tier
 /// @param canaryShares The number of shares to allocate to each canary tier
-/// @param reserveShares The number of shares to allocate to the reserve.
-/// @param drawTimeout The number of draws that need to be missed before the prize pool shuts down
+/// @param reserveShares The number of shares to allocate to the reserve
+/// @param drawTimeout The number of draws that need to be missed before the prize pool shuts down. The timeout
+/// resets when a draw is awarded.
 struct ConstructorParams {
   IERC20 prizeToken;
-  TwabController twabController; // 160bits
+  TwabController twabController;
   address creator;
-  uint256 tierLiquidityUtilizationRate; // fixed point 18 number
+  uint256 tierLiquidityUtilizationRate;
   uint48 drawPeriodSeconds;
-  uint48 firstDrawOpensAt; // 256bits WORD END
+  uint48 firstDrawOpensAt;
   uint24 grandPrizePeriodDraws;
   uint8 numberOfTiers;
   uint8 tierShares;
   uint8 canaryShares;
-  uint8 reserveShares; // 112 bits since prev word, meaning 144 bits left
-  uint24 drawTimeout; // if the timeout elapses without a new draw, then the prize pool shuts down. The timeout resets when a draw is awarded.
+  uint8 reserveShares;
+  uint24 drawTimeout;
 }
 
 /// @title PoolTogether V5 Prize Pool
@@ -247,7 +253,8 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Records the last shutdown withdrawal for an account
   mapping(address vault => mapping(address user => uint24 drawId)) internal _lastShutdownWithdrawal;
 
-  /// @notice The special value for the donator address. Contributions from this address are excluded from the total odds. F2EE because it's free money!
+  /// @notice The special value for the donator address. Contributions from this address are excluded from the total odds.
+  /// @dev 0x000...F2EE because it's free money!
   address public constant DONATOR = 0x000000000000000000000000000000000000F2EE;
 
   /// @notice The token that is being contributed and awarded as prizes.
@@ -470,8 +477,8 @@ contract PrizePool is TieredLiquidityDistributor {
   /// Note that this function can modify the state of the contract by updating the claim record, changing the largest
   /// tier claimed and the claim count, and transferring prize tokens. The function is marked as external which
   /// means that it can be called from outside the contract.
-  /// @param _tier The tier of the prize to be claimed.
   /// @param _winner The address of the eligible winner
+  /// @param _tier The tier of the prize to be claimed.
   /// @param _prizeIndex The prize to claim for the winner. Must be less than the prize count for the tier.
   /// @param _prizeRecipient The recipient of the prize
   /// @param _claimReward The claimReward associated with claiming the prize.
@@ -517,10 +524,9 @@ contract PrizePool is TieredLiquidityDistributor {
 
     _claimedPrizes[msg.sender][_winner][lastAwardedDrawId_][_tier][_prizeIndex] = true;
 
-    // `amount` is a snapshot of the reserve before consuming liquidity
     _consumeLiquidity(tierLiquidity, _tier, tierLiquidity.prizeSize);
 
-    // `amount` is now the payout amount
+    // `amount` is the payout amount
     uint256 amount;
     if (_claimReward != 0) {
       emit IncreaseClaimRewards(_claimRewardRecipient, _claimReward);
@@ -707,18 +713,15 @@ contract PrizePool is TieredLiquidityDistributor {
     Observation memory obs = _totalAccumulator.observations[
       DrawAccumulatorLib.newestDrawId(_totalAccumulator)
     ];
-    // totalRewards would be added to the below accounted balance.
-    // obs.disbursed include the reserve, prizes, and prize liquidity
+    // obs.disbursed includes the reserve, prizes, and prize liquidity
+    // obs.disbursed is the total amount of tokens all-time contributed by vaults and released. These tokens may:
+    //    - still be held for future prizes
+    //    - have been given as prizes
+    //    - have been captured as fees
 
-    /*
-       obs.disbursed is the total amount of tokens all-time contributed by vaults and released. These tokens may:
-       - still be held for future prizes
-       - have been given as prizes
-       - have been captured as fees
-    */
     // obs.available is the total number of tokens that WILL be disbursed in the future.
     // _directlyContributedReserve are tokens that have been contributed directly to the reserve
-    // totalWithdrawn represents all tokens that have been withdrawn
+    // totalWithdrawn represents all tokens that have been withdrawn as prizes or rewards
 
     return (obs.available + obs.disbursed) + uint256(_directlyContributedReserve) - uint256(_totalWithdrawn);
   }
@@ -790,7 +793,8 @@ contract PrizePool is TieredLiquidityDistributor {
 
   /// @notice Returns the shutdown balance for a given vault and account. The prize pool must already be shutdown.
   /// @dev The shutdown balance is the amount of prize tokens that a user can claim after the prize pool has been shutdown.
-  /// @dev The shutdown balance is calculated using the user's TWAB and the total supply TWAB, whose timeranges are the grand prize period prior to the shutdown timestamp.
+  /// @dev The shutdown balance is calculated using the user's TWAB and the total supply TWAB, whose time ranges are the
+  /// grand prize period prior to the shutdown timestamp.
   /// @param _vault The vault to check
   /// @param _account The account to check
   /// @return The shutdown balance for the given vault and account
@@ -985,8 +989,10 @@ contract PrizePool is TieredLiquidityDistributor {
     }
   }
 
-  /// @notice Returns the time-weighted average balance (TWAB) and the TWAB total supply for the specified user in the given vault over a specified period.
-  /// @dev This function calculates the TWAB for a user by calling the getTwabBetween function of the TWAB controller for a specified period of time.
+  /// @notice Returns the time-weighted average balance (TWAB) and the TWAB total supply for the specified user in
+  /// the given vault over a specified period.
+  /// @dev This function calculates the TWAB for a user by calling the getTwabBetween function of the TWAB controller
+  /// for a specified period of time.
   /// @param _vault The address of the vault for which to get the TWAB.
   /// @param _user The address of the user for which to get the TWAB.
   /// @param _startDrawIdInclusive The starting draw for the range (inclusive)

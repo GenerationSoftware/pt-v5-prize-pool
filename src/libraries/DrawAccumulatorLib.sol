@@ -5,15 +5,15 @@ pragma solidity ^0.8.19;
 import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { RingBufferLib } from "ring-buffer-lib/RingBufferLib.sol";
 
-/// @notice Emitted when adding balance for draw zero.
+/// @notice Thrown when adding balance for draw zero.
 error AddToDrawZero();
 
-/// @notice Emitted when an action can't be done on a closed draw.
+/// @notice Thrown when an action can't be done on a closed draw.
 /// @param drawId The ID of the closed draw
 /// @param newestDrawId The newest draw ID
 error DrawAwarded(uint24 drawId, uint24 newestDrawId);
 
-/// @notice Emitted when a draw range is not strictly increasing.
+/// @notice Thrown when a draw range is not strictly increasing.
 /// @param startDrawId The start draw ID of the range
 /// @param endDrawId The end draw ID of the range
 error InvalidDrawRange(uint24 startDrawId, uint24 endDrawId);
@@ -28,7 +28,8 @@ struct Observation {
 
 /// @title Draw Accumulator Lib
 /// @author G9 Software Inc.
-/// @notice This contract distributes tokens over time according to an exponential weighted average. Time is divided into discrete "draws", of which each is allocated tokens.
+/// @notice This contract distributes tokens over time according to an exponential weighted average.
+/// Time is divided into discrete "draws", of which each is allocated tokens.
 library DrawAccumulatorLib {
   /// @notice The maximum number of observations that can be recorded.
   uint16 internal constant MAX_CARDINALITY = 366;
@@ -55,7 +56,8 @@ library DrawAccumulatorLib {
   /// @notice Adds balance for the given draw id to the accumulator.
   /// @param accumulator The accumulator to add to
   /// @param _amount The amount of balance to add
-  /// @param _drawId The draw id to which to add balance to. This must be greater than or equal to the previous addition's draw id.
+  /// @param _drawId The draw id to which to add balance to. This must be greater than or equal to the previous
+  /// addition's draw id.
   /// @return True if a new observation was created, false otherwise.
   function add(
     Accumulator storage accumulator,
