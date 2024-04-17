@@ -732,26 +732,26 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.getTotalContributedBetween(1, 1), 100e18); // ensure not a single wei is lost!
   }
 
-  function test_getDrawIdPriorToShutdown_init() public {
+  function test_getShutdownDrawId_init() public {
     params.drawTimeout = 40; // there are 40 draws within the timeframe: 1-40
     prizePool = newPrizePool();
-    assertEq(prizePool.getDrawIdPriorToShutdown(), 40, "draw id is the draw that ends before/on the timeout");
+    assertEq(prizePool.getShutdownDrawId(), 41, "draw id is the draw that ends before/on the timeout");
   }
 
-  function test_getDrawIdPriorToShutdown_shift() public {
+  function test_getShutdownDrawId_shift() public {
     params.drawTimeout = 40;
     prizePool = newPrizePool();
     awardDraw(winningRandomNumber);
-    assertEq(prizePool.getDrawIdPriorToShutdown(), 41, "draw id is the draw that ends before/on the timeout");
+    assertEq(prizePool.getShutdownDrawId(), 42, "draw id is the draw that ends before/on the timeout");
   }
 
-  function test_getDrawIdPriorToShutdown_twabShutdownAtLimit() public {
-    params.drawPeriodSeconds = type(uint24).max - (type(uint24).max % 1 days);
-    params.drawTimeout = type(uint16).max;
-    params.grandPrizePeriodDraws = params.drawTimeout;
+  function test_getShutdownDrawId_twabShutdownAtLimit() public {
+    params.drawPeriodSeconds = 1 days;
+    params.drawTimeout = type(uint8).max;
+    params.grandPrizePeriodDraws = 365;
+    params.firstDrawOpensAt = uint48(twabController.lastObservationAt() - 1 days);
     prizePool = newPrizePool();
-    awardDraw(winningRandomNumber);
-    assertEq(prizePool.getDrawIdPriorToShutdown(), 256, "draw id is the draw that ends before the twab controller shutdown");
+    assertEq(prizePool.getShutdownDrawId(), 2, "draw id is the draw that ends before the twab controller shutdown");
   }
 
   function testDrawTimeoutAt_init() public {
@@ -1309,6 +1309,9 @@ contract PrizePoolTest is Test {
   function testWasClaimed_not() public {
     assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
     assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
+
+    assertEq(prizePool.wasClaimed(vault, msg.sender, prizePool.getLastAwardedDrawId(), 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, prizePool.getLastAwardedDrawId(), 0, 0), false);
   }
 
   function testWasClaimed_single() public {
@@ -1323,6 +1326,7 @@ contract PrizePoolTest is Test {
     claimPrize(msg.sender, 1, 0);
 
     assertEq(prizePool.wasClaimed(vault, msg.sender, 1, 0), true);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, prizePool.getLastAwardedDrawId(), 1, 0), true);
   }
 
   function testWasClaimed_single_twoVaults() public {
@@ -1344,6 +1348,9 @@ contract PrizePoolTest is Test {
 
     assertEq(prizePool.wasClaimed(vault, msg.sender, 1, 0), true);
     assertEq(prizePool.wasClaimed(vault2, msg.sender, 1, 0), true);
+
+    assertEq(prizePool.wasClaimed(vault, msg.sender, prizePool.getLastAwardedDrawId(), 1, 0), true);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, prizePool.getLastAwardedDrawId(), 1, 0), true);
   }
 
   function testWasClaimed_old_draw() public {
@@ -1353,9 +1360,13 @@ contract PrizePoolTest is Test {
     claimPrize(msg.sender, 0, 0);
     assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), true);
     assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, prizePool.getLastAwardedDrawId(), 0, 0), true);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, prizePool.getLastAwardedDrawId(), 0, 0), false);
     awardDraw(winningRandomNumber);
     assertEq(prizePool.wasClaimed(vault, msg.sender, 0, 0), false);
     assertEq(prizePool.wasClaimed(vault2, msg.sender, 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault, msg.sender, prizePool.getLastAwardedDrawId(), 0, 0), false);
+    assertEq(prizePool.wasClaimed(vault2, msg.sender, prizePool.getLastAwardedDrawId(), 0, 0), false);
   }
 
   function testAccountedBalance_remainder() public {
@@ -1866,6 +1877,48 @@ contract PrizePoolTest is Test {
     prizePool.computeRangeStartDrawIdInclusive(1, 0);
   }
 
+  function testGetTotalAccumulatorNewestObservation() public {
+    Observation memory initialObs = prizePool.getTotalAccumulatorNewestObservation();
+    assertEq(initialObs.available, 0);
+    assertEq(initialObs.disbursed, 0);
+
+    contribute(100e18);
+    Observation memory afterContributionObs = prizePool.getTotalAccumulatorNewestObservation();
+    assertEq(afterContributionObs.available, 100e18);
+    assertEq(afterContributionObs.disbursed, 0);
+
+    awardDraw(winningRandomNumber);
+    Observation memory afterAwardObs = prizePool.getTotalAccumulatorNewestObservation();
+    assertEq(afterContributionObs.available, 100e18);
+    assertEq(afterContributionObs.disbursed, 0);
+
+    contribute(100e18);
+    Observation memory after2ndContributionObs = prizePool.getTotalAccumulatorNewestObservation();
+    assertEq(after2ndContributionObs.available, 100e18);
+    assertEq(after2ndContributionObs.disbursed, 100e18); // new obs, so old available is moved to new disbursed
+  }
+
+  function testGetVaultAccumulatorNewestObservation() public {
+    Observation memory initialObs = prizePool.getVaultAccumulatorNewestObservation(address(this));
+    assertEq(initialObs.available, 0);
+    assertEq(initialObs.disbursed, 0);
+
+    contribute(100e18);
+    Observation memory afterContributionObs = prizePool.getVaultAccumulatorNewestObservation(address(this));
+    assertEq(afterContributionObs.available, 100e18);
+    assertEq(afterContributionObs.disbursed, 0);
+
+    awardDraw(winningRandomNumber);
+    Observation memory afterAwardObs = prizePool.getVaultAccumulatorNewestObservation(address(this));
+    assertEq(afterContributionObs.available, 100e18);
+    assertEq(afterContributionObs.disbursed, 0);
+
+    contribute(100e18);
+    Observation memory after2ndContributionObs = prizePool.getVaultAccumulatorNewestObservation(address(this));
+    assertEq(after2ndContributionObs.available, 100e18);
+    assertEq(after2ndContributionObs.disbursed, 100e18); // new obs, so old available is moved to new disbursed
+  }
+
   // function mockGetAverageBalanceBetween(
   //   address _vault,
   //   address _user,
@@ -1989,9 +2042,9 @@ contract PrizePoolTest is Test {
   }
 
   function shutdownRangeDrawIds() public view returns (uint24, uint24) {
-    uint24 shutdownDrawId = prizePool.getDrawIdPriorToShutdown();
-    uint24 rangeStart = grandPrizeRangeStart(shutdownDrawId);
-    return (rangeStart, shutdownDrawId);
+    uint24 drawIdPriorToShutdown = prizePool.getShutdownDrawId() - 1;
+    uint24 rangeStart = grandPrizeRangeStart(drawIdPriorToShutdown);
+    return (rangeStart, drawIdPriorToShutdown);
   }
 
   function mockShutdownTwab(uint256 userTwab, uint256 totalSupplyTwab) public {
