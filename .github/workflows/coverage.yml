@@ -32,6 +32,7 @@ jobs:
       - name: Run Forge test
         env:
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          BLAST_RPC_URL: ${{ secrets.BLAST_RPC_URL }}
         run: |
           forge test
         id: test
@@ -42,6 +43,7 @@ jobs:
       - name: Run Forge coverage
         env:
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          BLAST_RPC_URL: ${{ secrets.BLAST_RPC_URL }}
         run: |
           forge coverage --report lcov && lcov --remove lcov.info -o lcov.info 'test/*'
         id: coverage
