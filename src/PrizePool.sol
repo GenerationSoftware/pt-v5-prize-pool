@@ -12,6 +12,13 @@ import { DrawAccumulatorLib, Observation, MAX_OBSERVATION_CARDINALITY } from "./
 import { TieredLiquidityDistributor, Tier } from "./abstract/TieredLiquidityDistributor.sol";
 import { TierCalculationLib } from "./libraries/TierCalculationLib.sol";
 
+/* ============ Constants ============ */
+
+// The minimum draw timeout. A timeout of two is necessary to allow for enough time to close and award a draw.
+uint24 constant MINIMUM_DRAW_TIMEOUT = 2;
+
+/* ============ Errors ============ */
+
 /// @notice Thrown when the prize pool is constructed with a first draw open timestamp that is in the past
 error FirstDrawOpensInPast();
 
@@ -89,8 +96,10 @@ error InvalidPrizeIndex(uint32 invalidPrizeIndex, uint32 prizeCount, uint8 tier)
 /// @notice Thrown when there are no awarded draws when a computation requires an awarded draw.
 error NoDrawsAwarded();
 
-/// @notice Thrown when the Prize Pool is constructed with a draw timeout of zero
-error DrawTimeoutIsZero();
+/// @notice Thrown when the prize pool is initialized with an invalid draw timeout.
+/// @param drawTimeout The draw timeout that was set
+/// @param minimumDrawTimeout The minimum draw timeout
+error InvalidDrawTimeout(uint24 drawTimeout, uint24 minimumDrawTimeout);
 
 /// @notice Thrown when the Prize Pool is constructed with a draw timeout greater than the grand prize period draws
 error DrawTimeoutGTGrandPrizePeriodDraws();
@@ -280,7 +289,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice The timestamp at which the first draw will open.
   uint48 public immutable firstDrawOpensAt;
 
-  /// @notice The maximum number of draws that can be missed before the prize pool is considered inactive.
+  /// @notice The maximum number of draws that can pass since the last awarded draw before the prize pool is considered inactive.
   uint24 public immutable drawTimeout;
 
   /// @notice The address that is allowed to set the draw manager
@@ -335,8 +344,8 @@ contract PrizePool is TieredLiquidityDistributor {
       params.grandPrizePeriodDraws
     )
   {
-    if (params.drawTimeout == 0) {
-      revert DrawTimeoutIsZero();
+    if (params.drawTimeout < MINIMUM_DRAW_TIMEOUT) {
+      revert InvalidDrawTimeout(params.drawTimeout, MINIMUM_DRAW_TIMEOUT);
     }
 
     if (params.drawTimeout > params.grandPrizePeriodDraws) {
