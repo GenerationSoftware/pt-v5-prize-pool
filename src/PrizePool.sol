@@ -692,7 +692,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @return The number of draws
   function getTierAccrualDurationInDraws(uint8 _tier) external view returns (uint24) {
     return
-      uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(getTierOdds(_tier, numberOfTiers)));
+      TierCalculationLib.estimatePrizeFrequencyInDraws(getTierOdds(_tier, numberOfTiers), grandPrizePeriodDraws);
   }
 
   /// @notice The total amount of prize tokens that have been withdrawn as fees or prizes
@@ -1011,7 +1011,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     SD59x18 tierOdds = getTierOdds(_tier, numberOfTiers);
-    uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(lastAwardedDrawId_, uint24(TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds)));
+    uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(lastAwardedDrawId_, TierCalculationLib.estimatePrizeFrequencyInDraws(tierOdds, grandPrizePeriodDraws));
 
     uint32 tierPrizeCount = uint32(TierCalculationLib.prizeCount(_tier));
 

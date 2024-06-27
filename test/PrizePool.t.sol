@@ -377,7 +377,7 @@ contract PrizePoolTest is Test {
   }
 
   function testGetTierAccrualDurationInDraws() public {
-    assertEq(prizePool.getTierAccrualDurationInDraws(0), 366);
+    assertEq(prizePool.getTierAccrualDurationInDraws(0), 365);
   }
 
   function testContributePrizeTokens() public {

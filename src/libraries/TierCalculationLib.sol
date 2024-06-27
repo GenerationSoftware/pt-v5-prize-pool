@@ -27,10 +27,13 @@ library TierCalculationLib {
   }
 
   /// @notice Estimates the number of draws between a tier occurring.
+  /// @dev Limits the frequency to the grand prize period in draws.
   /// @param _tierOdds The odds for the tier to calculate the frequency of
+  /// @param _grandPrizePeriod The number of draws between grand prizes
   /// @return The estimated number of draws between the tier occurring
-  function estimatePrizeFrequencyInDraws(SD59x18 _tierOdds) internal pure returns (uint256) {
-    return uint256(convert(sd(1e18).div(_tierOdds).ceil()));
+  function estimatePrizeFrequencyInDraws(SD59x18 _tierOdds, uint24 _grandPrizePeriod) internal pure returns (uint24) {
+    uint256 _prizeFrequencyInDraws = uint256(convert(sd(1e18).div(_tierOdds).ceil()));
+    return _prizeFrequencyInDraws > _grandPrizePeriod ? _grandPrizePeriod : uint24(_prizeFrequencyInDraws);
   }
 
   /// @notice Computes the number of prizes for a given tier.
