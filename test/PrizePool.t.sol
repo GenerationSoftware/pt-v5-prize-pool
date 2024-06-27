@@ -649,17 +649,43 @@ contract PrizePoolTest is Test {
   }
 
   function testAwardDraw_twabShutdown() public {
+    vm.warp(prizePool.drawClosesAt(1)); // warp to end of draw 1
     vm.mockCall(
       address(twabController),
       abi.encodeWithSelector(twabController.lastObservationAt.selector),
-      abi.encode(true)
+      abi.encode(block.timestamp + 5) // not aligned with draw period (TWAB shutdown is 5 seconds into this draw)
     );
     vm.expectRevert(
       abi.encodeWithSelector(
-        PrizePoolShutdown.selector
+        PrizePoolShutdown.selector // prize pool will truncate the TWAB shutdown with the draw period and will shutdown
       )
     );
     prizePool.awardDraw(winningRandomNumber);
+  }
+
+  function testShutdownAt_twabShutdown() public {
+    vm.warp(prizePool.drawClosesAt(1)); // warp to end of draw 1
+
+    vm.mockCall(
+      address(twabController),
+      abi.encodeWithSelector(twabController.lastObservationAt.selector),
+      abi.encode(block.timestamp) // aligned with draw period
+    );
+    assertEq(prizePool.shutdownAt(), block.timestamp); // will be aligned with current time
+
+    vm.mockCall(
+      address(twabController),
+      abi.encodeWithSelector(twabController.lastObservationAt.selector),
+      abi.encode(block.timestamp - 5) // sometime in last draw period
+    );
+    assertEq(prizePool.shutdownAt(), block.timestamp - prizePool.drawPeriodSeconds()); // will be aligned with start of last draw
+
+    vm.mockCall(
+      address(twabController),
+      abi.encodeWithSelector(twabController.lastObservationAt.selector),
+      abi.encode(block.timestamp + 5) // sometime in next draw period
+    );
+    assertEq(prizePool.shutdownAt(), block.timestamp); // will be aligned with current draw open time (last draw close time)
   }
 
   function testAwardDraw_emittedDrawIdSameAsReturnedDrawId() public {
