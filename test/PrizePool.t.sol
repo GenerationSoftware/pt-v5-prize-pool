@@ -20,7 +20,8 @@ import {
   PrizeIsZero,
   ConstructorParams,
   InsufficientRewardsError,
-  DrawTimeoutIsZero,
+  DrawTimeoutLtMinimum,
+  MINIMUM_DRAW_TIMEOUT,
   DrawTimeoutGTGrandPrizePeriodDraws,
   PrizePoolNotShutdown,
   DidNotWin,
@@ -160,9 +161,18 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.drawPeriodSeconds(), drawPeriodSeconds);
   }
 
-  function testDrawTimeoutIsZero() public {
+  function testDrawTimeoutLtMinimum() public {
     params.drawTimeout = 0;
-    vm.expectRevert(abi.encodeWithSelector(DrawTimeoutIsZero.selector));
+    vm.expectRevert(abi.encodeWithSelector(DrawTimeoutLtMinimum.selector, 0, 2));
+    new PrizePool(params);
+
+    params.drawTimeout = 1;
+    vm.expectRevert(abi.encodeWithSelector(DrawTimeoutLtMinimum.selector, 1, 2));
+    new PrizePool(params);
+
+    assertEq(MINIMUM_DRAW_TIMEOUT, 2); // validate assumptions
+    params.drawTimeout = 2;
+    // no revert
     new PrizePool(params);
   }
 
