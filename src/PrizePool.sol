@@ -957,7 +957,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @notice Returns the timestamp at which the prize pool will be considered inactive and shutdown
   /// @return The timestamp at which the prize pool will be considered inactive
   function shutdownAt() public view returns (uint256) {
-    uint256 twabShutdownAt = twabController.lastObservationAt();
+    uint256 twabShutdownAt = drawOpensAt(getDrawId(twabController.lastObservationAt()));
     uint256 drawTimeoutAt_ = drawTimeoutAt();
     return drawTimeoutAt_ < twabShutdownAt ? drawTimeoutAt_ : twabShutdownAt;
   }
