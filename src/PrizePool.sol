@@ -96,10 +96,10 @@ error InvalidPrizeIndex(uint32 invalidPrizeIndex, uint32 prizeCount, uint8 tier)
 /// @notice Thrown when there are no awarded draws when a computation requires an awarded draw.
 error NoDrawsAwarded();
 
-/// @notice Thrown when the prize pool is initialized with an invalid draw timeout.
+/// @notice Thrown when the prize pool is initialized with a draw timeout lower than the minimum.
 /// @param drawTimeout The draw timeout that was set
 /// @param minimumDrawTimeout The minimum draw timeout
-error InvalidDrawTimeout(uint24 drawTimeout, uint24 minimumDrawTimeout);
+error DrawTimeoutLtMinimum(uint24 drawTimeout, uint24 minimumDrawTimeout);
 
 /// @notice Thrown when the Prize Pool is constructed with a draw timeout greater than the grand prize period draws
 error DrawTimeoutGTGrandPrizePeriodDraws();
@@ -345,7 +345,7 @@ contract PrizePool is TieredLiquidityDistributor {
     )
   {
     if (params.drawTimeout < MINIMUM_DRAW_TIMEOUT) {
-      revert InvalidDrawTimeout(params.drawTimeout, MINIMUM_DRAW_TIMEOUT);
+      revert DrawTimeoutLtMinimum(params.drawTimeout, MINIMUM_DRAW_TIMEOUT);
     }
 
     if (params.drawTimeout > params.grandPrizePeriodDraws) {
