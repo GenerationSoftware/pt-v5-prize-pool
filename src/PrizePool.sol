@@ -5,7 +5,7 @@ import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { SD59x18, convert, sd } from "prb-math/SD59x18.sol";
-import { SD1x18, unwrap, UNIT } from "prb-math/SD1x18.sol";
+import { UD60x18, convert } from "prb-math/UD60x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
 
 import { DrawAccumulatorLib, Observation, MAX_OBSERVATION_CARDINALITY } from "./libraries/DrawAccumulatorLib.sol";
@@ -167,14 +167,6 @@ struct ConstructorParams {
   uint24 drawTimeout;
 }
 
-/// @notice A struct to represent a shutdown portion of liquidity for a vault and account
-/// @param numerator The numerator of the portion
-/// @param denominator The denominator of the portion
-struct ShutdownPortion {
-  uint256 numerator;
-  uint256 denominator;
-}
-
 /// @title PoolTogether V5 Prize Pool
 /// @author G9 Software Inc. & PoolTogether Inc. Team
 /// @notice The Prize Pool holds the prize liquidity and allows vaults to claim prizes.
@@ -326,7 +318,7 @@ contract PrizePool is TieredLiquidityDistributor {
   mapping(address vault => mapping(address account => Observation lastWithdrawalTotalContributedObservation)) internal _withdrawalObservations;
 
   /// @notice The shutdown portion of liquidity for a vault and account
-  mapping(address vault => mapping(address account => ShutdownPortion shutdownPortion)) internal _shutdownPortions;
+  mapping(address vault => mapping(address account => UD60x18 shutdownPortion)) internal _shutdownPortions;
 
   /* ============ Constructor ============ */
 
@@ -879,7 +871,7 @@ contract PrizePool is TieredLiquidityDistributor {
   /// @param _vault The vault whose contributions are measured
   /// @param _account The account whose vault twab is measured
   /// @return The portion of the shutdown balance that the account is entitled to.
-  function computeShutdownPortion(address _vault, address _account) public view returns (ShutdownPortion memory) {
+  function computeShutdownPortion(address _vault, address _account) public view returns (UD60x18) {
     uint24 drawIdPriorToShutdown = getShutdownDrawId() - 1;
     uint24 startDrawIdInclusive = computeRangeStartDrawIdInclusive(drawIdPriorToShutdown, grandPrizePeriodDraws);
 
@@ -896,11 +888,15 @@ contract PrizePool is TieredLiquidityDistributor {
       drawIdPriorToShutdown
     );
 
-    if (_vaultTwabTotalSupply == 0) {
-      return ShutdownPortion(0, 0);
+    if (_vaultTwabTotalSupply == 0 || totalContrib == 0) {
+      return UD60x18.wrap(0);
     }
 
-    return ShutdownPortion(vaultContrib * _userTwab, totalContrib * _vaultTwabTotalSupply);
+    // first division purposely done before multiplication to avoid overflow
+    return convert(vaultContrib)
+      .div(convert(totalContrib))
+      .mul(convert(_userTwab))
+      .div(convert(_vaultTwabTotalSupply));
   }
 
   /// @notice Returns the shutdown balance for a given vault and account. The prize pool must already be shutdown.
@@ -916,7 +912,7 @@ contract PrizePool is TieredLiquidityDistributor {
     }
 
     Observation memory withdrawalObservation = _withdrawalObservations[_vault][_account];
-    ShutdownPortion memory shutdownPortion;
+    UD60x18 shutdownPortion;
     uint256 balance;
 
     // if we haven't withdrawn yet, add the portion of the shutdown balance
@@ -928,7 +924,7 @@ contract PrizePool is TieredLiquidityDistributor {
       shutdownPortion = _shutdownPortions[_vault][_account];
     }
 
-    if (shutdownPortion.denominator == 0) {
+    if (shutdownPortion.unwrap() == 0) {
       return 0;
     }
 
@@ -937,7 +933,7 @@ contract PrizePool is TieredLiquidityDistributor {
     Observation memory newestObs = _totalAccumulator.newestObservation();
     balance += (newestObs.available + newestObs.disbursed) - (withdrawalObservation.available + withdrawalObservation.disbursed);
 
-    return (shutdownPortion.numerator * balance) / shutdownPortion.denominator;
+    return convert(convert(balance).mul(shutdownPortion));
   }
 
   /// @notice Withdraws the shutdown balance for a given vault and sender
