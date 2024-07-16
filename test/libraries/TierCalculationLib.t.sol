@@ -32,19 +32,19 @@ contract TierCalculationLibTest is Test {
 
   function testEstimatePrizeFrequencyInDraws() public {
     assertEq(
-      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(0, 4, 365)),
-      366
+      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(0, 4, 365), 365),
+      365
     );
     assertEq(
-      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(1, 4, 365)),
+      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(1, 4, 365), 365),
       124
     );
     assertEq(
-      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(2, 4, 365)),
+      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(2, 4, 365), 365),
       31
     );
     assertEq(
-      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(3, 4, 365)),
+      TierCalculationLib.estimatePrizeFrequencyInDraws(TierCalculationLib.getTierOdds(3, 4, 365), 365),
       1
     );
   }

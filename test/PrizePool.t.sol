@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { sd, SD59x18 } from "prb-math/SD59x18.sol";
+import { UD60x18, convert } from "prb-math/UD60x18.sol";
 import { UD2x18, ud2x18 } from "prb-math/UD2x18.sol";
 import { SD1x18, sd1x18 } from "prb-math/SD1x18.sol";
 import { TwabController } from "pt-v5-twab-controller/TwabController.sol";
@@ -20,7 +21,8 @@ import {
   PrizeIsZero,
   ConstructorParams,
   InsufficientRewardsError,
-  DrawTimeoutIsZero,
+  DrawTimeoutLtMinimum,
+  MINIMUM_DRAW_TIMEOUT,
   DrawTimeoutGTGrandPrizePeriodDraws,
   PrizePoolNotShutdown,
   DidNotWin,
@@ -43,8 +45,7 @@ import {
   IncompatibleTwabPeriodOffset,
   ClaimPeriodExpired,
   PrizePoolShutdown,
-  Observation,
-  ShutdownPortion
+  Observation
 } from "../src/PrizePool.sol";
 import { ERC20Mintable } from "./mocks/ERC20Mintable.sol";
 
@@ -160,9 +161,18 @@ contract PrizePoolTest is Test {
     assertEq(prizePool.drawPeriodSeconds(), drawPeriodSeconds);
   }
 
-  function testDrawTimeoutIsZero() public {
+  function testDrawTimeoutLtMinimum() public {
     params.drawTimeout = 0;
-    vm.expectRevert(abi.encodeWithSelector(DrawTimeoutIsZero.selector));
+    vm.expectRevert(abi.encodeWithSelector(DrawTimeoutLtMinimum.selector, 0, 2));
+    new PrizePool(params);
+
+    params.drawTimeout = 1;
+    vm.expectRevert(abi.encodeWithSelector(DrawTimeoutLtMinimum.selector, 1, 2));
+    new PrizePool(params);
+
+    assertEq(MINIMUM_DRAW_TIMEOUT, 2); // validate assumptions
+    params.drawTimeout = 2;
+    // no revert
     new PrizePool(params);
   }
 
@@ -377,7 +387,7 @@ contract PrizePoolTest is Test {
   }
 
   function testGetTierAccrualDurationInDraws() public {
-    assertEq(prizePool.getTierAccrualDurationInDraws(0), 366);
+    assertEq(prizePool.getTierAccrualDurationInDraws(0), 365);
   }
 
   function testContributePrizeTokens() public {
@@ -649,17 +659,43 @@ contract PrizePoolTest is Test {
   }
 
   function testAwardDraw_twabShutdown() public {
+    vm.warp(prizePool.drawClosesAt(1)); // warp to end of draw 1
     vm.mockCall(
       address(twabController),
       abi.encodeWithSelector(twabController.lastObservationAt.selector),
-      abi.encode(true)
+      abi.encode(block.timestamp + 5) // not aligned with draw period (TWAB shutdown is 5 seconds into this draw)
     );
     vm.expectRevert(
       abi.encodeWithSelector(
-        PrizePoolShutdown.selector
+        PrizePoolShutdown.selector // prize pool will truncate the TWAB shutdown with the draw period and will shutdown
       )
     );
     prizePool.awardDraw(winningRandomNumber);
+  }
+
+  function testShutdownAt_twabShutdown() public {
+    vm.warp(prizePool.drawClosesAt(1)); // warp to end of draw 1
+
+    vm.mockCall(
+      address(twabController),
+      abi.encodeWithSelector(twabController.lastObservationAt.selector),
+      abi.encode(block.timestamp) // aligned with draw period
+    );
+    assertEq(prizePool.shutdownAt(), block.timestamp); // will be aligned with current time
+
+    vm.mockCall(
+      address(twabController),
+      abi.encodeWithSelector(twabController.lastObservationAt.selector),
+      abi.encode(block.timestamp - 5) // sometime in last draw period
+    );
+    assertEq(prizePool.shutdownAt(), block.timestamp - prizePool.drawPeriodSeconds()); // will be aligned with start of last draw
+
+    vm.mockCall(
+      address(twabController),
+      abi.encodeWithSelector(twabController.lastObservationAt.selector),
+      abi.encode(block.timestamp + 5) // sometime in next draw period
+    );
+    assertEq(prizePool.shutdownAt(), block.timestamp); // will be aligned with current draw open time (last draw close time)
   }
 
   function testAwardDraw_emittedDrawIdSameAsReturnedDrawId() public {
@@ -882,8 +918,8 @@ contract PrizePoolTest is Test {
 
     uint bobShutdownBalance = 630e18/6;
     uint aliceShutdownBalance = 630e18/3;
-    assertEq(prizePool.shutdownBalanceOf(vault, bob), bobShutdownBalance, "bob balance");
-    assertEq(prizePool.shutdownBalanceOf(vault2, alice), aliceShutdownBalance, "alice balance");
+    assertApproxEqAbs(prizePool.shutdownBalanceOf(vault, bob), bobShutdownBalance, 1000, "bob balance");
+    assertApproxEqAbs(prizePool.shutdownBalanceOf(vault2, alice), aliceShutdownBalance, 1000, "alice balance");
     assertEq(prizePool.rewardBalance(bob), 0.1e18, "bob rewards");
     assertEq(prizePool.rewardBalance(alice), remainder, "alice rewards");
 
@@ -891,22 +927,33 @@ contract PrizePoolTest is Test {
     prizePool.withdrawRewards(bob, 0.1e18);
     vm.prank(bob);
     prizePool.withdrawShutdownBalance(vault, bob);
-    assertEq(prizeToken.balanceOf(bob), bobShutdownBalance + 0.1e18, "bob token balance");
+    assertApproxEqAbs(prizeToken.balanceOf(bob), bobShutdownBalance + 0.1e18, 1000, "bob token balance");
 
     vm.prank(alice);
     prizePool.withdrawShutdownBalance(vault2, alice);
     vm.prank(alice);
     prizePool.withdrawRewards(alice, remainder);
-    assertEq(prizeToken.balanceOf(alice), aliceShutdownBalance + remainder, "alice token balance");
+    assertApproxEqAbs(prizeToken.balanceOf(alice), aliceShutdownBalance + remainder, 1000, "alice token balance");
 
-    assertEq(prizePool.accountedBalance(), 660e18 - (630e18/6 + 630e18/3) - 0.1e18 - remainder, "final balance");
+    assertApproxEqAbs(prizePool.accountedBalance(), 660e18 - (630e18/6 + 630e18/3) - 0.1e18 - remainder, 1000, "final balance");
+  }
+
+  function test_shutdownBalanceOf_noOverflow() public {
+    // The contribution, TWAB, and available prize token balance would overflow if multiplied together,
+    // but we should not see this overflow happen in the shutdown logic.
+    contribute(type(uint96).max, vault);
+    uint newTime = prizePool.shutdownAt();
+    vm.warp(newTime);
+    mockShutdownTwab(type(uint96).max, type(uint96).max, bob, vault);
+    UD60x18 portion = prizePool.computeShutdownPortion(vault, bob);
+    assertEq(portion.unwrap(), 1e18);
+    assertEq(prizePool.shutdownBalanceOf(vault, bob), type(uint96).max);
   }
 
   function test_computeShutdownPortion_empty() public {
     vm.warp(prizePool.shutdownAt());
-    ShutdownPortion memory portion = prizePool.computeShutdownPortion(address(this), bob);
-    assertEq(portion.numerator, 0);
-    assertEq(portion.denominator, 0);
+    UD60x18 portion = prizePool.computeShutdownPortion(address(this), bob);
+    assertEq(portion.unwrap(), 0);
   }
 
   function test_computeShutdownPortion_nonZero() public {
@@ -914,9 +961,8 @@ contract PrizePoolTest is Test {
     uint newTime = prizePool.shutdownAt();
     vm.warp(newTime);
     mockShutdownTwab(0.5e18, 1e18, bob, vault);
-    ShutdownPortion memory portion = prizePool.computeShutdownPortion(vault, bob);
-    assertEq(portion.numerator, 220e18 * 0.5e18);
-    assertEq(portion.denominator, 220e18 * 1e18);
+    UD60x18 portion = prizePool.computeShutdownPortion(vault, bob);
+    assertEq(portion.unwrap(), 0.5e18);
   }
 
   function test_withdrawShutdownBalance_notShutdown() public {
