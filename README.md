@@ -23,7 +23,9 @@ In PoolTogether V5 prizes are distributed through the Prize Pool contract. There
 - Accrued yield is sold by the Liquidator and sent to the Prize Pool.
 - Every "Draw" a random number is provided and given to the Prize Pool and the next set of prizes are available.
 - The Prize Pool determines a users chance of winning by reading historic data from the TWAB Controller.
-- The Claimer allows users prizes to be claimed.
+
+> [!important]
+> Only WETH has been audited as the `prizeToken` for the prize pool. Other prize tokens may lead to unknown complications due to differences in precision or mathematical limitations.
 
 ## Development
 
